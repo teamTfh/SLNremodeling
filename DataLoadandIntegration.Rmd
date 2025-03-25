@@ -4,12 +4,7 @@ output: html_notebook
 ---
 
 ```{r}
-# library(BPCells)
-# library(Seurat)
 library(Giotto)
-results_folder <- "output"
-instructions <- createGiottoInstructions(save_plot = TRUE, show_plot = TRUE, return_plot = FALSE, 
-                                         save_dir = results_folder)
 library(future)
 plan('multisession', workers = parallelly::availableCores()-2)
 options(future.globals.maxSize= 1e12)
@@ -96,8 +91,6 @@ spatPlot(gobject = out[[3]], point_size = 0.05, point_shape = "no_border")
 
 
 ```{r}
-
-
 sln <- joinGiottoObjects(out, gobject_names = names(files), 
                          x_shift = c(0, 27000, 35000, 45000,70000,90000,129000,167000,
                                      214000,255000,300000,340000,380000,400000,460000), 
@@ -146,76 +139,13 @@ sln.sm <- createNearestNetwork(gobject = sln.sm, dim_reduction_to_use = 'harmony
 sln.sm <- doLeidenClusterIgraph(gobject = sln.sm, resolution = 0.4, n_iterations = 100, 
                                 network_name = 'NN.harmony', name = 'leiden_harmony')  # make the clusters
 sln <- labelTransfer(x = sln, y = sln.sm, labels = "leiden_harmony")  # assign cluster labels in the full dataset based on the reduced data
-# sln <- runUMAPprojection(sln, random_subset = 1e4)  # project UMAP coordinates to the full dataset based on a subsampling
-
-sln.sm <- runUMAP(sln.sm, dim_reduction_name = 'harmony', dim_reduction_to_use = 'harmony', name = 'umap_harmony',
-                 n_neighbors = 15, n_epochs=200, n_threads=10, set_seed=42)
-date(); saveRDS(sln, "sln.harmony.RDS")
-
-codex_metadata <- pDataDT(sln.sm)
-leiden_colors <- getDistinctColors(length(unique(codex_metadata$leiden_harmony)))
-names(leiden_colors) <- unique(codex_metadata$leiden_harmony)
-plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap_harmony', cell_color = 'leiden_harmony',
-         cell_color_code = leiden_colors, show_NN_network = F, point_size = 1, point_border_stroke = 0.1, 
-         save_param = list(save_name = "4.2a_plot"))
-
 ```
 
 
+Then this step was run on the HPC computing cluster
 ```{r}
-markers_scran <- findMarkers_one_vs_all(gobject = sln, method = "scran", expression_values = "normalized",
-                                        cluster_column = "trnsfr_leiden_harmony", min_feats = 3)
-
-topgenes_scran <- unique(markers_scran[, head(.SD, 5), by = "cluster"][["feats"]])
-
-plotMetaDataHeatmap(sln, expression_values = "normalized",
-                    metadata_cols = "trnsfr_leiden_harmony", selected_feats = topgenes_scran,
-                    y_text_size = 8, show_values = "zscores_rescaled",
-                    save_param = list(save_name = "6_a_metaheatmap"))
-```
-
-```{r}
-codex_metadata <- pDataDT(sln)
-leiden_colors <- getDistinctColors(length(unique(codex_metadata$trnsfr_leiden_harmony)))
-names(leiden_colors) <- unique(codex_metadata$trnsfr_leiden_harmony)
-
-spatPlot(gobject = sln, cell_color = "trnsfr_leiden_harmony", point_shape = "no_border", point_size = 0.2, 
-         cell_color_code = leiden_colors, coord_fix_ratio = 1, label_size = 2,
-         legend_text = 5, legend_symbol_size = 2, save_param = list(save_name = "4_b_spatplot"))
-```
-
-
-
-```{r}
-codex_metadata <- pDataDT(sln); keepCells <- subset(codex_metadata, y>7000 & y<9000)$cell_ID
-gc()
-sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells) # make a smaller dataset to work with
-sln.sm <- createSpatialKNNnetwork(sln.sm) 
-
-cellprox <- cellProximityEnrichment(sln.sm, cluster_column = 'trnsfr_leiden_harmony', adjust_method = "fdr",
-                                    number_of_simulations = 200, spatial_network_name = "knn_network")
-# Barplot depicting the ratio of observed over expected frequencies of pairwise interacting clusters (left). Barplot showing the total number of interactions between each pair (right).
-
-cellProximityBarplot(sln.sm, CPscore = cellprox,  min_orig_ints = 3, min_sim_ints = 3)
-```
-
-
-```{r}
-gene_metadata = fDataDT(sln.sm)
-
-high_expressed_genes = gene_metadata[mean_expr_det > quantile(gene_metadata$mean_expr_det)[4]]$gene_ID
-
-## identify genes that are associated with proximity to other cell types
-ICGscoresHighGenes = findInteractionChangedFeats(gobject = sln.sm, selected_feats = high_expressed_genes,
-                                                 spatial_network_name = "knn_network", cluster_column = 'trnsfr_leiden_harmony',
-                                                 diff_test = 'permutation', adjust_method = 'fdr', 
-                                                 nr_permutations = 10, do_parallel = F)
-## visualize
-plotCellProximityGenes(sln.sm, cpgObject = ICGscoresHighGenes, method = 'dotplot')
-```
-
-
-```{r}
+# sln <- runUMAPprojection(sln, random_subset = 1e5)  # project UMAP coordinates to the full dataset based on a subsampling
+# date(); saveRDS(sln, "sln.harmony.RDS")
 
 ```
 
@@ -237,139 +167,6 @@ plotCellProximityGenes(sln.sm, cpgObject = ICGscoresHighGenes, method = 'dotplot
 
 
 
-
-
-```{r}
-meta <- fread(file = "SLN_annotatedoutput/Cluster_Phenotypes_subset2_CD4TCELLS5_NoDownsample_16Clusters_UMAP[npcs4_dim4_res0.3].csv")
-meta$Cluster_Phenotypes <- paste0("CD4_",meta$Cluster_Phenotypes)
-
-CD8 <- fread(file = "SLN_annotatedoutput/Cluster_Phenotypes_subset2_CD8TCELLS7_NoDownsample_15Clusters_UMAP[npcs4_dim4_res0.3].csv")
-clust.num <- data.table(Cluster_Phenotypes = unique(CD8$Cluster_Phenotypes), 
-                        Cluster.Num = seq(1:length(unique(CD8$Cluster_Phenotypes))))
-clust.num$Cluster.Num[1] <- "05";  clust.num$Cluster.Num[2] <- "11";  clust.num$Cluster.Num[3] <- "03"
-clust.num$Cluster.Num[4] <- "01";  clust.num$Cluster.Num[5] <- "06";   clust.num$Cluster.Num[6] <- "14"
-clust.num$Cluster.Num[7] <- "12"; clust.num$Cluster.Num[8] <- "09";  clust.num$Cluster.Num[9] <- "07"
-clust.num$Cluster.Num[10] <- "04"; clust.num$Cluster.Num[11] <- "02"; clust.num$Cluster.Num[12] <- "00"
-clust.num$Cluster.Num[13] <- "13"; clust.num$Cluster.Num[14] <- "10"; clust.num$Cluster.Num[15] <- "08"
-CD8 <- merge(x = CD8, y = clust.num, by="Cluster_Phenotypes", all.x = T)
-CD8$Cluster_Phenotypes <- paste0("CD8_", CD8$Cluster.Num, "_", CD8$Cluster_Phenotypes)
-CD8$Cluster.Num <- NULL; rm(clust.num)
-
-meta <- rbind(meta, CD8)
-
-# Tcells3 <- fread(file = "SLN_annotatedoutput/Cluster_Phenotypes_subset2_tcells3_NoDownsample_14Clusters_UMAP[npcs4_dim4_res0.2].csv");  Tcells3$Cluster_Phenotypes <- paste0("Tcells3_",Tcells3$Cluster_Phenotypes)
-# meta <- rbind(meta, Tcells3)
-# Bcells3 <- fread(file = "SLN_annotatedoutput/Cluster_Phenotypes_subset2_bcells3_NoDownsample_12Clusters_UMAP[npcs4_dim4_res0.2].csv");  Bcells3$Cluster_Phenotypes <- paste0("Bcells3_",Bcells3$Cluster_Phenotypes)
-# meta <- rbind(meta, Bcells3)
-print(meta, 50)
-
-sub <- meta[duplicated(meta$cell_id),]
-meta[cell_id %in% sub$cell_id,][order(cell_id)] ->  dupl.meta
-rm(dupl.meta)
-
-# unresolved:  duplicated annotations between B and T cells 
-# for now, will simply relabel every duplicated cell as MIXED annotation
-
-dupl.ind <- meta[duplicated(meta$cell_id), 'cell_id'] # find all cell_id that are duplicated
-meta$Cluster_Phenotypes[meta$cell_id %in% dupl.ind$cell_id] <- 'MIXED'  # relabel as mixed
-meta <- meta[!duplicated(cell_id)]  # save the first instance of each "cell_id" which should resolve duplications
-sums <- as.data.frame(table(meta$Cluster_Phenotypes))
-ggplot(sums, aes(y=Freq, x=Var1)) + geom_bar(stat='identity') + theme_classic() + 
-  theme(axis.text.x = element_text(angle = 45, hjust=1,vjust=1, size=6))
-
-topLevel <- fread(file = "SLN_annotatedoutput/Cluster_Phenotypes_subset2_NoDownsample_31Clusters_UMAP[npcs4_dim4_res0.5].csv");  topLevel$L1annot <- paste0(topLevel$Cluster_Phenotypes)
-topLevel$orig.ident <- topLevel$Cluster_Phenotypes <- NULL
-write.csv(topLevel, "topLevel.csv")
-meta <- merge(x=meta, y=topLevel, by='cell_id', all.x=T)
-
-metadata <- fread(file = "./sln.metadata.csv")
-metadata <- merge(x = metadata, y=meta, by.x = c("V1", "orig.ident"), by.y= c("cell_id","orig.ident"), all.x = T)
-write.csv(metadata, "metadata_annot.csv" )
-```
-
-
-```{r}
-
-
-# sce.list <- list(); for (ident in unique(sce$orig.ident)) {sce_list[[ident]] <- sce[, sce$orig.ident == ident]}
-
-subs <- sce[,1:537811]  
-centroids <- data.table::data.table(subs@metadata$x[1:537811], subs@metadata$y[1:537811])
-gobject = createGiottoObject(raw_exprs = subs@assays@data$counts, norm_expr = subs@assays@data$counts, spatial_locs = centroids)
-gobject <- addCellMetadata(gobject, new_metadata = subs@metadata, by_column = TRUE, column_cell_ID = "X" )
-# subsIndex <- as.data.table(pDataDT(gobject))
-# subsIndex<- subsIndex[cell_ID %like% "Ctrl1","cell_ID"]
-# subs <- subsetGiotto(gobject, cell_ids = subsIndex, gene_ids = gobject@gene_ID, verbose=T)
-gobject <- createSpatialDelaunayNetwork(gobject)
-spatPlot2D(gobject, point_size = 0.5, point_alpha = 0.3, cell_color = 'seurat_clusters')
-
-```
-
-
-```{r}
-annVector <- as.character(0:27); names(annVector) <- as.character(0:27)  # for some reason i have to use this for cluster annotation
-gobject <- annotateGiotto(gobject, annotation_vector = annVector, cluster_column="seurat_clusters", name="sclust")
-
-cellprox <- cellProximityEnrichment(gobject = gobject, cluster_column = 'sclust',  
-                                    spatial_network_name = "Delaunay_network", adjust_method = "fdr",
-                                    number_of_simulations = 500)
-# Barplot depicting the ratio of observed over expected frequencies of pairwise interacting clusters (left). Barplot showing the total number of interactions between each pair (right).
-
-cellProximityBarplot(gobject = gobject, CPscore = cellprox,  min_orig_ints = 3, min_sim_ints = 3)
-```
-
-
-```{r}
-gene_metadata = fDataDT(gobject)
-
-high_expressed_genes = gene_metadata[mean_expr_det > quantile(gene_metadata$mean_expr_det)[4]]$gene_ID
-
-## identify genes that are associated with proximity to other cell types
-ICGscoresHighGenes = findInteractionChangedGenes(gobject = gobject,
-                                                 selected_genes = high_expressed_genes,
-                                                 spatial_network_name = "Delaunay_network",
-                                                 cluster_column = 'sclust',
-                                                 diff_test = 'permutation',
-                                                 adjust_method = 'fdr',
-                                                 nr_permutations = 500,
-                                                 do_parallel = TRUE, cores = 20)
-## visualize
-plotCellProximityGenes(gobject, cpgObject = ICGscoresHighGenes, method = 'dotplot')
-```
-
-
-```{r}
-ICGscoresFilt = filterInteractionChangedGenes(ICGscoresHighGenes)
-
-## visualize subset of interaction changed genes (ICGs)
-ICGscoresFilt$CPGscores[type_int == 'hetero'][cell_type=='20']
-ICG_genes = c('CD20', 'TBET', 'HLA DR')
-ICG_genes_types = c('18','2','18')
-names(ICG_genes) = ICG_genes_types
-# 
-plotInteractionChangedGenes(gobject = gobject,
-                            cpgObject = ICGscoresHighGenes,
-                            source_type = '20',
-                            source_markers = c('CD8'),
-                            ICG_genes = ICG_genes)
-
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-```{r}
-
-```
 
 
 

@@ -1,0 +1,42 @@
+---
+title: "Neighborhood analyses"
+output: html_notebook
+---
+   
+
+
+
+```{r}
+sln <- readRDS("sln.harmony.RDS")
+codex_metadata <- pDataDT(sln); keepCells <- subset(codex_metadata, y>7000 & y<9000)$cell_ID
+sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells) # make a smaller dataset to work with
+sln.sm <- createSpatialKNNnetwork(sln.sm) 
+
+cellprox <- cellProximityEnrichment(sln.sm, cluster_column = 'trnsfr_leiden_harmony', adjust_method = "fdr",
+                                    number_of_simulations = 200, spatial_network_name = "knn_network")
+# Barplot depicting the ratio of observed over expected frequencies of pairwise interacting clusters (left). Barplot showing the total number of interactions between each pair (right).
+
+cellProximityBarplot(sln.sm, CPscore = cellprox,  min_orig_ints = 3, min_sim_ints = 3)
+```
+
+
+
+
+
+```{r}
+gene_metadata = fDataDT(sln.sm)
+
+high_expressed_genes = gene_metadata[mean_expr_det > quantile(gene_metadata$mean_expr_det)[4]]$gene_ID
+
+## identify genes that are associated with proximity to other cell types
+ICGscoresHighGenes = findInteractionChangedFeats(gobject = sln.sm, selected_feats = high_expressed_genes,
+                                                 spatial_network_name = "knn_network", cluster_column = 'trnsfr_leiden_harmony',
+                                                 diff_test = 'permutation', adjust_method = 'fdr', 
+                                                 nr_permutations = 10, do_parallel = F)
+## visualize
+plotCellProximityGenes(sln.sm, cpgObject = ICGscoresHighGenes, method = 'dotplot')
+```
+
+
+
+
