@@ -166,7 +166,7 @@ spatPlot(gobject = sln, cell_color = "trnsfr_leiden_harmony", point_shape = "no_
 codex_metadata <- pDataDT(sln)
 leiden_colors <- getDistinctColors(length(unique(codex_metadata$trnsfr_leiden_harmony)))
 names(leiden_colors) <- unique(codex_metadata$trnsfr_leiden_harmony)
-plotUMAP(gobject = sln, dim_reduction_name = 'umap_harmony', cell_color = 'trnsfr_leiden_harmony',
+plotUMAP(gobject = sln, dim_reduction_name = 'umap.projection', cell_color = 'trnsfr_leiden_harmony',
          cell_color_code = leiden_colors, show_NN_network = F, point_size = 1, point_border_stroke = 0.1, 
          save_param = list(save_name = "4_b_UMAP-all"))
 ```
