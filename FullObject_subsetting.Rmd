@@ -58,6 +58,7 @@ new_metadata<- df[rep(1:nrow(df), times = a$Freq), ]  # repeat rows the right nu
 md <- cbind(cell_ID=md$cell_ID, new_metadata )        #[,c(1:10, 12:26)])  # works if you limit the number of columns being added?!  
 sln <- addCellMetadata(gobject = sln, new_metadata = md, by_column=T, column_cell_ID = 'cell_ID')
 
+rm(new_metadata); rm(a); rm(b)
 # md <- pDataDT(sln); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1e4))$cell_ID
 # sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
 # leiden_colors <- getDistinctColors(length(unique(md$trnsfr_leiden_harmony)))
@@ -100,10 +101,19 @@ markers_scran <- findMarkers_one_vs_all(gobject = sln, method = "scran", express
 
 topgenes_scran <- unique(markers_scran[, head(.SD, 5), by = "cluster"][["feats"]])
 
+j
 plotMetaDataHeatmap(sln, expression_values = "normalized",
                     metadata_cols = "trnsfr_leiden_harmony", selected_feats = topgenes_scran,
                     y_text_size = 8, show_values = "zscores_rescaled")
 
+
+```
+
+```{r exclude-cluster}
+
+md <- pDataDT(sln); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 2e5))$cell_ID
+sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
+ 
 
 ```
 
