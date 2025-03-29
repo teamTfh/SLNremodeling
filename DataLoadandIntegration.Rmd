@@ -126,6 +126,11 @@ signPCA(sln, scale_unit = TRUE, scree_ylim = c(0,40))
 ```
 
 
+```{r calculate-HVG}
+sln.2 <- calculateHVG(gobject = sln)
+```
+
+
 ```{r plot-PCA}
 Giotto::plotPCA(gobject = sln, point_shape = "no_border", point_size = 0.2)
 ```
@@ -156,11 +161,11 @@ sln <- runUMAPprojection(sln, random_subset = 1e5)  # project UMAP coordinates t
 ```
 
 Plot all of the integrated tissues horizontally
-```{r plot-tissues-horizontally, fig.width=20, fig.height=20}
+```{r plot-tissues-horizontally, fig.width=20, fig.height=15}
 md <- pDataDT(sln)
 leiden_colors <- getDistinctColors(length(unique(md$trnsfr_leiden_harmony)))
 names(leiden_colors) <- unique(md$trnsfr_leiden_harmony)
-spatPlot(gobject = sln, cell_color = "trnsfr_leiden_harmony", point_shape = "no_border", point_size = 0.2, 
+spatPlot(gobject = sln, cell_color = "trnsfr_leiden_harmony", point_shape = "no_border", point_size = 0.1, 
          cell_color_code = leiden_colors, coord_fix_ratio = 1, label_size = 2)
 ```
 
