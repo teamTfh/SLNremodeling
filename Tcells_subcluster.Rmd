@@ -1,0 +1,124 @@
+---
+title: "T cells subclustering"
+output:
+  html_document:
+    df_print: paged    
+    toc: TRUE
+
+---
+
+```{css, echo=FALSE}
+img {
+  max-width:150%;
+  height: auto;
+}
+```
+
+```{r call-libraries} 
+library(Giotto)
+library(future); if(parallelly::availableCores() > 2 & .Platform$OS.type == "windows")  
+  {plan('multisession', workers = parallelly::availableCores()-2)}
+options(future.globals.maxSize= 1e12)
+library(scran); library(MAST); library(leiden);    
+library(data.table)
+library(gplots); library(ggplot2); library(viridis)
+library(dbscan)
+library(dplyr); library(leidenAlg)
+set.seed(43)
+knitr::opts_chunk$set(fig.retina = 2)
+sessionInfo()
+
+```
+
+```{r readRDS}
+sln <- readRDS("sln.harmony.RDS")
+
+```
+
+
+
+
+```{r load-T-B-cells}
+# these steps were run on HPC, 50 GB in 20 minutes on 10 cores
+# Tcells <- runUMAPprojection(Tcells, random_subset = 1e5)  # project UMAP coordinates to the full dataset based on a subsampling
+# Bcells <- runUMAPprojection(Bcells, random_subset = 1e5)  # project UMAP coordinates to the full dataset based on a subsampling
+Tcells <- readRDS("Tcells.UMAP.RDS")
+Bcells <- readRDS("Bcells.UMAP.RDS")
+
+```
+
+
+```{r plotUMAP-Tcells}
+
+md <- pDataDT(Tcells)
+leiden_colors <- getDistinctColors(length(unique(md$trnsfr_leiden_Tcells)))
+names(leiden_colors) <- unique(md$trnsfr_leiden_Tcells)
+plotUMAP(gobject = Tcells, dim_reduction_name = 'umap.projection', cell_color = 'trnsfr_leiden_Tcells',
+         cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.5, point_shape="no_border",
+         point_alpha=0.35)
+```
+
+
+```{r cluster-feat-heatmap-TCells, fig.show = "hold", out.width = "50%"}
+markers_scran <- findMarkers_one_vs_all(gobject = Tcells, method = "scran", expression_values = "normalized",
+                                        cluster_column = "trnsfr_leiden_Tcells", min_feats = 3)
+
+topgenes_scran <- unique(markers_scran[, head(.SD, 5), by = "cluster"][["feats"]])
+
+plotMetaDataHeatmap(Tcells, expression_values = "normalized",
+                    metadata_cols = "trnsfr_leiden_Tcells", selected_feats = topgenes_scran,
+                    y_text_size = 8, show_values = "zscores_rescaled")
+
+```
+
+CD8:  10
+CD4:  
+Unknown: 
+```{r}
+
+dimPlot2D(Tcells, group_by = )
+
+keepCells <- md$cell_ID[which(md$L2.annot == "CD8")]
+CD8 <- subsetGiotto(Tcells, cell_ids = keepCells )
+sln.sm <- subsetGiotto(gobject = Bcells, cell_ids = sample(sln$cell_ID, 1e5, replace=F)) # make a smaller dataset to work with 
+sln.sm <- createNearestNetwork(gobject = sln.sm, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
+                            name = 'NN.harmony', dimensions_to_use = 1:10, k = 10)  # calculate nearest neighbors, focus on global differences 
+sln.sm <- doLeidenClusterIgraph(gobject = sln.sm, resolution = 0.3, n_iterations = 100, 
+                                network_name = 'NN.harmony', name = 'leiden_Bcells')  # make the clusters
+CD8 <- labelTransfer(x = CD8, y = sln.sm, labels = "leiden_Bcells")  # assign cluster labels in the full dataset based on the reduced data
+
+```
+
+
+
+
+```{r plotUMAP-Bcells}
+
+md <- pDataDT(Bcells)
+leiden_colors <- getDistinctColors(length(unique(md$trnsfr_leiden_Bcells)))
+names(leiden_colors) <- unique(md$trnsfr_leiden_Bcells)
+plotUMAP(gobject = Bcells, dim_reduction_name = 'umap.projection', cell_color = 'trnsfr_leiden_Bcells',
+         cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.5, point_shape="no_border",
+         point_alpha=0.35)
+```
+
+
+
+
+
+
+
+```{r cluster-feat-heatmap-TCells, fig.show = "hold", out.width = "50%"}
+markers_scran <- findMarkers_one_vs_all(gobject = Bcells, method = "scran", expression_values = "normalized",
+                                        cluster_column = "trnsfr_leiden_Bcells", min_feats = 3)
+
+topgenes_scran <- unique(markers_scran[, head(.SD, 5), by = "cluster"][["feats"]])
+
+plotMetaDataHeatmap(Bcells, expression_values = "normalized",
+                    metadata_cols = "trnsfr_leiden_Bcells", selected_feats = topgenes_scran,
+                    y_text_size = 8, show_values = "zscores_rescaled")
+
+```
+
+NaiveB - 20, 22, 
+GC-like - 18, 19

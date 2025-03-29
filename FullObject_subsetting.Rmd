@@ -101,7 +101,6 @@ markers_scran <- findMarkers_one_vs_all(gobject = sln, method = "scran", express
 
 topgenes_scran <- unique(markers_scran[, head(.SD, 5), by = "cluster"][["feats"]])
 
-j
 plotMetaDataHeatmap(sln, expression_values = "normalized",
                     metadata_cols = "trnsfr_leiden_harmony", selected_feats = topgenes_scran,
                     y_text_size = 8, show_values = "zscores_rescaled")
@@ -109,14 +108,74 @@ plotMetaDataHeatmap(sln, expression_values = "normalized",
 
 ```
 
+
 ```{r exclude-cluster}
 
-md <- pDataDT(sln); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 2e5))$cell_ID
-sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
+md <- pDataDT(sln); keepCells <- subset(md, 'trnsfr_leiden_harmony' != 22)$cell_ID
+sln <- subsetGiotto(gobject = sln, cell_ids = keepCells)
  
 
 ```
 
+
+```{r plot-ScreePlot-excl1}
+# using channels that Sabrina used for downstream clustering
+clusterChannels <- c("CD3E", "CD4", "CD8", "TCF1", "TOX", "CD45RO", "CD19", "CD20","HLA DR", "CD38", "IGD", "CXCR5", 
+                     "KI67", "CD45", "PAN CYTO", "CD21"," MAC2 GAL3", "IFNG", "MART1", "GP100", "S100B")
+sln <- runPCA(gobject = sln, expression_values = "normalized", scale_unit = TRUE, 
+              method = "factominer", feats_to_use = clusterChannels)
+signPCA(sln, scale_unit = TRUE, scree_ylim = c(0,40))
+```
+
+
+Calculate clusters by Leiden
+```{r calculate-Clusters-excl1}
+
+sln.sm <- subsetGiotto(gobject = sln, cell_ids = sample(sln$cell_ID, 1e5, replace=F)) # make a smaller dataset to work with 
+sln.sm <- createNearestNetwork(gobject = sln.sm, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
+                            name = 'NN.harmony', dimensions_to_use = 1:10, k = 10)  # calculate nearest neighbors, focus on global differences 
+sln.sm <- doLeidenClusterIgraph(gobject = sln.sm, resolution = 0.3, n_iterations = 100, 
+                                network_name = 'NN.harmony', name = 'leiden_harmony')  # make the clusters
+sln <- labelTransfer(x = sln, y = sln.sm, labels = "leiden_harmony")  # assign cluster labels in the full dataset based on the reduced data
+```
+
+UMAP projection
+```{r UMAP-projection-excl1}
+sln <- runUMAPprojection(sln, random_subset = 1e5)  # project UMAP coordinates to the full dataset based on a subsampling
+```
+
+
+```{r save-excl-1}
+saveRDS(sln, "sln.harmony.excl-1.RDS")
+```
+
+
+
+
+```{r plot-UMAP-Downsample-excl1}
+md <- pDataDT(sln); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 2e5))$cell_ID
+sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
+leiden_colors <- getDistinctColors(length(unique(md$trnsfr_leiden_harmony)))
+names(leiden_colors) <- unique(md$trnsfr_leiden_harmony)
+plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.projection', cell_color = 'trnsfr_leiden_harmony',
+         cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.75, point_shape="no_border",
+         point_alpha=0.5)
+
+```
+
+
+```{r cluster-feat-heatmap-excl1-Cells, fig.show="hold"}
+markers_scran <- findMarkers_one_vs_all(gobject = sln, method = "scran", expression_values = "normalized",
+                                        cluster_column = "trnsfr_leiden_harmony", min_feats = 3)
+
+topgenes_scran <- unique(markers_scran[, head(.SD, 5), by = "cluster"][["feats"]])
+
+plotMetaDataHeatmap(sln, expression_values = "normalized",
+                    metadata_cols = "trnsfr_leiden_harmony", selected_feats = topgenes_scran,
+                    y_text_size = 8, show_values = "zscores_rescaled")
+
+
+```
 
 
 ```{r label-L1annotation}
@@ -171,91 +230,6 @@ saveRDS(Bcells, "Bcells.UMAP.RDS")
 ```
 
 
-
-```{r}
-# these steps were run on HPC, 50 GB in 20 minutes on 10 cores
-# Tcells <- runUMAPprojection(Tcells, random_subset = 1e5)  # project UMAP coordinates to the full dataset based on a subsampling
-# Bcells <- runUMAPprojection(Bcells, random_subset = 1e5)  # project UMAP coordinates to the full dataset based on a subsampling
-Tcells <- readRDS("Tcells.UMAP.RDS")
-Bcells <- readRDS("Bcells.UMAP.RDS")
-
-```
-
-
-```{r plotUMAP-Tcells}
-
-md <- pDataDT(Tcells)
-leiden_colors <- getDistinctColors(length(unique(md$trnsfr_leiden_Tcells)))
-names(leiden_colors) <- unique(md$trnsfr_leiden_Tcells)
-plotUMAP(gobject = Tcells, dim_reduction_name = 'umap.projection', cell_color = 'trnsfr_leiden_Tcells',
-         cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.5, point_shape="no_border",
-         point_alpha=0.35)
-```
-
-
-```{r cluster-feat-heatmap-TCells, fig.show = "hold", out.width = "50%"}
-markers_scran <- findMarkers_one_vs_all(gobject = Tcells, method = "scran", expression_values = "normalized",
-                                        cluster_column = "trnsfr_leiden_Tcells", min_feats = 3)
-
-topgenes_scran <- unique(markers_scran[, head(.SD, 5), by = "cluster"][["feats"]])
-
-plotMetaDataHeatmap(Tcells, expression_values = "normalized",
-                    metadata_cols = "trnsfr_leiden_Tcells", selected_feats = topgenes_scran,
-                    y_text_size = 8, show_values = "zscores_rescaled")
-
-```
-
-CD8:  10
-CD4:  
-Unknown: 
-```{r}
-
-dimPlot2D(Tcells, group_by = )
-
-keepCells <- md$cell_ID[which(md$L2.annot == "CD8")]
-CD8 <- subsetGiotto(Tcells, cell_ids = keepCells )
-sln.sm <- subsetGiotto(gobject = Bcells, cell_ids = sample(sln$cell_ID, 1e5, replace=F)) # make a smaller dataset to work with 
-sln.sm <- createNearestNetwork(gobject = sln.sm, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
-                            name = 'NN.harmony', dimensions_to_use = 1:10, k = 10)  # calculate nearest neighbors, focus on global differences 
-sln.sm <- doLeidenClusterIgraph(gobject = sln.sm, resolution = 0.3, n_iterations = 100, 
-                                network_name = 'NN.harmony', name = 'leiden_Bcells')  # make the clusters
-CD8 <- labelTransfer(x = CD8, y = sln.sm, labels = "leiden_Bcells")  # assign cluster labels in the full dataset based on the reduced data
-
-```
-
-
-
-
-```{r plotUMAP-Bcells}
-
-md <- pDataDT(Bcells)
-leiden_colors <- getDistinctColors(length(unique(md$trnsfr_leiden_Bcells)))
-names(leiden_colors) <- unique(md$trnsfr_leiden_Bcells)
-plotUMAP(gobject = Bcells, dim_reduction_name = 'umap.projection', cell_color = 'trnsfr_leiden_Bcells',
-         cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.5, point_shape="no_border",
-         point_alpha=0.35)
-```
-
-
-
-
-
-
-
-```{r cluster-feat-heatmap-TCells, fig.show = "hold", out.width = "50%"}
-markers_scran <- findMarkers_one_vs_all(gobject = Bcells, method = "scran", expression_values = "normalized",
-                                        cluster_column = "trnsfr_leiden_Bcells", min_feats = 3)
-
-topgenes_scran <- unique(markers_scran[, head(.SD, 5), by = "cluster"][["feats"]])
-
-plotMetaDataHeatmap(Bcells, expression_values = "normalized",
-                    metadata_cols = "trnsfr_leiden_Bcells", selected_feats = topgenes_scran,
-                    y_text_size = 8, show_values = "zscores_rescaled")
-
-```
-
-NaiveB - 20, 22, 
-GC-like - 18, 19
 
 
 
