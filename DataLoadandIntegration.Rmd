@@ -25,6 +25,7 @@ library(data.table)
 library(gplots); library(ggplot2); library(viridis)
 library(dbscan)
 library(dplyr); library(leidenAlg)
+set.seed(43)
 knitr::opts_chunk$set(fig.retina = 2)
 sessionInfo()
 
@@ -102,7 +103,7 @@ for(i in 1:length(files))
 spatPlot(gobject = out[[3]], point_size = 0.05, point_shape = "no_border", save_param = list(save_name="1_exampleSLN5"))
 ```
 
-
+Joined objects check
 ```{r join-objects, fig.width=20, fig.height=25}
 sln <- joinGiottoObjects(out, gobject_names = names(files), 
                          x_shift = c(0, 27000, 35000, 45000,70000,90000,129000,167000,
@@ -129,12 +130,12 @@ signPCA(sln, scale_unit = TRUE, scree_ylim = c(0,40))
 Giotto::plotPCA(gobject = sln, point_shape = "no_border", point_size = 0.2)
 ```
 
-
+Harmony integration
 ```{r harmony-integration}
 sln = runGiottoHarmony(sln, vars_use = 'list_ID')
 ```
 
-
+Calculate clusters by Leiden
 ```{r calculate-Clusters}
 # sln <- createNearestNetwork(gobject = sln, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
 #                             name = 'NN.harmony', dimensions_to_use = 1:10, k = 15)
@@ -149,12 +150,12 @@ sln.sm <- doLeidenClusterIgraph(gobject = sln.sm, resolution = 0.3, n_iterations
 sln <- labelTransfer(x = sln, y = sln.sm, labels = "leiden_harmony")  # assign cluster labels in the full dataset based on the reduced data
 ```
 
-
+UMAP projection
 ```{r UMAP-projection}
 sln <- runUMAPprojection(sln, random_subset = 1e5)  # project UMAP coordinates to the full dataset based on a subsampling
 ```
 
-
+Plot all of the integrated tissues horizontally
 ```{r plot-tissues-horizontally, fig.width=20, fig.height=20}
 md <- pDataDT(sln)
 leiden_colors <- getDistinctColors(length(unique(md$trnsfr_leiden_harmony)))
@@ -164,22 +165,27 @@ spatPlot(gobject = sln, cell_color = "trnsfr_leiden_harmony", point_shape = "no_
 ```
 
 
-
+UMAP plot of all the cells 
 ```{r plot-UMAP}
 plotUMAP(gobject = sln, dim_reduction_name = 'umap.projection', cell_color = 'trnsfr_leiden_harmony',
-         cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.75, point_shape="no_border",
+         cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.5, point_shape="no_border",
          point_alpha=0.5)
 ```
 
-
+Plot the umap with a contour overlay
 ```{r plot-UMAP-customContour}
-data <- as.data.frame( sln@dim___ Embeddings(object = Object[["umap"]])[(colnames(Object)), c(1, 2)]
+data <- as.data.frame( sln@dimension_reduction$cells$cell$rna$umap$umap.projection@coordinates)
 data$cluster <- sln@cell_metadata$cell$rna$trnsfr_leiden_harmony
-ggplot(data) + geom_point(aes(x=UMAP_1, y=UMAP_2), color=data$cluster, show.legend = TRUE) + 
-  geom_density2d(aes(x=UMAP_1, y=UMAP_2)) + theme_classic() + 
-  scale_x_continuous(limits=c(min(data$UMAP_1) - .10diff(range(data$UMAP_1)),max(data$UMAP_1) + .10diff(range(data$UMAP_1)))) + 
-  scale_y_continuous(limits=c(min(data$UMAP_2) - .10diff(range(data$UMAP_2)),max(data$UMAP_2) + .10diff(range(data$UMAP_2))))
-rm(data)
+leiden_colors <- getDistinctColors(length(unique(data$cluster)))
+names(leiden_colors) <- unique(data$cluster)
+data <- data[sample(1:nrow(data),3e5), ]
+ggplot(data) + geom_point(aes(x=Dim.1, y=Dim.2, color=cluster), show.legend = FALSE, alpha=0.2, size=0.2) + 
+  geom_point(aes(x = Inf, y = Inf, color = cluster), size = 3, show.legend = TRUE) + 
+  geom_density2d(aes(x=Dim.1, y=Dim.2), linewidth=0.25, color="black") + theme_classic()  + scale_color_manual(values = leiden_colors)   + 
+  scale_x_continuous(limits=c(min(data$Dim.1) - .10*diff(range(data$Dim.1)),max(data$Dim.1) + .10* diff(range(data$Dim.1)))) +
+  scale_y_continuous(limits=c(min(data$Dim.2) - .10*diff(range(data$Dim.2)),max(data$Dim.2) + .10* diff(range(data$Dim.2)))) + 
+  ggtitle("All cells - downsampled") +  guides(color = guide_legend(override.aes = list(shape = 16)))
+rm(data) 
 ```
 
 

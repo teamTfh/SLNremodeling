@@ -83,7 +83,6 @@ plotUMAP(gobject = sln, dim_reduction_name = 'umap.projection', cell_color = 'tr
 
 
 ```{r plot-UMAP-Downsample}
-set.seed(43)
 md <- pDataDT(sln); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 2e5))$cell_ID
 sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
 leiden_colors <- getDistinctColors(length(unique(md$trnsfr_leiden_harmony)))
