@@ -111,7 +111,7 @@ plotMetaDataHeatmap(sln, expression_values = "normalized",
 
 ```{r exclude-cluster}
 
-md <- pDataDT(sln); keepCells <- subset(md, 'trnsfr_leiden_harmony' != 22)$cell_ID
+md <- pDataDT(sln); keepCells <- subset(md, !(trnsfr_leiden_harmony %in% c(21, 23)))$cell_ID  # exclude clusters 21 and 23 because pan-neg
 sln <- subsetGiotto(gobject = sln, cell_ids = keepCells)
  
 
@@ -149,6 +149,11 @@ sln <- runUMAPprojection(sln, random_subset = 1e5)  # project UMAP coordinates t
 saveRDS(sln, "sln.harmony.excl-1.RDS")
 ```
 
+
+```{r readRDS}
+sln <- readRDS("sln.harmony.excl-1.RDS")
+
+```
 
 
 
