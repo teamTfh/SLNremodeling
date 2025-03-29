@@ -7,37 +7,56 @@ output:
 ---
  
 
+```{css, echo=FALSE}
+img {
+  max-width:150%;
+  height: auto;
+}
+```
+ 
+```{r call-libraries} 
+library(Giotto)
+library(future); if(parallelly::availableCores() > 2 & .Platform$OS.type == "windows")  
+  {plan('multisession', workers = parallelly::availableCores()-2)}
+options(future.globals.maxSize= 1e12)
+library(scran); library(MAST); library(leiden);   # library(multinet);  
+library(data.table)
+library(gplots); library(ggplot2); library(viridis)
+library(dbscan)
+library(dplyr); library(leidenAlg)
+set.seed(43)
+sessionInfo()
+
+```
 
 
-```{r}
-sln <- readRDS("sln.harmony.RDS")
-codex_metadata <- pDataDT(sln); keepCells <- subset(codex_metadata, y>7000 & y<9000)$cell_ID
-sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells) # make a smaller dataset to work with
-sln.sm <- createSpatialKNNnetwork(sln.sm) 
+```{r cellProximityEnrichment}
+sln <- readRDS("sln.harmony.UMAP.RDS")
+sln <- createSpatialKNNnetwork(sln) 
 
-cellprox <- cellProximityEnrichment(sln.sm, cluster_column = 'trnsfr_leiden_harmony', adjust_method = "fdr",
+cellprox <- cellProximityEnrichment(sln, cluster_column = 'trnsfr_leiden_harmony', adjust_method = "fdr",
                                     number_of_simulations = 200, spatial_network_name = "knn_network")
 # Barplot depicting the ratio of observed over expected frequencies of pairwise interacting clusters (left). Barplot showing the total number of interactions between each pair (right).
 
-cellProximityBarplot(sln.sm, CPscore = cellprox,  min_orig_ints = 3, min_sim_ints = 3)
+cellProximityBarplot(sln, CPscore = cellprox,  min_orig_ints = 3, min_sim_ints = 3)
 ```
 
 
 
 
 
-```{r}
-gene_metadata = fDataDT(sln.sm)
+```{r Interaction-changed-genes}
+gene_metadata = fDataDT(sln)
 
 high_expressed_genes = gene_metadata[mean_expr_det > quantile(gene_metadata$mean_expr_det)[4]]$gene_ID
 
 ## identify genes that are associated with proximity to other cell types
-ICGscoresHighGenes = findInteractionChangedFeats(gobject = sln.sm, selected_feats = high_expressed_genes,
+ICGscoresHighGenes = findInteractionChangedFeats(gobject = sln, selected_feats = high_expressed_genes,
                                                  spatial_network_name = "knn_network", cluster_column = 'trnsfr_leiden_harmony',
                                                  diff_test = 'permutation', adjust_method = 'fdr', 
-                                                 nr_permutations = 10, do_parallel = F)
+                                                 nr_permutations = 200, do_parallel = T)
 ## visualize
-plotCellProximityGenes(sln.sm, cpgObject = ICGscoresHighGenes, method = 'dotplot')
+plotCellProximityGenes(sln, cpgObject = ICGscoresHighGenes, method = 'dotplot')
 ```
 
 

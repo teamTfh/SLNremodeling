@@ -1,23 +1,31 @@
 ---
 title: "Data loading and harmony integration"
 output:
-  html_document:
-    df_print: paged
-    toc: TRUE
+  html_document: 
+    df_print: default
+    toc: true
 ---
 
-Plan for 20 cores, 150 Gb RAM, and 13.5 hours of time 
+Plan for 10 cores, 200 Gb RAM, and ~13 hours of time on command line on HPC
+
+```{css, echo=FALSE}
+img {
+  max-width:150%;
+  height: auto;
+}
+```
 
 ```{r call-libraries}
 library(Giotto)
-library(future)
-plan('multisession', workers = parallelly::availableCores()-2)
+library(future); if(parallelly::availableCores() > 2 & .Platform$OS.type == "windows")  
+  {plan('multisession', workers = parallelly::availableCores()-2)}
 options(future.globals.maxSize= 1e12)
-library(scran); library(MAST); library(leiden);   # library(multinet);  
+library(scran); library(MAST); library(leiden);     
 library(data.table)
 library(gplots); library(ggplot2); library(viridis)
 library(dbscan)
 library(dplyr); library(leidenAlg)
+knitr::opts_chunk$set(fig.retina = 2)
 sessionInfo()
 
 ```
@@ -95,12 +103,12 @@ spatPlot(gobject = out[[3]], point_size = 0.05, point_shape = "no_border", save_
 ```
 
 
-```{r join-objects}
+```{r join-objects, fig.width=20, fig.height=25}
 sln <- joinGiottoObjects(out, gobject_names = names(files), 
                          x_shift = c(0, 27000, 35000, 45000,70000,90000,129000,167000,
                                      214000,255000,300000,340000,380000,400000,460000), 
                          join_method = "shift", dry_run = F, verbose = TRUE)
-spatPlot2D(sln, point_size=0.05, point_shape = "no_border", group_by = 'list_ID')
+spatPlot2D(sln, point_size=0.05, point_shape = "no_border", group_by = 'list_ID', show_legend = F )
 rm(out)
 
 ```
@@ -111,17 +119,14 @@ rm(out)
 clusterChannels <- c("CD3E","CD4", "CD8","PAX5","CD19", "CD20",
                      "KI67","CD45RO", "PAN.CYTO", "CD21","TOX","IGD",
                      "MART1","GP100")
-date()
 sln <- runPCA(gobject = sln, expression_values = "normalized", scale_unit = TRUE, 
               method = "factominer", feats_to_use = clusterChannels)
-date()
 signPCA(sln, scale_unit = TRUE, scree_ylim = c(0,40))
 ```
 
 
 ```{r plot-PCA}
 Giotto::plotPCA(gobject = sln, point_shape = "no_border", point_size = 0.2)
-date()
 ```
 
 
@@ -131,16 +136,15 @@ sln = runGiottoHarmony(sln, vars_use = 'list_ID')
 
 
 ```{r calculate-Clusters}
-sln <- createNearestNetwork(gobject = sln, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
-                            name = 'NN.harmony', dimensions_to_use = 1:10, k = 15)
-sln <- doLeidenClusterIgraph(gobject = sln, resolution = 0.1, n_iterations = 100, network_name = 'NN.harmony',
-                             name = 'leiden_harmony')
-# saveRDS(sln, "sln.harmony.RDS")
+# sln <- createNearestNetwork(gobject = sln, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
+#                             name = 'NN.harmony', dimensions_to_use = 1:10, k = 15)
+# sln <- doLeidenClusterIgraph(gobject = sln, resolution = 0.1, n_iterations = 100, network_name = 'NN.harmony',
+#                              name = 'leiden_harmony')
 
 sln.sm <- subsetGiotto(gobject = sln, cell_ids = sample(sln$cell_ID, 1e5, replace=F)) # make a smaller dataset to work with 
 sln.sm <- createNearestNetwork(gobject = sln.sm, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
                             name = 'NN.harmony', dimensions_to_use = 1:10, k = 10)  # calculate nearest neighbors, focus on global differences 
-sln.sm <- doLeidenClusterIgraph(gobject = sln.sm, resolution = 0.4, n_iterations = 100, 
+sln.sm <- doLeidenClusterIgraph(gobject = sln.sm, resolution = 0.3, n_iterations = 100, 
                                 network_name = 'NN.harmony', name = 'leiden_harmony')  # make the clusters
 sln <- labelTransfer(x = sln, y = sln.sm, labels = "leiden_harmony")  # assign cluster labels in the full dataset based on the reduced data
 ```
@@ -148,16 +152,13 @@ sln <- labelTransfer(x = sln, y = sln.sm, labels = "leiden_harmony")  # assign c
 
 ```{r UMAP-projection}
 sln <- runUMAPprojection(sln, random_subset = 1e5)  # project UMAP coordinates to the full dataset based on a subsampling
-# date(); saveRDS(sln, "sln.harmony.RDS")
-
 ```
 
 
-
-```{r plot-tissues-horizontally}
-codex_metadata <- pDataDT(sln)
-leiden_colors <- getDistinctColors(length(unique(codex_metadata$trnsfr_leiden_harmony)))
-names(leiden_colors) <- unique(codex_metadata$trnsfr_leiden_harmony)
+```{r plot-tissues-horizontally, fig.width=20, fig.height=20}
+md <- pDataDT(sln)
+leiden_colors <- getDistinctColors(length(unique(md$trnsfr_leiden_harmony)))
+names(leiden_colors) <- unique(md$trnsfr_leiden_harmony)
 spatPlot(gobject = sln, cell_color = "trnsfr_leiden_harmony", point_shape = "no_border", point_size = 0.2, 
          cell_color_code = leiden_colors, coord_fix_ratio = 1, label_size = 2)
 ```
@@ -166,10 +167,25 @@ spatPlot(gobject = sln, cell_color = "trnsfr_leiden_harmony", point_shape = "no_
 
 ```{r plot-UMAP}
 plotUMAP(gobject = sln, dim_reduction_name = 'umap.projection', cell_color = 'trnsfr_leiden_harmony',
-         cell_color_code = leiden_colors, show_NN_network = F, point_size = 1, point_border_stroke = 0.1)
+         cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.75, point_shape="no_border",
+         point_alpha=0.5)
 ```
 
 
+```{r plot-UMAP-customContour}
+data <- as.data.frame( sln@dim___ Embeddings(object = Object[["umap"]])[(colnames(Object)), c(1, 2)]
+data$cluster <- sln@cell_metadata$cell$rna$trnsfr_leiden_harmony
+ggplot(data) + geom_point(aes(x=UMAP_1, y=UMAP_2), color=data$cluster, show.legend = TRUE) + 
+  geom_density2d(aes(x=UMAP_1, y=UMAP_2)) + theme_classic() + 
+  scale_x_continuous(limits=c(min(data$UMAP_1) - .10diff(range(data$UMAP_1)),max(data$UMAP_1) + .10diff(range(data$UMAP_1)))) + 
+  scale_y_continuous(limits=c(min(data$UMAP_2) - .10diff(range(data$UMAP_2)),max(data$UMAP_2) + .10diff(range(data$UMAP_2))))
+rm(data)
+```
+
+
+```{r}
+saveRDS(sln, "sln.harmony.RDS")
+```
 
 
 
