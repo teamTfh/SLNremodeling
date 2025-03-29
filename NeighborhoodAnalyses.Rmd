@@ -26,7 +26,6 @@ library(dbscan)
 library(dplyr); library(leidenAlg)
 set.seed(43)
 sessionInfo()
-
 ```
 
 

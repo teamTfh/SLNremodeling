@@ -174,6 +174,7 @@ plotMetaDataHeatmap(sln, expression_values = "normalized",
                     metadata_cols = "trnsfr_leiden_harmony", selected_feats = topgenes_scran,
                     y_text_size = 8, show_values = "zscores_rescaled")
 
+violinPlot(g, feats = c("Gna12", "Ccnd2", "Btbd17"), cluster_column = "leiden_clus")
 
 ```
 
