@@ -189,7 +189,7 @@ rm(data)
 ```
 
 
-```{r}
+```{r save-harmony-RDS}
 saveRDS(sln, "sln.harmony.RDS")
 ```
 
