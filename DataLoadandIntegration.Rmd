@@ -118,8 +118,8 @@ rm(out)
 
 ```{r plot-ScreePlot}
 # using channels that Sabrina used for downstream clustering
-clusterChannels <- c("CD3E", "CD4", "CD8", "TCF1", "TOX", "CD45RO", "CD19", "CD20","HLA DR", "CD38", "IGD", "CXCR5", 
-                     "KI67", "CD45", "PAN CYTO", "CD21"," MAC2 GAL3", "IFNG", "MART1", "GP100", "S100B")
+clusterChannels <- c("CD3E", "CD4", "CD8", "TCF1", "TOX", "CD45RO", "CD19", "CD20","HLA.DR", "CD38", "IGD", "CXCR5", 
+                     "KI67", "CD45", "PAN.CYTO", "CD21", "MAC2/GAL3", "IFNG", "MART1", "GP100", "S100B")
 sln <- runPCA(gobject = sln, expression_values = "normalized", scale_unit = TRUE, 
               method = "factominer", feats_to_use = clusterChannels)
 signPCA(sln, scale_unit = TRUE, scree_ylim = c(0,40))
