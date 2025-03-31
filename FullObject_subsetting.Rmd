@@ -30,9 +30,12 @@ sessionInfo()
 
 ```
 
+```{r import-sln-meta}
+sln <- readRDS("sln.harmony.meta.RDS")
+```
+
 
 ```{r plot-UMAP-AllCells}
-sln <- readRDS("sln.harmony.meta.RDS")
 md <- pDataDT(sln) 
 leiden_colors <- getDistinctColors(length(unique(md$trnsfr_leiden_harmony)))
 names(leiden_colors) <- unique(md$trnsfr_leiden_harmony)
@@ -203,13 +206,11 @@ saveRDS(sln, "sln.harmony.excl-2.RDS")
 
 ```{r readRDS-exl2}
 sln <- readRDS("sln.harmony.excl-2.RDS")
-
 ```
 
 
-
 ```{r plot-UMAP-Downsample-excl2, fig.show="hold", out.width="50%"}
-md <- pDataDT(sln); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 2.5e5))$cell_ID
+md <- pDataDT(sln); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 5e5))$cell_ID
 sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
 leiden_colors <- getDistinctColors(length(unique(md$trnsfr_leiden_harmony)))
 names(leiden_colors) <- unique(md$trnsfr_leiden_harmony)
@@ -229,6 +230,13 @@ ggplot(data) + geom_point(aes(x=Dim.1, y=Dim.2, color=cluster), show.legend = FA
 rm(data) 
 ```
 
+```{r spatDimPlot-CD3E, fig.width=12, fig.height=12}
+md <- pDataDT(sln); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1e5))$cell_ID
+sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
+dimFeatPlot2D(sln.sm, dim_reduction_name = 'umap.projection', expression_values = "scaled", 
+              feats = c("CD3E","CD4", "CD8", "CD20","MART1","TOX"), 
+              point_alpha = 0.2, point_shape = "no_border", cow_n_col = 2)
+```
 
 
 ```{r calc-feat-heatmap-excl2-Cells}
@@ -237,7 +245,6 @@ markers_scran <- findMarkers_one_vs_all(gobject = sln, method = "scran", express
 
 topgenes_scran <- unique(markers_scran[, head(.SD, 5), by = "cluster"][["feats"]])
 ```
-
 
 ```{r show-feat-heatmap-excl2-Cells, fig.show="hold", out.width="50%"}
 features <- c("CD3E", "CD4", "CD8", "TCF1", "TOX", "CD45RO", "CD19", "CD20","HLA.DR", "CD38", "IGD", "CXCR5", 
@@ -249,14 +256,20 @@ plotMetaDataHeatmap(sln, expression_values = "normalized",
                     metadata_cols = "trnsfr_leiden_harmony", selected_feats = features,
                     y_text_size = 8, show_values = "zscores_rescaled")
 ```
-df[which(df$trnsfr_leiden_harmony %in% c(21)), 'L1.annot'] <- "Tcells"
-df[which(df$trnsfr_leiden_harmony %in% c(  )), 'L1.annot'] <- "Bcells"
-df[which(df$trnsfr_leiden_harmony %in% c(14, 19)), 'L1.annot'] <- "Tumor"
+
+df$L1.annot <- paste0("Unknown.", df$trnsfr_leiden_harmony)
+df[which(df$trnsfr_leiden_harmony %in% c(28,15,20,18,26,33,6)), 'L1.annot'] <- "Tcells"
+df[which(df$trnsfr_leiden_harmony %in% c(17,29,19,31,35,14,11,8)), 'L1.annot'] <- "Bcells"
+df[which(df$trnsfr_leiden_harmony %in% c(  )), 'L1.annot'] <- "GerminalCenter.1"
+df[which(df$trnsfr_leiden_harmony %in% c(16)), 'L1.annot'] <- "Tumor.1"
+df[which(df$trnsfr_leiden_harmony %in% c(21)), 'L1.annot'] <- "Tumor.2"
+df[which(df$trnsfr_leiden_harmony %in% c(23)), 'L1.annot'] <- "Tumor.3"
+df[which(df$trnsfr_leiden_harmony %in% c(36)), 'L1.annot'] <- "Tumor.4"
+
 
 ```{r show-feat-heatmap-excl2-Cells, fig.show="hold", fig.width=10, fig.height=30}
 # don't try to do violinplot on more than 100k cells! 
-violinPlot(sln.sm, feats = features, 
-           cluster_column = "trnsfr_leiden_harmony")
+violinPlot(sln.sm, feats = features, cluster_column = "trnsfr_leiden_harmony")
 
 ```
 
@@ -281,6 +294,9 @@ plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.projection', cell_color = 
 
 ```
 
+```{r}
+saveRDS(giottoToSeuratV4(gobject = sln), "sln.giottoToSeuratV4.RDS")
+```
 
 
 
