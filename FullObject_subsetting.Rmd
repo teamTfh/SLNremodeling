@@ -122,20 +122,20 @@ sln <- runUMAPprojection(sln, random_subset = 1e5)  # project UMAP coordinates t
 
 
 ```{r save-excl-1}
-saveRDS(sln, "sln.harmony.excl-1.RDS")
+# saveRDS(sln, "sln.harmony.excl-1.RDS")
 ```
 
 
 
 
 ```{r readRDS-excl-1}
-sln <- readRDS("sln.harmony.excl-1.RDS")
+# sln <- readRDS("sln.harmony.excl-1.RDS")
 
 ```
 
 
 ```{r plot-UMAP-Downsample-excl1}
-md <- pDataDT(sln); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 2.5e5))$cell_ID
+md <- pDataDT(sln); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 5e5))$cell_ID
 sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
 leiden_colors <- getDistinctColors(length(unique(md$trnsfr_leiden_harmony)))
 names(leiden_colors) <- unique(md$trnsfr_leiden_harmony)
@@ -210,7 +210,7 @@ sln <- readRDS("sln.harmony.excl-2.RDS")
 
 
 ```{r plot-UMAP-Downsample-excl2, fig.show="hold", out.width="50%"}
-md <- pDataDT(sln); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 5e5))$cell_ID
+md <- pDataDT(sln); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1.5e5))$cell_ID
 sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
 leiden_colors <- getDistinctColors(length(unique(md$trnsfr_leiden_harmony)))
 names(leiden_colors) <- unique(md$trnsfr_leiden_harmony)
@@ -260,18 +260,36 @@ plotMetaDataHeatmap(sln, expression_values = "normalized",
 df$L1.annot <- paste0("Unknown.", df$trnsfr_leiden_harmony)
 df[which(df$trnsfr_leiden_harmony %in% c(28,15,20,18,26,33,6)), 'L1.annot'] <- "Tcells"
 df[which(df$trnsfr_leiden_harmony %in% c(17,29,19,31,35,14,11,8)), 'L1.annot'] <- "Bcells"
-df[which(df$trnsfr_leiden_harmony %in% c(  )), 'L1.annot'] <- "GerminalCenter.1"
+df[which(df$trnsfr_leiden_harmony %in% c(3  )), 'L1.annot'] <- "GerminalCenter.1"
 df[which(df$trnsfr_leiden_harmony %in% c(16)), 'L1.annot'] <- "Tumor.1"
 df[which(df$trnsfr_leiden_harmony %in% c(21)), 'L1.annot'] <- "Tumor.2"
 df[which(df$trnsfr_leiden_harmony %in% c(23)), 'L1.annot'] <- "Tumor.3"
 df[which(df$trnsfr_leiden_harmony %in% c(36)), 'L1.annot'] <- "Tumor.4"
 
 
-```{r show-feat-heatmap-excl2-Cells, fig.show="hold", fig.width=10, fig.height=30}
+```{r show-tumor5-only, fig.show="hold",fig.height=12}
+md <- pDataDT(sln); keepCells <- subset(md, list_ID == "tumor.5" & y %in% c(7500:22500) )$cell_ID
+sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
+leiden_colors <- getDistinctColors(length(unique(md$trnsfr_leiden_harmony)))
+names(leiden_colors) <- unique(md$trnsfr_leiden_harmony)
+spatPlot2D(sln.sm, cell_color = 'trnsfr_leiden_harmony', cell_color_code = leiden_colors, point_size = 1, point_shape="no_border",
+         point_alpha=0.5, axis_text=14, legend_text = 14)
+```
+
+
+```{r show-violin, fig.show="hold", fig.width=10, fig.height=30}
 # don't try to do violinplot on more than 100k cells! 
 violinPlot(sln.sm, feats = features, cluster_column = "trnsfr_leiden_harmony")
 
 ```
+
+
+```{r}
+saveRDS(giottoToSeuratV4(gobject = sln), "sln.giottoToSeuratV4.RDS")
+```
+
+
+
 
 
 ```{r label-L1annotation}
@@ -293,11 +311,6 @@ plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.projection', cell_color = 
          point_alpha=0.35)
 
 ```
-
-```{r}
-saveRDS(giottoToSeuratV4(gobject = sln), "sln.giottoToSeuratV4.RDS")
-```
-
 
 
 
