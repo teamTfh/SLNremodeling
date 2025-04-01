@@ -32,7 +32,7 @@ sessionInfo()
 
 ```{r import-sln-meta}
 sln <- readRDS("sln.harmony.meta.RDS")
-print(paste("Primary object size: ", length(keepCells), "cells"))
+print(paste("Primary object size: ", length(sln@cell_ID$cell), "cells"))
 ```
 
 
@@ -74,7 +74,7 @@ plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.projection', cell_color = 
 ```
 
 
-```{r cluster-feat-heatmap-AllCells, fig.show="hold"}
+```{r cluster-feat-heatmap-AllCells, fig.show="hold", out.width="50%"}
 markers_scran <- findMarkers_one_vs_all(gobject = sln, method = "scran", expression_values = "normalized",
                                         cluster_column = "trnsfr_leiden_harmony", min_feats = 3)
 
@@ -84,21 +84,30 @@ plotMetaDataHeatmap(sln, expression_values = "normalized",
                     metadata_cols = "trnsfr_leiden_harmony", selected_feats = topgenes_scran,
                     y_text_size = 8, show_values = "zscores_rescaled")
 
+clusterChannels <- c("CD3E", "CD4", "CD8", "TCF1", "TOX", "CD45RO", "CD19", "CD20","HLA.DR", "CD38", "IGD", "CXCR5", 
+                     "KI67", "CD45", "PAN.CYTO", "CD21", "MAC2/GAL3", "IFNG", "MART1", "GP100", "S100B")
+
+plotMetaDataHeatmap(sln, expression_values = "normalized",
+                    metadata_cols = "trnsfr_leiden_harmony", selected_feats = clusterChannels,
+                    y_text_size = 8, show_values = "zscores_rescaled")
 
 ```
 
 
-```{r exclude-cluster}
-
-md <- pDataDT(sln); keepCells <- subset(md, !(trnsfr_leiden_harmony %in% c(7,10)))$cell_ID  # exclude clusters because pan-neg
+```{r eliminate-most-negative-cluster-exl1}
+df <- calculateMetaTable( sln,  expression_values = c("normalized"), metadata_cols = 'trnsfr_leiden_harmony' )
+df <- df %>% group_by(trnsfr_leiden_harmony) %>% summarise(sum_value = mean(value, na.rm = TRUE), .groups = 'drop')
+df <- df[order(df$sum_value, decreasing = F),]
+toEliminate <- df[1:2,]$trnsfr_leiden_harmony
+md <- pDataDT(sln); keepCells <- subset(md, !(trnsfr_leiden_harmony %in% c(toEliminate)))$cell_ID  # exclude clusters because pan-neg
 sln <- subsetGiotto(gobject = sln, cell_ids = keepCells)
-print(paste("Primary object size: ", length(keepCells), "cells"))
-
+print(paste("Primary object size: ", length(sln@cell_ID$cell), "cells"))
 ```
 
 
 ```{r plot-ScreePlot-excl1}
 # using channels that Sabrina used for downstream clustering
+print("recalculate clusters post-exclusion")
 clusterChannels <- c("CD3E", "CD4", "CD8", "TCF1", "TOX", "CD45RO", "CD19", "CD20","HLA.DR", "CD38", "IGD", "CXCR5", 
                      "KI67", "CD45", "PAN.CYTO", "CD21", "MAC2/GAL3", "IFNG", "MART1", "GP100", "S100B")
 sln <- runPCA(gobject = sln, expression_values = "normalized", scale_unit = TRUE, 
@@ -166,6 +175,13 @@ plotMetaDataHeatmap(sln, expression_values = "normalized",
                     y_text_size = 8, show_values = "zscores_rescaled")
 ```
 
+
+
+```{r eliminate-most-negative-cluster}
+df <- calculateMetaTable( sln,  expression_values = c("normalized"), metadata_cols = 'trnsfr_leiden_harmony' )
+df <- df %>% group_by(trnsfr_leiden_harmony) %>% summarise(sum_value = mean(value, na.rm = TRUE), .groups = 'drop')
+toEliminate <- df[ which(df$sum_value == min(df$sum_value)), ]
+```
 
 
 ```{r establish-L1annot}
