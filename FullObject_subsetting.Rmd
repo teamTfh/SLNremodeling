@@ -32,16 +32,19 @@ sessionInfo()
 
 ```{r import-sln-meta}
 sln <- readRDS("sln.harmony.meta.RDS")
+print(paste("Primary object size: ", length(keepCells), "cells"))
 ```
 
 
-```{r plot-UMAP-AllCells}
+```{r plot-UMAP-AllCells, out.width="50%", fig.show="hold"}
 md <- pDataDT(sln) 
 leiden_colors <- getDistinctColors(length(unique(md$trnsfr_leiden_harmony)))
 names(leiden_colors) <- unique(md$trnsfr_leiden_harmony)
-plotUMAP(gobject = sln, dim_reduction_name = 'umap.projection', cell_color = 'trnsfr_leiden_harmony',
+if(.Platform$OS.type != "windows")  # only try to plot this if we're not in Windows (so presumably on HPC)
+{ plotUMAP(gobject = sln, dim_reduction_name = 'umap.projection', cell_color = 'trnsfr_leiden_harmony',
          cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.75, point_shape="no_border",
          point_alpha=0.5)
+  }
 
 md <- pDataDT(sln); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 2e5))$cell_ID
 sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
@@ -60,7 +63,7 @@ rm(data)
 
 
 ```{r plot-UMAP-Downsample}
-md <- pDataDT(sln); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 2e5))$cell_ID
+md <- pDataDT(sln); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1e5))$cell_ID
 sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
 leiden_colors <- getDistinctColors(length(unique(md$trnsfr_leiden_harmony)))
 names(leiden_colors) <- unique(md$trnsfr_leiden_harmony)
@@ -87,9 +90,9 @@ plotMetaDataHeatmap(sln, expression_values = "normalized",
 
 ```{r exclude-cluster}
 
-md <- pDataDT(sln); keepCells <- subset(md, !(trnsfr_leiden_harmony %in% c(7,10)))$cell_ID  # exclude clusters 21 and 23 because pan-neg
+md <- pDataDT(sln); keepCells <- subset(md, !(trnsfr_leiden_harmony %in% c(7,10)))$cell_ID  # exclude clusters because pan-neg
 sln <- subsetGiotto(gobject = sln, cell_ids = keepCells)
-
+print(paste("Primary object size: ", length(keepCells), "cells"))
 
 ```
 
@@ -110,7 +113,7 @@ Calculate clusters by Leiden
 sln.sm <- subsetGiotto(gobject = sln, cell_ids = sample(sln$cell_ID, 1e5, replace=F)) # make a smaller dataset to work with 
 sln.sm <- createNearestNetwork(gobject = sln.sm, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
                             name = 'NN.harmony', dimensions_to_use = 1:10, k = 10)  # calculate nearest neighbors, focus on global differences 
-sln.sm <- doLeidenClusterIgraph(gobject = sln.sm, resolution = 0.3, n_iterations = 100, 
+sln.sm <- doLeidenClusterIgraph(gobject = sln.sm, resolution = 0.3, n_iterations = 100, set.seed=T, seed_number = 43, 
                                 network_name = 'NN.harmony', name = 'leiden_harmony')  # make the clusters
 sln <- labelTransfer(x = sln, y = sln.sm, labels = "leiden_harmony")  # assign cluster labels in the full dataset based on the reduced data
 ```
@@ -122,20 +125,20 @@ sln <- runUMAPprojection(sln, random_subset = 1e5)  # project UMAP coordinates t
 
 
 ```{r save-excl-1}
-# saveRDS(sln, "sln.harmony.excl-1.RDS")
+saveRDS(sln, "sln.harmony.excl-1.RDS")
 ```
 
 
 
 
 ```{r readRDS-excl-1}
-# sln <- readRDS("sln.harmony.excl-1.RDS")
+sln <- readRDS("sln.harmony.excl-1.RDS")
 
 ```
 
 
 ```{r plot-UMAP-Downsample-excl1}
-md <- pDataDT(sln); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 5e5))$cell_ID
+md <- pDataDT(sln); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1e5))$cell_ID
 sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
 leiden_colors <- getDistinctColors(length(unique(md$trnsfr_leiden_harmony)))
 names(leiden_colors) <- unique(md$trnsfr_leiden_harmony)
@@ -163,49 +166,61 @@ plotMetaDataHeatmap(sln, expression_values = "normalized",
                     y_text_size = 8, show_values = "zscores_rescaled")
 ```
 
-```{r exclude-cluster-round2}
 
-md <- pDataDT(sln); keepCells <- subset(md, !(trnsfr_leiden_harmony %in% c(13, 19, 30)))$cell_ID  # exclude clusters 21 and 23 because pan-neg
-sln <- subsetGiotto(gobject = sln, cell_ids = keepCells)
- 
+
+```{r establish-L1annot}
+md <- pDataDT(sln)
+md$L1.annot <- paste0("Cluster ",md$trnsfr_leiden_harmony)
+md <- md[, which(colnames(md) %in% c("cell_ID", "L1.annot"))]
+sln <- addCellMetadata(gobject = sln, new_metadata = md, by_column=T, column_cell_ID = 'cell_ID')
+
+```
+
+
+
+```{r exclude-cluster-round2}
+# 
+# md <- pDataDT(sln); keepCells <- subset(md, !(trnsfr_leiden_harmony %in% c(13, 19, 30)))$cell_ID  # exclude clusters 21 and 23 because pan-neg
+# sln <- subsetGiotto(gobject = sln, cell_ids = keepCells)
+#  
 
 ```
 
 
 ```{r plot-ScreePlot-excl2}
 # using channels that Sabrina used for downstream clustering
-clusterChannels <- c("CD3E", "CD4", "CD8", "TCF1", "TOX", "CD45RO", "CD19", "CD20","HLA.DR", "CD38", "IGD", "CXCR5", 
-                     "KI67", "CD45", "PAN.CYTO", "CD21", "MAC2/GAL3", "IFNG", "MART1", "GP100", "S100B")
-sln <- runPCA(gobject = sln, expression_values = "normalized", scale_unit = TRUE, 
-              method = "factominer", feats_to_use = clusterChannels)
-signPCA(sln, scale_unit = TRUE, scree_ylim = c(0,40))
+# clusterChannels <- c("CD3E", "CD4", "CD8", "TCF1", "TOX", "CD45RO", "CD19", "CD20","HLA.DR", "CD38", "IGD", "CXCR5", 
+#                      "KI67", "CD45", "PAN.CYTO", "CD21", "MAC2/GAL3", "IFNG", "MART1", "GP100", "S100B")
+# sln <- runPCA(gobject = sln, expression_values = "normalized", scale_unit = TRUE, 
+#               method = "factominer", feats_to_use = clusterChannels)
+# signPCA(sln, scale_unit = TRUE, scree_ylim = c(0,40))
 ```
 
 
 Calculate clusters by Leiden
 ```{r calculate-Clusters-excl2}
 
-sln.sm <- subsetGiotto(gobject = sln, cell_ids = sample(sln$cell_ID, 1e5, replace=F)) # make a smaller dataset to work with 
-sln.sm <- createNearestNetwork(gobject = sln.sm, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
-                            name = 'NN.harmony', dimensions_to_use = 1:10, k = 10)  # calculate nearest neighbors, focus on global differences 
-sln.sm <- doLeidenClusterIgraph(gobject = sln.sm, resolution = 0.3, n_iterations = 100, 
-                                network_name = 'NN.harmony', name = 'leiden_harmony')  # make the clusters
-sln <- labelTransfer(x = sln, y = sln.sm, labels = "leiden_harmony")  # assign cluster labels in the full dataset based on the reduced data
+# sln.sm <- subsetGiotto(gobject = sln, cell_ids = sample(sln$cell_ID, 1e5, replace=F)) # make a smaller dataset to work with 
+# sln.sm <- createNearestNetwork(gobject = sln.sm, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
+#                             name = 'NN.harmony', dimensions_to_use = 1:10, k = 10)  # calculate nearest neighbors, focus on global differences 
+# sln.sm <- doLeidenClusterIgraph(gobject = sln.sm, resolution = 0.3, n_iterations = 100, set_seed = TRUE, seed_number = 43,
+#                                 network_name = 'NN.harmony', name = 'leiden_harmony')  # make the clusters
+# sln <- labelTransfer(x = sln, y = sln.sm, labels = "leiden_harmony")  # assign cluster labels in the full dataset based on the reduced data
 ```
 
 UMAP projection
 ```{r UMAP-projection-excl2}
-sln <- runUMAPprojection(sln, random_subset = 1e5)  # project UMAP coordinates to the full dataset based on a subsampling
+# sln <- runUMAPprojection(sln, random_subset = 1e5)  # project UMAP coordinates to the full dataset based on a subsampling
 ```
 
 
 ```{r save-excl-2}
-saveRDS(sln, "sln.harmony.excl-2.RDS")
+# saveRDS(sln, "sln.harmony.excl-2.RDS")
 ```
 
 
 ```{r readRDS-exl2}
-sln <- readRDS("sln.harmony.excl-2.RDS")
+# sln <- readRDS("sln.harmony.excl-2.RDS")
 ```
 
 
@@ -285,7 +300,8 @@ violinPlot(sln.sm, feats = features, cluster_column = "trnsfr_leiden_harmony")
 
 
 ```{r}
-saveRDS(giottoToSeuratV4(gobject = sln), "sln.giottoToSeuratV4.RDS")
+# x <- giottoToSeuratV4(gobject = sln)
+giottoToAnnData(sln.sm)
 ```
 
 

@@ -107,7 +107,7 @@ Joined objects check
 ```{r join-objects, fig.width=20, fig.height=25}
 sln <- joinGiottoObjects(out, gobject_names = names(files), 
                          x_shift = c(0, 27000, 35000, 45000,70000,90000,129000,167000,
-                                     214000,255000,300000,340000,380000,400000,450000), 
+                                     214000,255000,310000,340000,390000,410000,450000), 
                          join_method = "shift", dry_run = F, verbose = TRUE)
 spatPlot2D(sln, point_size=0.05, point_shape = "no_border", group_by = 'list_ID', show_legend = F )
 rm(out)
