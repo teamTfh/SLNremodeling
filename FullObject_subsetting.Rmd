@@ -122,7 +122,7 @@ Calculate clusters by Leiden
 sln.sm <- subsetGiotto(gobject = sln, cell_ids = sample(sln$cell_ID, 1e5, replace=F)) # make a smaller dataset to work with 
 sln.sm <- createNearestNetwork(gobject = sln.sm, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
                             name = 'NN.harmony', dimensions_to_use = 1:10, k = 10)  # calculate nearest neighbors, focus on global differences 
-sln.sm <- doLeidenClusterIgraph(gobject = sln.sm, resolution = 0.3, n_iterations = 100, set.seed=T, seed_number = 43, 
+sln.sm <- doLeidenClusterIgraph(gobject = sln.sm, resolution = 0.3, n_iterations = 100, set_seed=T, seed_number = 43, 
                                 network_name = 'NN.harmony', name = 'leiden_harmony')  # make the clusters
 sln <- labelTransfer(x = sln, y = sln.sm, labels = "leiden_harmony")  # assign cluster labels in the full dataset based on the reduced data
 ```
