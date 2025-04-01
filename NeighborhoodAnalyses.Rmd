@@ -29,7 +29,7 @@ sessionInfo()
 ```
 
 ```{r}
-sln <- readRDS("sln.harmony-meta.RDS")
+sln <- readRDS("sln.harmony.excl-2.RDS")
 ```
 
 ```{r}
