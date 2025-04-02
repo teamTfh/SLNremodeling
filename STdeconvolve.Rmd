@@ -24,7 +24,7 @@ sln <- readRDS("sln.harmony.excl-1.RDS")
 ```{r}
 md <- pDataDT(sln)
 keepCells <-subset(md, list_ID == "tumor.5")$cell_ID
-sln.sm <- subsetGiotto(gobject = sln, cell_ids = sample(keepCells, 1e4, replace=F))
+sln.sm <- subsetGiotto(gobject = sln, cell_ids = sample(keepCells, 1e3, replace=F))
 md <- pDataDT(sln.sm)
 data("mOB")
 pos <- mOB$pos
@@ -36,12 +36,13 @@ annot <- mOB$annot ## annotated tissue layers assigned to each pixel
 annot <- md$trnsfr_leiden_harmony
 counts <- cleanCounts(counts = cd, verbose = TRUE)
 counts <- round(counts)  # need integer values so round off
-corpus <- restrictCorpus(counts, removeAbove = 1.0, removeBelow = 0.05, alpha = 0.05, plot = TRUE,verbose = TRUE)
+corpus <- restrictCorpus(counts, removeAbove = 10.0, removeBelow = 0.01, alpha = 1, plot = TRUE,verbose = TRUE)
+corpus <- counts
 ```
 
 
 ```{r}
-ldas <- fitLDA(t(as.matrix(corpus)), Ks = seq(3, 15, by = 1),perc.rare.thresh = 0.05, plot=TRUE, verbose=TRUE, 
+ldas <- fitLDA(t(as.matrix(corpus)), Ks = seq(15, 20, by = 1),perc.rare.thresh = 0.05, plot=TRUE, verbose=TRUE, 
                ncores = parallel::detectCores())
 
 ```
@@ -49,7 +50,7 @@ ldas <- fitLDA(t(as.matrix(corpus)), Ks = seq(3, 15, by = 1),perc.rare.thresh = 
 
 ```{r}
 ## select model with minimum perplexity
-optLDA <- optimalModel(models = ldas, opt = "min")
+optLDA <- optimalModel(models = ldas, opt = 19)
 
 ## extract pixel cell-type proportions (theta) and cell-type gene expression profiles (beta) for the given dataset
 ## we can also remove cell-types from pixels that contribute less than 5% of the pixel proportion
@@ -60,8 +61,25 @@ vizAllTopics(deconProp, pos, groups = annot,  group_cols = rainbow(length(levels
 ```
 
 
-```{r}
+```{r plot-correlations-with-clustering}
+com <- md$trnsfr_leiden_harmony # list of cluster identities
+com_proxyTheta <- model.matrix(~ 0 + com)
+rownames(com_proxyTheta) <- md$cell_ID
+colnames(com_proxyTheta) <- unlist(lapply(colnames(com_proxyTheta), 
+                                          function(x) { unlist(strsplit(x, "com"))[2]  }))
+com_proxyTheta <- as.data.frame.matrix(com_proxyTheta)
+com_proxyTheta[1:5,1:5]
 
+corMat_prop <- STdeconvolve::getCorrMtx(m1 = as.matrix(com_proxyTheta), m2 = deconProp, type = "t")
+rownames(corMat_prop) <- paste0("com_", seq(nrow(corMat_prop)))
+colnames(corMat_prop) <- paste0("decon_", seq(ncol(corMat_prop)))
+
+## order the cell-types rows based on best match (highest correlation) with each community 
+pairs <- STdeconvolve::lsatPairs(corMat_prop)
+m <- corMat_prop[pairs$rowix, pairs$colsix]
+
+STdeconvolve::correlationPlot(mat = m, colLabs = "Transcriptional clusters", rowLabs = "STdeconvolve") +
+  ggplot2::theme( axis.text.x = ggplot2::element_text(angle = 90) )
 ```
 
 

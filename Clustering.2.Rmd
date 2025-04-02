@@ -101,6 +101,7 @@ plots[[4]] <- spatPlot2D(sln.sm, cell_color = 'trnsfr_leiden_harmony', cell_colo
 plots[[5]] <- spatPlot2D(sln.sm, cell_color = 'trnsfr_leiden_harmony', cell_color_code = leiden_colors.focus, 
                          point_size = 1, point_shape="no_border", point_alpha=0.3, axis_text=14, 
                          legend_text = 14, return_plot=T)
+
 if(.Platform$OS.type == "windows")  # only try to plot this if we're not in Windows (so presumably on HPC)
 {
   for (i in names(leiden_colors))
@@ -125,9 +126,9 @@ if(.Platform$OS.type == "windows")  # only try to plot this if we're not in Wind
 {  
   plt <- gridExtra::grid.arrange(grobs = list(plots[[1]], plots[[2]],plots[[3]],plots[[4]], plots[[5]]),
                         layout_matrix = rbind(c(1,1,2,2,2),
-                                              c(3,3,3,4,4),
-                                              c(3,3,3,5,5)))
-  ggsave(plot=plt,filename = "annotation_excl1.pdf",height = 14,width=10)
+                                              c(3,3,4,4,4),
+                                              c(3,3,5,5,5)))
+  ggsave(plot=plt,filename = "annotation_excl1.pdf",height = 15,width=10)
   ggsave(plot=plots[[4]],filename="tumor.5.clusters.pdf",height=14,width=10)
   plt; rm(plt)
 }
@@ -194,7 +195,7 @@ sln.sm <- doLeidenClusterIgraph(gobject = sln.sm, resolution = 0.2, n_iterations
                                 network_name = 'NN.harmony', name = 'leiden_Tcells')  # make the clusters
 Tcells <- labelTransfer(x = Tcells, y = sln.sm, labels = "leiden_Tcells")  # assign cluster labels in the full dataset based on the reduced data
 
-saveRDS(Tcells, "Tcells.UMAP.RDS")
+saveRDS(Tcells, "Tcells.RDS")
 
 ```
 
