@@ -210,30 +210,36 @@ plots[[4]] <- spatPlot2D(sln.sm, cell_color = 'trnsfr_leiden_harmony', cell_colo
 plots[[5]] <- spatPlot2D(sln.sm, cell_color = 'trnsfr_leiden_harmony', cell_color_code = leiden_colors.focus, 
                          point_size = 1, point_shape="no_border", point_alpha=0.3, axis_text=14, 
                          legend_text = 14, return_plot=T)
-for (i in names(leiden_colors))
+if(.Platform$OS.type == "windows")  # only try to plot this if we're not in Windows (so presumably on HPC)
 {
-  setwd("output/")
-  print(paste("now plotting cluster", i, "in folder ", getwd()))
-  a <- plots[[4]]  # just plot the full color image 
-  leiden_colors.focus <- rep("gray90",length(leiden_colors))
-  leiden_colors.focus[as.character(i)] <- leiden_colors["1"]
-  b <- spatPlot2D(sln.sm, cell_color = 'trnsfr_leiden_harmony', cell_color_code = leiden_colors.focus, 
-                         point_size = 1, point_shape="no_border", point_alpha=0.3, axis_text=14, 
-                         legend_text = 14, return_plot=T)
-  ggsave(filename = paste("clust.",i,".png"),plot = gridExtra::grid.arrange(a,b,nrow=1) )
-  setwd("..")
+  for (i in names(leiden_colors))
+  {
+    setwd("output/")
+    print(paste("now plotting cluster", i, "in folder ", getwd()))
+    a <- plots[[4]]  # just plot the full color image 
+    leiden_colors.focus <- rep("gray90",length(leiden_colors))
+    leiden_colors.focus[as.character(i)] <- leiden_colors["1"]
+    b <- spatPlot2D(sln.sm, cell_color = 'trnsfr_leiden_harmony', cell_color_code = leiden_colors.focus, 
+                           point_size = 1, point_shape="no_border", point_alpha=0.3, axis_text=14, 
+                           legend_text = 14, return_plot=T)
+    ggsave(filename = paste("clust.",i,".png"),plot = gridExtra::grid.arrange(a,b,nrow=1) )
+    setwd("..")
+  }
 }
 ```
 
 
 ```{r plot-joined-plots-1}
-plt <- gridExtra::grid.arrange(grobs = list(plots[[1]], plots[[2]],plots[[3]],plots[[4]], plots[[5]]),
+if(.Platform$OS.type == "windows")  # only try to plot this if we're not in Windows (so presumably on HPC)
+{  
+  plt <- gridExtra::grid.arrange(grobs = list(plots[[1]], plots[[2]],plots[[3]],plots[[4]], plots[[5]]),
                         layout_matrix = rbind(c(1,1,2,2,2),
                                               c(3,3,3,4,4),
                                               c(3,3,3,4,4)))
-ggsave(plot=plt,filename = "annotation_excl1.pdf",height = 14,width=10)
-ggsave(plot=plots[[4]],filename="tumor.5.clusters.pdf",height=14,width=10)
-plt; rm(plt)
+  ggsave(plot=plt,filename = "annotation_excl1.pdf",height = 14,width=10)
+  ggsave(plot=plots[[4]],filename="tumor.5.clusters.pdf",height=14,width=10)
+  plt; rm(plt)
+}
 ```
 
 
@@ -280,6 +286,11 @@ plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.projection', cell_color = 
 
 ```
 
+```{r save-excl-1-annotated}
+saveRDS(sln, "sln.harmony.excl.annot.RDS")
+```
+
+```
 
 
 ```{r subset-B-and-T-cells}
