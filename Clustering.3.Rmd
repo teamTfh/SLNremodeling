@@ -1,0 +1,104 @@
+---
+title: "Clustering part 3"
+output:
+  html_document:
+    df_print: paged    
+    toc: TRUE
+
+---
+
+```{css, echo=FALSE}
+img {
+  max-width:150%;
+  height: auto;
+}
+```
+
+```{r call-libraries} 
+library(Giotto)
+library(future); if(parallelly::availableCores() > 2 & .Platform$OS.type == "windows")  
+  {plan('multisession', workers = parallelly::availableCores()-2)}
+options(future.globals.maxSize= 1e12)
+library(scran); library(MAST); library(leiden);    
+library(data.table)
+library(gplots); library(ggplot2); library(viridis)
+library(dbscan)
+library(dplyr); library(leidenAlg)
+set.seed(43)
+knitr::opts_chunk$set(fig.retina = 2)
+sessionInfo()
+
+```
+
+
+
+```{r readRDS-Tcells}
+Tcells <- readRDS("Tcells.RDS")
+plots <- list()
+```
+
+
+```{r plot-UMAP-heatmap-Tcells, fig.show="hold", out.width="50%"}
+md <- pDataDT(Tcells); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1e5))$cell_ID
+sln.sm <- subsetGiotto(gobject = Tcells, cell_ids = keepCells)
+leiden_colors <- getDistinctColors(length(unique(md$trnsfr_leiden_Tcells)))
+names(leiden_colors) <- unique(md$trnsfr_leiden_Tcells)
+plots[[1]] <- plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.projection', cell_color = 'trnsfr_leiden_Tcells',
+         cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.75, point_shape="no_border",
+         point_alpha=0.5, return_plot=T)
+
+# markers_scran <- findMarkers_one_vs_all(gobject = Tcells, method = "scran", expression_values = "normalized",
+#                                         cluster_column = "trnsfr_leiden_harmony", min_feats = 3)
+# 
+# topgenes_scran <- unique(markers_scran[, head(.SD, 5), by = "cluster"][["feats"]])
+
+clusterChannels <- c("CD3E", "CD4", "CD8", "TCF1", "GZMB", "HLA.DR", "CD39", "KI67", "PD1", "TOX", "FOXP3", "ICOS", "CD45RO")
+
+plots[[2]] <- plotMetaDataHeatmap(Tcells, expression_values = "normalized",
+                    metadata_cols = "trnsfr_leiden_Tcells", selected_feats = clusterChannels,
+                    y_text_size = 8, show_values = "zscores_rescaled", return_plot = T)
+```
+
+
+```{r label-L1annotation}
+md <- pDataDT(sln)
+df <- data.frame(trnsfr_leiden_harmony = md$trnsfr_leiden_harmony, L1.annot = "Unknown")
+df$cell_ID <- md$cell_ID
+df$L1.annot <- paste0("Clust.", df$trnsfr_leiden_harmony)  # unknown clusters: 1,2,4,6,7,13,14,15,21,25,
+df[which(df$trnsfr_leiden_harmony %in% c(3,10,11,12,18,19,20,28,29,32,33)), 'L1.annot'] <- "Tcells"
+df[which(df$trnsfr_leiden_harmony %in% c(8,23,31 )), 'L1.annot'] <- "Bcells.1"
+df[which(df$trnsfr_leiden_harmony %in% c(5)), 'L1.annot']  <- "FollMant.B"
+df[which(df$trnsfr_leiden_harmony %in% c(9)), 'L1.annot'] <- "GermCtr.1"
+df[which(df$trnsfr_leiden_harmony %in% c(17)), 'L1.annot'] <- "GermCtr.2"
+df[which(df$trnsfr_leiden_harmony %in% c(26 )), 'L1.annot'] <- "Tumor.1"
+df[which(df$trnsfr_leiden_harmony %in% c(22)), 'L1.annot'] <- "Tumor.2"
+df[which(df$trnsfr_leiden_harmony %in% c(30)), 'L1.annot'] <- "Tumor.3"
+df[which(df$trnsfr_leiden_harmony %in% c(16)), 'L1.annot'] <- "DC.1"
+df$trnsfr_leiden_harmony <- NULL
+
+sln <- addCellMetadata(sln, new_metadata = df, by_column = T, column_cell_ID="cell_ID")  # add in the annotations to the main object
+
+md <- pDataDT(sln)
+keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1e5))$cell_ID
+sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
+leiden_colors <- getDistinctColors(length(unique(md$L1.annot)))
+names(leiden_colors) <- unique(md$L1.annot)
+plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.projection', cell_color = 'L1.annot',
+         cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.5, point_shape="no_border",
+         point_alpha=0.35)
+
+```
+
+
+```{r cluster-feat-heatmap-Tcells, fig.show="hold", out.width="50%"}
+
+```
+
+
+
+
+
+```{r read-sln-annotated}
+sln <- readRDS("sln.harmony.excl.annot.RDS")
+```
+

@@ -190,8 +190,13 @@ sln.sm <- doLeidenClusterIgraph(gobject = sln.sm, resolution = 0.2, n_iterations
                                 network_name = 'NN.harmony', name = 'leiden_Tcells')  # make the clusters
 Tcells <- labelTransfer(x = Tcells, y = sln.sm, labels = "leiden_Tcells")  # assign cluster labels in the full dataset based on the reduced data
 
-saveRDS(Tcells, "Tcells.RDS")
+```
 
+
+UMAP projection
+```{r UMAP-projection-Tcells}
+Tcells <- runUMAPprojection(Tcells, random_subset = 1e5)  # project UMAP coordinates to the full dataset based on a subsampling
+saveRDS(Tcells, "Tcells.RDS")
 ```
 
 
