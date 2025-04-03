@@ -39,7 +39,7 @@ plots <- list()
 
 
 ```{r plot-UMAP-Downsample-excl1, fig.show="hold", out.width="50%"}
-md <- pDataDT(sln); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 3e4))$cell_ID
+md <- pDataDT(sln); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 3e5))$cell_ID
 sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
 leiden_colors <- getDistinctColors(length(unique(md$trnsfr_leiden_harmony)))
 names(leiden_colors) <- unique(md$trnsfr_leiden_harmony)
@@ -110,7 +110,7 @@ if(.Platform$OS.type == "windows")  # only try to plot this if we're not in Wind
     print(paste("now plotting cluster", i, "in folder ", getwd()))
     a <- plots[[4]]  # just plot the full color image 
     leiden_colors.focus <- rep("gray90",length(leiden_colors))
-    leiden_colors.focus[as.character(i)] <- leiden_colors["1"]
+    leiden_colors.focus[as.character(i)] <- leiden_colors["13"]
     b <- spatPlot2D(sln.sm, cell_color = 'trnsfr_leiden_harmony', cell_color_code = leiden_colors.focus, 
                            point_size = 1, point_shape="no_border", point_alpha=0.3, axis_text=14, 
                            legend_text = 14, return_plot=T)
@@ -128,7 +128,7 @@ if(.Platform$OS.type == "windows")  # only try to plot this if we're not in Wind
                         layout_matrix = rbind(c(1,1,2,2,2),
                                               c(3,3,4,4,4),
                                               c(3,3,5,5,5)))
-  ggsave(plot=plt,filename = "annotation_excl1.pdf",height = 15,width=10)
+  ggsave(plot=plt,filename = "annotation_excl1.png",height = 15,width=10)
   ggsave(plot=plots[[4]],filename="tumor.5.clusters.pdf",height=14,width=10)
   plt; rm(plt)
 }
@@ -148,21 +148,16 @@ violinPlot(sln.sm, feats = clusterChannels, cluster_column = "trnsfr_leiden_harm
 md <- pDataDT(sln)
 df <- data.frame(trnsfr_leiden_harmony = md$trnsfr_leiden_harmony, L1.annot = "Unknown")
 df$cell_ID <- md$cell_ID
-df$L1.annot <- paste0("Clust.", df$trnsfr_leiden_harmony)  # unknown clusters: 1,2,6,11,12,17,29,30,32
-df[which(df$trnsfr_leiden_harmony %in% c(4,5,7,9,10,13,14,18,21,27,28,31,33)), 'L1.annot'] <- "Tcells"
-df[which(df$trnsfr_leiden_harmony %in% c(20)), 'L1.annot'] <- "Bcells.1"
-df[which(df$trnsfr_leiden_harmony %in% c(8)), 'L1.annot']  <- "FollMant.B"
-df[which(df$trnsfr_leiden_harmony %in% c(15)), 'L1.annot'] <- "GermCtr.1"
-df[which(df$trnsfr_leiden_harmony %in% c(34)), 'L1.annot'] <- "GermCtr.2"
-df[which(df$trnsfr_leiden_harmony %in% c(16)), 'L1.annot'] <- "GermCtr.3"
-df[which(df$trnsfr_leiden_harmony %in% c(3)), 'L1.annot'] <- "GermCtr.4"
-df[which(df$trnsfr_leiden_harmony %in% c(19)), 'L1.annot'] <- "IFNg.hi"
-df[which(df$trnsfr_leiden_harmony %in% c(22)), 'L1.annot'] <- "Tumor.1"
-df[which(df$trnsfr_leiden_harmony %in% c(23)), 'L1.annot'] <- "Tumor.2"
-df[which(df$trnsfr_leiden_harmony %in% c(24)), 'L1.annot'] <- "Tumor.3"
-df[which(df$trnsfr_leiden_harmony %in% c(25)), 'L1.annot'] <- "Tumor.4"
-df[which(df$trnsfr_leiden_harmony %in% c(26)), 'L1.annot'] <- "Tumor.5"
-df[which(df$trnsfr_leiden_harmony %in% c(35)), 'L1.annot'] <- "Tumor.6"
+df$L1.annot <- paste0("Clust.", df$trnsfr_leiden_harmony)  # unknown clusters: 1,2,4,6,7,13,14,15,21,25,
+df[which(df$trnsfr_leiden_harmony %in% c(3,10,11,12,18,19,20,28,29,32,33)), 'L1.annot'] <- "Tcells"
+df[which(df$trnsfr_leiden_harmony %in% c(8,23,31 )), 'L1.annot'] <- "Bcells.1"
+df[which(df$trnsfr_leiden_harmony %in% c(5)), 'L1.annot']  <- "FollMant.B"
+df[which(df$trnsfr_leiden_harmony %in% c(9)), 'L1.annot'] <- "GermCtr.1"
+df[which(df$trnsfr_leiden_harmony %in% c(17)), 'L1.annot'] <- "GermCtr.2"
+df[which(df$trnsfr_leiden_harmony %in% c(26 )), 'L1.annot'] <- "Tumor.1"
+df[which(df$trnsfr_leiden_harmony %in% c(22)), 'L1.annot'] <- "Tumor.2"
+df[which(df$trnsfr_leiden_harmony %in% c(30)), 'L1.annot'] <- "Tumor.3"
+df[which(df$trnsfr_leiden_harmony %in% c(16)), 'L1.annot'] <- "DC.1"
 df$trnsfr_leiden_harmony <- NULL
 
 sln <- addCellMetadata(sln, new_metadata = df, by_column = T, column_cell_ID="cell_ID")  # add in the annotations to the main object
@@ -198,19 +193,6 @@ Tcells <- labelTransfer(x = Tcells, y = sln.sm, labels = "leiden_Tcells")  # ass
 saveRDS(Tcells, "Tcells.RDS")
 
 ```
-
-
-
-
-
-
-
-
-```{r convert-to-AnnData}
-# x <- giottoToSeuratV4(gobject = sln)
-# giottoToAnnData(sln.sm)
-```
-
 
 
 
