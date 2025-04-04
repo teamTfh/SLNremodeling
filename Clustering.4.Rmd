@@ -1,0 +1,184 @@
+---
+title: "Clustering part 4"
+output:
+  html_document:
+    df_print: paged    
+    toc: TRUE
+
+---
+
+```{css, echo=FALSE}
+img {
+  max-width:150%;
+  height: auto;
+}
+```
+
+```{r call-libraries} 
+library(Giotto)
+library(future); if(parallelly::availableCores() > 2 & .Platform$OS.type == "windows")  
+  {plan('multisession', workers = parallelly::availableCores()-2)}
+options(future.globals.maxSize= 1e12)
+library(scran); library(MAST); library(leiden);    
+library(data.table)
+library(gplots); library(ggplot2); library(viridis)
+library(dbscan)
+library(dplyr); library(leidenAlg)
+set.seed(43)
+knitr::opts_chunk$set(fig.retina = 2)
+sessionInfo()
+
+```
+
+
+```{r readRDS-harmony-Tcells}
+Tcells <- readRDS("Tcells.RDS")
+plots <- list()
+```
+
+
+
+
+```{r plot-UMAP-heatmap-Tcells, fig.show="hold", out.width="50%"}
+md <- pDataDT(Tcells); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 5e5))$cell_ID
+sln.sm <- subsetGiotto(gobject = Tcells, cell_ids = keepCells)
+leiden_colors <- getDistinctColors(length(unique(md$trnsfr_leiden_Tcells)))
+names(leiden_colors) <- unique(md$trnsfr_leiden_Tcells)
+plots[[1]] <- plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.projection', cell_color = 'trnsfr_leiden_Tcells',
+         cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.75, point_shape="no_border",
+         point_alpha=0.5, return_plot=T)
+
+# markers_scran <- findMarkers_one_vs_all(gobject = Tcells, method = "scran", expression_values = "normalized",
+#                                         cluster_column = "trnsfr_leiden_harmony", min_feats = 3)
+# 
+# topgenes_scran <- unique(markers_scran[, head(.SD, 5), by = "cluster"][["feats"]])
+
+clusterChannels <- c("CD3E", "CD4", "CD8", "TCF1", "GZMB", "CD39", "KI67", "PD1", "TOX", "FOXP3", "ICOS")
+
+plots[[2]] <- plotMetaDataHeatmap(Tcells, expression_values = "normalized",
+                    metadata_cols = "trnsfr_leiden_Tcells", selected_feats = clusterChannels,
+                    y_text_size = 8, show_values = "zscores_rescaled", return_plot = T)
+```
+
+
+```{r spatDimPlot-Tcells, fig.width=12, fig.height=12}
+md <- pDataDT(Tcells); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1e5))$cell_ID
+sln.sm <- subsetGiotto(gobject = Tcells, cell_ids = keepCells)
+plots[[3]] <- dimFeatPlot2D(sln.sm, dim_reduction_name = 'umap.projection', expression_values = "scaled", 
+              feats = c("TCF1","TOX", "CD8", "CD4","FOXP3","ICOS"), 
+              point_alpha = 0.2, point_shape = "no_border", cow_n_col = 2, return_plot=T)
+```
+
+
+```{r show-violin, fig.show="hold", fig.width=5, fig.height=10, warning=F}
+# don't try to do violinplot on more than 100k cells! 
+md <- pDataDT(Tcells); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 5e4))$cell_ID
+sln.sm <- subsetGiotto(gobject = Tcells, cell_ids = keepCells)
+violinPlot(sln.sm, feats = clusterChannels, cluster_column = "trnsfr_leiden_Tcells")
+
+```
+
+
+```{r plot-joined-plots-2}
+if(.Platform$OS.type == "windows")  # only try to plot this if we're not in Windows (so presumably on HPC)
+{  
+  plt <- gridExtra::grid.arrange(grobs = list(plots[[1]], plots[[2]],plots[[3]]),
+                        layout_matrix = rbind(c(1,1,2,2,2),
+                                              c(3,3,3,3,4),
+                                              c(3,3,3,3,5)))
+  ggsave(plot=plt,filename = "annotation_Tcells.png",height = 15,width=10)
+  # ggsave(plot=plots[[4]],filename="tumor.5.clusters.pdf",height=14,width=10)
+  plt; rm(plt)
+}
+```
+
+
+
+
+```{r label-L2annotation}
+md <- pDataDT(Tcells)
+df <- data.frame(trnsfr_leiden_Tcells = md$trnsfr_leiden_Tcells, L2.annot = "Unknown")
+df$cell_ID <- md$cell_ID
+df$L2.annot <- paste0("Tcells.", df$trnsfr_leiden_Tcells)  # unknown clusters:  1,2,3,5,7,8,9,11,21
+df[which(df$trnsfr_leiden_Tcells %in% c(4)), 'L2.annot'] <- "CD8.1"
+df[which(df$trnsfr_leiden_Tcells %in% c(6)), 'L2.annot'] <- "CD8.2"
+df[which(df$trnsfr_leiden_Tcells %in% c(10)), 'L2.annot']  <- "CD8.3"
+df[which(df$trnsfr_leiden_Tcells %in% c(12)), 'L2.annot'] <- "CD4.1"
+df[which(df$trnsfr_leiden_Tcells %in% c(13)), 'L2.annot'] <- "Treg.1"
+df[which(df$trnsfr_leiden_Tcells %in% c(14)), 'L2.annot'] <- "CD4.2"
+df[which(df$trnsfr_leiden_Tcells %in% c(15)), 'L2.annot'] <- "CD4.3"
+df[which(df$trnsfr_leiden_Tcells %in% c(16)), 'L2.annot'] <- "CD4.4"
+df[which(df$trnsfr_leiden_Tcells %in% c(17)), 'L2.annot'] <- "CD4.5"
+df[which(df$trnsfr_leiden_Tcells %in% c(18)), 'L2.annot'] <- "CD4.6"
+df[which(df$trnsfr_leiden_Tcells %in% c(19)), 'L2.annot'] <- "CD4.6"
+df[which(df$trnsfr_leiden_Tcells %in% c(20)), 'L2.annot'] <- "CD8.4"
+df$trnsfr_leiden_Tcells <- NULL
+
+Tcells <- addCellMetadata(Tcells, new_metadata = df, by_column = T, column_cell_ID="cell_ID")  # add in the annotations to the main object
+
+md <- pDataDT(Tcells)
+keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1e5))$cell_ID
+sln.sm <- subsetGiotto(gobject = Tcells, cell_ids = keepCells)
+leiden_colors <- getDistinctColors(length(unique(md$L2.annot)))
+names(leiden_colors) <- unique(md$L2.annot)
+plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.projection', cell_color = 'L2.annot',
+         cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.5, point_shape="no_border",
+         point_alpha=0.35)
+
+```
+
+
+```{r readRDS-harmony-excl-annot}
+sln <- readRDS("sln.harmony.excl.annot.RDS")
+plots <- list()
+```
+
+
+```{r merge-in-Tcell-annotations, fig.show="hold", out.width="50%"}
+md.sln <- pDataDT(sln)
+md.T <- pDataDT(Tcells)
+md.sln$L2.annot <- "N/A"
+md.sln$L2.annot[which(md.sln$cell_ID %in% md.T$cell_ID)] <- md.T$L2.annot
+table(md.sln$L2.annot, useNA="ifany")
+df <- md.sln[,c("cell_ID","L2.annot")]
+sln <- addCellMetadata(sln, new_metadata = df, by_column = T, column_cell_ID="cell_ID")  # add in the annotations to the main object
+
+md <- pDataDT(sln)
+keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1e5))$cell_ID
+sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
+leiden_colors <- getDistinctColors(length(unique(md$L1.annot)))
+names(leiden_colors) <- unique(md$L1.annot)
+plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.projection', cell_color = 'L1.annot',
+         cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.5, point_shape="no_border",
+         point_alpha=0.35)
+
+leiden_colors <- getDistinctColors(length(unique(md$L2.annot)))
+names(leiden_colors) <- unique(md$L2.annot)
+plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.projection', cell_color = 'L2.annot',
+         cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.5, point_shape="no_border",
+         point_alpha=0.35)
+
+```
+
+
+```{r writeRDS-sln-Tcell-annot}
+saveRDS(sln, "sln.L2.annot.RDS")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

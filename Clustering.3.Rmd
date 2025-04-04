@@ -31,9 +31,7 @@ sessionInfo()
 ```
 
 
-
 ```{r readRDS-harmony-excl-annot}
-
 sln <- readRDS("sln.harmony.excl.annot.RDS")
 plots <- list()
 ```
@@ -43,7 +41,11 @@ plots <- list()
 gc()
 md <- pDataDT(sln); keepCells <- md$cell_ID[which(md$L1.annot == "Tcells")]
 Tcells <- subsetGiotto(sln, cell_ids = keepCells )
-
+print("recalculate clusters post-exclusion")
+clusterChannels <- c("CD3E", "CD4", "CD8", "TCF1", "GZMB", "CD39", "KI67", "PD1", "TOX", "FOXP3", "ICOS", "CD45RA","HLA.DR")
+Tcells <- runPCA(gobject = Tcells, expression_values = "normalized", scale_unit = TRUE, 
+              method = "factominer", feats_to_use = clusterChannels)
+signPCA(Tcells, scale_unit = TRUE, scree_ylim = c(0,40))
 sln.sm <- subsetGiotto(gobject = Tcells, cell_ids = sample(sln$cell_ID, 1e5, replace=F)) # make a smaller dataset to work with 
 sln.sm <- createNearestNetwork(gobject = sln.sm, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
                             name = 'NN.harmony', dimensions_to_use = 1:10, k = 10)  # calculate nearest neighbors, focus on global differences 
@@ -55,44 +57,8 @@ saveRDS(Tcells, "Tcells.RDS")
 ```
 
 
-
-
-
-```{r plot-UMAP-heatmap-Tcells, fig.show="hold", out.width="50%"}
-md <- pDataDT(Tcells); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 5e5))$cell_ID
-sln.sm <- subsetGiotto(gobject = Tcells, cell_ids = keepCells)
-leiden_colors <- getDistinctColors(length(unique(md$trnsfr_leiden_Tcells)))
-names(leiden_colors) <- unique(md$trnsfr_leiden_Tcells)
-plots[[1]] <- plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.projection', cell_color = 'trnsfr_leiden_Tcells',
-         cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.75, point_shape="no_border",
-         point_alpha=0.5, return_plot=T)
-
-# markers_scran <- findMarkers_one_vs_all(gobject = Tcells, method = "scran", expression_values = "normalized",
-#                                         cluster_column = "trnsfr_leiden_harmony", min_feats = 3)
-# 
-# topgenes_scran <- unique(markers_scran[, head(.SD, 5), by = "cluster"][["feats"]])
-
-clusterChannels <- c("CD3E", "CD4", "CD8", "TCF1", "GZMB", "CD39", "KI67", "PD1", "TOX", "FOXP3", "ICOS")
-
-plots[[2]] <- plotMetaDataHeatmap(Tcells, expression_values = "normalized",
-                    metadata_cols = "trnsfr_leiden_Tcells", selected_feats = clusterChannels,
-                    y_text_size = 8, show_values = "zscores_rescaled", return_plot = T)
+```{r readRDS-harmony-excl-annot}
+Tcells <- readRDS("Tcells.RDS")
+plots <- list()
 ```
-```{r spatDimPlot-Tcells, fig.width=12, fig.height=12}
-md <- pDataDT(Tcells); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1e5))$cell_ID
-sln.sm <- subsetGiotto(gobject = Tcells, cell_ids = keepCells)
-plots[[3]] <- dimFeatPlot2D(sln.sm, dim_reduction_name = 'umap.projection', expression_values = "scaled", 
-              feats = c("TCF1","TOX", "CD8", "PD1","FOXP3","ICOS"), 
-              point_alpha = 0.2, point_shape = "no_border", cow_n_col = 2, return_plot=T)
-```
-
-
-```{r show-violin, fig.show="hold", fig.width=5, fig.height=10, warning=F}
-# don't try to do violinplot on more than 100k cells! 
-md <- pDataDT(Tcells); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 5e4))$cell_ID
-sln.sm <- subsetGiotto(gobject = Tcells, cell_ids = keepCells)
-violinPlot(sln.sm, feats = clusterChannels, cluster_column = "trnsfr_leiden_Tcells")
-
-```
-
 
