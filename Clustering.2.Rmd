@@ -178,27 +178,5 @@ saveRDS(sln, "sln.harmony.excl.annot.RDS")
 ```
 
 
-```{r subset-B-and-T-cells}
-gc()
-md <- pDataDT(sln); keepCells <- md$cell_ID[which(md$L1.annot == "Tcells")]
-Tcells <- subsetGiotto(sln, cell_ids = keepCells )
-
-sln.sm <- subsetGiotto(gobject = Tcells, cell_ids = sample(sln$cell_ID, 1e5, replace=F)) # make a smaller dataset to work with 
-sln.sm <- createNearestNetwork(gobject = sln.sm, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
-                            name = 'NN.harmony', dimensions_to_use = 1:10, k = 10)  # calculate nearest neighbors, focus on global differences 
-sln.sm <- doLeidenClusterIgraph(gobject = sln.sm, resolution = 0.2, n_iterations = 100, set_seed = T, seed_number = 43,
-                                network_name = 'NN.harmony', name = 'leiden_Tcells')  # make the clusters
-Tcells <- labelTransfer(x = Tcells, y = sln.sm, labels = "leiden_Tcells")  # assign cluster labels in the full dataset based on the reduced data
-
-```
-
-
-UMAP projection
-```{r UMAP-projection-Tcells}
-Tcells <- runUMAPprojection(Tcells, random_subset = 1e5)  # project UMAP coordinates to the full dataset based on a subsampling
-saveRDS(Tcells, "Tcells.RDS")
-```
-
-
 
 
