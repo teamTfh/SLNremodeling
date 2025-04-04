@@ -24,25 +24,21 @@ sln <- readRDS("sln.harmony.excl-1.RDS")
 ```{r}
 md <- pDataDT(sln)
 keepCells <-subset(md, list_ID == "tumor.5")$cell_ID
-sln.sm <- subsetGiotto(gobject = sln, cell_ids = sample(keepCells, 1e3, replace=F))
+sln.sm <- subsetGiotto(gobject = sln, cell_ids = sample(keepCells, 1e4, replace=F))
 md <- pDataDT(sln.sm)
-data("mOB")
-pos <- mOB$pos
 pos <- data.frame(x = sln.sm@spatial_locs$cell$raw$sdimx, y=sln.sm@spatial_locs$cell$raw$sdimy, 
                   row.names = sln.sm@spatial_locs$cell$raw$cell_ID) ## x and y positions of each pixel
-cd <- mOB$counts ## matrix of gene counts in each pixel
 cd <- Giotto::getExpression(sln.sm, output = "matrix")
-annot <- mOB$annot ## annotated tissue layers assigned to each pixel
 annot <- md$trnsfr_leiden_harmony
 counts <- cleanCounts(counts = cd, verbose = TRUE)
 counts <- round(counts)  # need integer values so round off
-corpus <- restrictCorpus(counts, removeAbove = 10.0, removeBelow = 0.01, alpha = 1, plot = TRUE,verbose = TRUE)
-corpus <- counts
+corpus <- restrictCorpus(counts, removeAbove = 30.0, removeBelow = 0.01, alpha = 1, plot = TRUE,verbose = TRUE)
+# corpus <- counts
 ```
 
 
 ```{r}
-ldas <- fitLDA(t(as.matrix(corpus)), Ks = seq(15, 20, by = 1),perc.rare.thresh = 0.05, plot=TRUE, verbose=TRUE, 
+ldas <- fitLDA(t(as.matrix(corpus)), Ks = seq(27, 28, by = 1),perc.rare.thresh = 0.05, plot=TRUE, verbose=TRUE, 
                ncores = parallel::detectCores())
 
 ```
@@ -50,14 +46,14 @@ ldas <- fitLDA(t(as.matrix(corpus)), Ks = seq(15, 20, by = 1),perc.rare.thresh =
 
 ```{r}
 ## select model with minimum perplexity
-optLDA <- optimalModel(models = ldas, opt = 19)
+optLDA <- optimalModel(models = ldas, opt = 27)
 
 ## extract pixel cell-type proportions (theta) and cell-type gene expression profiles (beta) for the given dataset
 ## we can also remove cell-types from pixels that contribute less than 5% of the pixel proportion
 ## and scale the deconvolved transcriptional profiles by 1000 
 results <- getBetaTheta(optLDA, perc.filt = 0.05, betaScale = 1000)
 deconProp <- results$theta;    deconGexp <- results$beta
-vizAllTopics(deconProp, pos, groups = annot,  group_cols = rainbow(length(levels(annot))), r=200, lwd=0.05)
+# vizAllTopics(deconProp, pos, groups = annot,  group_cols = rainbow(length(levels(annot))), r=200, lwd=0.05)
 ```
 
 
@@ -71,8 +67,8 @@ com_proxyTheta <- as.data.frame.matrix(com_proxyTheta)
 com_proxyTheta[1:5,1:5]
 
 corMat_prop <- STdeconvolve::getCorrMtx(m1 = as.matrix(com_proxyTheta), m2 = deconProp, type = "t")
-rownames(corMat_prop) <- paste0("com_", seq(nrow(corMat_prop)))
-colnames(corMat_prop) <- paste0("decon_", seq(ncol(corMat_prop)))
+rownames(corMat_prop) <- paste0("trnsfr_leiden", seq(nrow(corMat_prop)))
+colnames(corMat_prop) <- paste0("STdeconvolve_", seq(ncol(corMat_prop)))
 
 ## order the cell-types rows based on best match (highest correlation) with each community 
 pairs <- STdeconvolve::lsatPairs(corMat_prop)
