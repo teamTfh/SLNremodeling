@@ -16,20 +16,20 @@ library(Giotto)
 
 
 ```{r readRDS-excl-1}
-sln <- readRDS("sln.harmony.excl-1.RDS")
+sln <- readRDS("sln.L2.annot.RDSS")
 
 ```
 
 
 ```{r}
 md <- pDataDT(sln)
-keepCells <-subset(md, list_ID == "tumor.5")$cell_ID
-sln.sm <- subsetGiotto(gobject = sln, cell_ids = sample(keepCells, 1e4, replace=F))
+keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1e6))$cell_ID
+sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
 md <- pDataDT(sln.sm)
 pos <- data.frame(x = sln.sm@spatial_locs$cell$raw$sdimx, y=sln.sm@spatial_locs$cell$raw$sdimy, 
                   row.names = sln.sm@spatial_locs$cell$raw$cell_ID) ## x and y positions of each pixel
 cd <- Giotto::getExpression(sln.sm, output = "matrix")
-annot <- md$trnsfr_leiden_harmony
+annot <- md$L1.annot
 counts <- cleanCounts(counts = cd, verbose = TRUE)
 counts <- round(counts)  # need integer values so round off
 corpus <- restrictCorpus(counts, removeAbove = 30.0, removeBelow = 0.01, alpha = 1, plot = TRUE,verbose = TRUE)
@@ -58,7 +58,7 @@ deconProp <- results$theta;    deconGexp <- results$beta
 
 
 ```{r plot-correlations-with-clustering}
-com <- md$trnsfr_leiden_harmony # list of cluster identities
+com <- md$L1.annot # list of cluster identities
 com_proxyTheta <- model.matrix(~ 0 + com)
 rownames(com_proxyTheta) <- md$cell_ID
 colnames(com_proxyTheta) <- unlist(lapply(colnames(com_proxyTheta), 
@@ -74,12 +74,15 @@ colnames(corMat_prop) <- paste0("STdeconvolve_", seq(ncol(corMat_prop)))
 pairs <- STdeconvolve::lsatPairs(corMat_prop)
 m <- corMat_prop[pairs$rowix, pairs$colsix]
 
-STdeconvolve::correlationPlot(mat = m, colLabs = "Transcriptional clusters", rowLabs = "STdeconvolve") +
+STdeconvolve::correlationPlot(mat = m, colLabs = "L1.annot", rowLabs = "STdeconvolve") +
   ggplot2::theme( axis.text.x = ggplot2::element_text(angle = 90) )
 ```
 
 
 
+```{r save-result-table}
+saveRDS(results, "STdeconvolve.results.RDS")
+```
 
 
 

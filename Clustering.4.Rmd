@@ -162,6 +162,9 @@ plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.projection', cell_color = 
 
 
 ```{r writeRDS-sln-Tcell-annot}
+md <- pDataDT(sln)
+table(md$L1.annot)
+table(md$L2.annot)
 saveRDS(sln, "sln.L2.annot.RDS")
 ```
 

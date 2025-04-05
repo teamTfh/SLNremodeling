@@ -23,6 +23,7 @@ options(future.globals.maxSize= 1e12)
 library(scran); library(MAST); library(leiden);     
 library(data.table)
 library(gplots); library(ggplot2); library(viridis)
+library(harmony)
 library(dbscan)
 library(dplyr); library(leidenAlg)
 set.seed(43)
@@ -51,10 +52,13 @@ cleanHALO <- function(halo.obj, label=paste0(sample(letters, 5, T), collapse = "
   rownames(expr) <- paste0(label, "_", halo.obj$Object.Id)
   locations$x <- rowMeans(halo.obj[,c('XMax', 'XMin')]);   locations$y <- rowMeans(halo.obj[,c('YMax', 'YMin')])
   
-  metadata <- halo.obj[, which(colnames(halo.obj) == 'Classifier.Label' | colnames(halo.obj) == 'Object.Id')] # recover region & cellID columns
+  # recover region & cellID columns
+  saveColumns <- c(colnames(halo.obj)[grep('Object.Id', colnames(halo.obj), value=F)],
+                   colnames(halo.obj)[grep('Classifier.Label', colnames(halo.obj), value=F)],
+                   colnames(halo.obj)[grep("Positive.Classification$", colnames(halo.obj), value=F)], 
+                   colnames(halo.obj)[9:17])
+  metadata <- halo.obj[, saveColumns]
   metadata$cellID <- paste0(label, "_", halo.obj$Object.Id)
-  # metadata$STAT1.activity <- halo.obj$STAT1.Nucleus.Intensity/halo.obj$STAT1.Cell.Intensity
-  # metadata$STAT3.activity <- halo.obj$STAT3.Nucleus.Intensity/halo.obj$STAT3.Cell.Intensity
   metadata$cellArea <- halo.obj$Cell.Area..µm..
   metadata$x <- locations$x;   metadata$y <- locations$y
 
@@ -75,9 +79,6 @@ makeGiottoObject <- function(inputFile, label=sample.name)
   keepID <- cell_metadata[Classifier.Label != "Background" & Classifier.Label != "Artifact", ]$cell_ID
   sln <- subsetGiotto(sln, cell_ids = keepID)
   
-  #filter poor performing antibodies and cells without expression but will exclude on protein analysis for now
-  # sln <- filterGiotto(gobject = sln, expression_threshold = 1, gene_det_in_min_cells = 10,
-  #                            min_det_genes_per_cell = 2, expression_values = "raw", verbose = TRUE)
   print("Starting normalization")
   sln <- normalizeGiotto(gobject = sln, scalefactor = 6000, norm_methods = "standard",
                                 verbose = TRUE, log_norm = FALSE, library_size_norm = FALSE,
@@ -130,6 +131,50 @@ signPCA(sln, scale_unit = TRUE, scree_ylim = c(0,40))
 Giotto::plotPCA(gobject = sln, point_shape = "no_border", point_size = 0.2)
 ```
 
+
+
+Calculate clusters by Leiden
+```{r calculate-Clusters-nointegrate}
+sln.sm <- subsetGiotto(gobject = sln, cell_ids = sample(sln$cell_ID, 1e6, replace=F)) # make a smaller dataset to work with 
+
+sln.sm <- createNearestNetwork(gobject = sln.sm, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony',
+                            name = 'NN.harmony', dimensions_to_use = 1:10, k = 15)
+sln.sm <- doLeidenClusterIgraph(gobject = sln.sm, resolution = 0.1, n_iterations = 100, network_name = 'NN.harmony',
+                             name = 'trnsfr_leiden_harmony')
+
+# sln.sm <- createNearestNetwork(gobject = sln.sm, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
+#                             name = 'NN.harmony', dimensions_to_use = 1:10, k = 10)  # calculate nearest neighbors, focus on global differences 
+# sln.sm <- doLeidenClusterIgraph(gobject = sln.sm, resolution = 0.3, n_iterations = 100, 
+#                                 network_name = 'NN.harmony', name = 'leiden_harmony')  # make the clusters
+# sln <- labelTransfer(x = sln, y = sln.sm, labels = "leiden_harmony")  # assign cluster labels in the full dataset based on the reduced data
+```
+
+UMAP projection
+```{r UMAP-projections-nointegrate}
+sln.sm <- runUMAPprojection(sln.sm, random_subset = 1e5)  # project UMAP coordinates to the full dataset based on a subsampling
+```
+
+
+Plot all of the tissues horizontally preintegration
+```{r plot-tissues-horizontallys-nointegrate, fig.width=20, fig.height=15}
+md <- pDataDT(sln.sm)
+leiden_colors <- getDistinctColors(length(unique(md$trnsfr_leiden_harmony)))
+names(leiden_colors) <- unique(md$trnsfr_leiden_harmony)
+spatPlot(gobject = sln.sm, cell_color = "trnsfr_leiden_harmony", point_shape = "no_border", point_size = 0.1, 
+         cell_color_code = leiden_colors, coord_fix_ratio = 1, label_size = 2)
+```
+
+
+
+UMAP plot of all the cells preintegration
+```{r plot-UMAP-nointegrate}
+plotUMAP(gobject = sln, dim_reduction_name = 'umap.projection', cell_color = 'trnsfr_leiden_harmony',
+         cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.5, point_shape="no_border",
+         point_alpha=0.5)
+```
+
+
+
 Harmony integration
 ```{r harmony-integration}
 sln = runGiottoHarmony(sln, vars_use = 'list_ID')
@@ -137,17 +182,18 @@ sln = runGiottoHarmony(sln, vars_use = 'list_ID')
 
 Calculate clusters by Leiden
 ```{r calculate-Clusters}
-# sln <- createNearestNetwork(gobject = sln, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
-#                             name = 'NN.harmony', dimensions_to_use = 1:10, k = 15)
-# sln <- doLeidenClusterIgraph(gobject = sln, resolution = 0.1, n_iterations = 100, network_name = 'NN.harmony',
-#                              name = 'leiden_harmony')
+# sln.sm <- subsetGiotto(gobject = sln, cell_ids = sample(sln$cell_ID, 1e5, replace=F)) # make a smaller dataset to work with 
 
-sln.sm <- subsetGiotto(gobject = sln, cell_ids = sample(sln$cell_ID, 1e5, replace=F)) # make a smaller dataset to work with 
-sln.sm <- createNearestNetwork(gobject = sln.sm, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
-                            name = 'NN.harmony', dimensions_to_use = 1:10, k = 10)  # calculate nearest neighbors, focus on global differences 
-sln.sm <- doLeidenClusterIgraph(gobject = sln.sm, resolution = 0.3, n_iterations = 100, 
-                                network_name = 'NN.harmony', name = 'leiden_harmony')  # make the clusters
-sln <- labelTransfer(x = sln, y = sln.sm, labels = "leiden_harmony")  # assign cluster labels in the full dataset based on the reduced data
+sln <- createNearestNetwork(gobject = sln, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony',
+                            name = 'NN.harmony', dimensions_to_use = 1:10, k = 15)
+sln <- doLeidenClusterIgraph(gobject = sln, resolution = 0.1, n_iterations = 100, network_name = 'NN.harmony',
+                             name = 'trnsfr_leiden_harmony')
+
+# sln.sm <- createNearestNetwork(gobject = sln.sm, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
+#                             name = 'NN.harmony', dimensions_to_use = 1:10, k = 10)  # calculate nearest neighbors, focus on global differences 
+# sln.sm <- doLeidenClusterIgraph(gobject = sln.sm, resolution = 0.3, n_iterations = 100, 
+#                                 network_name = 'NN.harmony', name = 'leiden_harmony')  # make the clusters
+# sln <- labelTransfer(x = sln, y = sln.sm, labels = "leiden_harmony")  # assign cluster labels in the full dataset based on the reduced data
 ```
 
 UMAP projection
