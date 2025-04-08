@@ -16,7 +16,7 @@ library(Giotto)
 
 
 ```{r readRDS-excl-1}
-sln <- readRDS("sln.L2.annot.RDSS")
+sln <- readRDS("sln.L2.annot.RDS")
 
 ```
 
@@ -38,7 +38,7 @@ corpus <- restrictCorpus(counts, removeAbove = 30.0, removeBelow = 0.01, alpha =
 
 
 ```{r}
-ldas <- fitLDA(t(as.matrix(corpus)), Ks = seq(27, 28, by = 1),perc.rare.thresh = 0.05, plot=TRUE, verbose=TRUE, 
+ldas <- fitLDA(t(as.matrix(corpus)), Ks = seq(26, 35, by = 1),perc.rare.thresh = 0.05, plot=TRUE, verbose=TRUE, 
                ncores = parallel::detectCores())
 
 ```

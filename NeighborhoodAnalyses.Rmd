@@ -28,26 +28,31 @@ set.seed(43)
 sessionInfo()
 ```
 
-```{r}
-sln <- readRDS("sln.harmony.excl-2.RDS")
+```{r read-in-L2annot}
+sln <- readRDS("sln.L2annot.RDS")
+plots = list()
+prox.results = list()
 ```
-
-```{r}
-md <- pDataDT(sln); keepCells <- subset(md, orig.ident == "SLN_ctrl1" )$cell_ID
-sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
-
-```
-
-
 
 ```{r cellProximityEnrichment}
-sln.sm <- createSpatialKNNnetwork(sln.sm) 
+md <- pDataDT(sln)
+list_ID <- unique(md$list_ID)
+gc()
 
-cellprox <- cellProximityEnrichment(sln.sm, cluster_column = 'trnsfr_leiden_harmony', adjust_method = "fdr",
-                                    number_of_simulations = 200, spatial_network_name = "knn_network")
-# Barplot depicting the ratio of observed over expected frequencies of pairwise interacting clusters (left). Barplot showing the total number of interactions between each pair (right).
+for (i in list_ID)
+{
+  print(i)
+  keepCells <- subset(md, list_ID %in% i )$cell_ID
+  sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
+  sln.sm <- createSpatialKNNnetwork(sln.sm) 
+  
+  prox.results[i] <- cellProximityEnrichment(sln.sm, cluster_column = 'L1.annot', adjust_method = "fdr",
+                                      number_of_simulations = 200, spatial_network_name = "knn_network")
+  # Barplot depicting the ratio of observed over expected frequencies of pairwise interacting clusters (left). Barplot showing the total number of interactions between each pair (right).
+  
+  plots[i] <- cellProximityBarplot(sln.sm, CPscore = cellprox,  min_orig_ints = 3, min_sim_ints = 3, return_plot = T)
+}
 
-cellProximityBarplot(sln.sm, CPscore = cellprox,  min_orig_ints = 3, min_sim_ints = 3)
 ```
 
 
@@ -61,7 +66,7 @@ high_expressed_genes = gene_metadata[mean_expr_det > quantile(gene_metadata$mean
 
 ## identify genes that are associated with proximity to other cell types
 ICGscoresHighGenes = findInteractionChangedFeats(gobject = sln.sm, selected_feats = high_expressed_genes,
-                                                 spatial_network_name = "knn_network", cluster_column = 'trnsfr_leiden_harmony',
+                                                 spatial_network_name = "knn_network", cluster_column = 'L1.annot',
                                                  diff_test = 'permutation', adjust_method = 'fdr', 
                                                  nr_permutations = 20, do_parallel = FALSE)
 ## visualize

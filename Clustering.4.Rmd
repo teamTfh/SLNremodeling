@@ -142,6 +142,8 @@ md.sln$L2.annot[which(md.sln$cell_ID %in% md.T$cell_ID)] <- md.T$L2.annot
 table(md.sln$L2.annot, useNA="ifany")
 df <- md.sln[,c("cell_ID","L2.annot")]
 sln <- addCellMetadata(sln, new_metadata = df, by_column = T, column_cell_ID="cell_ID")  # add in the annotations to the main object
+rm(md.sln)
+rm(md.T)
 
 md <- pDataDT(sln)
 keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1e5))$cell_ID
