@@ -1,5 +1,5 @@
 ---
-title: "Full object subsetting"
+title: "Add clinical metadata"
 output:
   html_document:
     df_print: paged    
@@ -60,13 +60,18 @@ md <- cbind(cell_ID=md$cell_ID, new_metadata )        # now this is ok
 sln <- addCellMetadata(gobject = sln, new_metadata = md, by_column=T, column_cell_ID = 'cell_ID')
 
 rm(new_metadata); rm(a); rm(b)
-md <- pDataDT(sln); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1e4))$cell_ID
-sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
-leiden_colors <- getDistinctColors(length(unique(md$trnsfr_leiden_harmony)))
-names(leiden_colors) <- unique(md$trnsfr_leiden_harmony)
-plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.projection', cell_color = 'trnsfr_leiden_harmony',
-         cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.75, point_shape="no_border",
-         point_alpha=0.5)
+
+md <- pDataDT(sln)
+newdf <- data.frame(cell_ID=md$cell_ID, leiden_harmony = md$trnsfr_leiden_harmony)
+sln <- addCellMetadata(gobject = sln, new_metadata = newdf, by_column=T, column_cell_ID = 'cell_ID')
+
+# md <- pDataDT(sln); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1e4))$cell_ID
+# sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
+# leiden_colors <- getDistinctColors(length(unique(md$trnsfr_leiden_harmony)))
+# names(leiden_colors) <- unique(md$trnsfr_leiden_harmony)
+# plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.projection', cell_color = 'trnsfr_leiden_harmony',
+#          cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.75, point_shape="no_border",
+#          point_alpha=0.5)
 ```
 
 

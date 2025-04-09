@@ -1,5 +1,5 @@
 ---
-title: "Full object clustering"
+title: "Clustering part 1"
 output:
   html_document:
     df_print: paged    
@@ -33,15 +33,19 @@ sessionInfo()
 ```{r import-sln-meta}
 sln <- readRDS("sln.harmony.meta.RDS")
 print(paste("Primary object size: ", length(sln@cell_ID$cell), "cells"))
+md <- pDataDT(sln) 
+print("cluster membership")
+print(table(md$leiden_harmony))
+
 ```
 
 
 ```{r plot-UMAP-AllCells, out.width="50%", fig.show="hold"}
 md <- pDataDT(sln) 
-leiden_colors <- getDistinctColors(length(unique(md$trnsfr_leiden_harmony)))
-names(leiden_colors) <- unique(md$trnsfr_leiden_harmony)
+leiden_colors <- getDistinctColors(length(unique(md$leiden_harmony)))
+names(leiden_colors) <- unique(md$leiden_harmony)
 if(.Platform$OS.type != "windows")  # only try to plot this if we're not in Windows (so presumably on HPC)
-{ plotUMAP(gobject = sln, dim_reduction_name = 'umap.projection', cell_color = 'trnsfr_leiden_harmony',
+{ plotUMAP(gobject = sln, dim_reduction_name = 'umap.projection', cell_color = 'leiden_harmony',
          cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.75, point_shape="no_border",
          point_alpha=0.5)
   }
@@ -49,11 +53,12 @@ if(.Platform$OS.type != "windows")  # only try to plot this if we're not in Wind
 md <- pDataDT(sln); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 2e5))$cell_ID
 sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
 data <- as.data.frame( sln.sm@dimension_reduction$cells$cell$rna$umap$umap.projection@coordinates)
-data$cluster <- sln.sm@cell_metadata$cell$rna$trnsfr_leiden_harmony
+data$cluster <- sln.sm@cell_metadata$cell$rna$leiden_harmony
 data <- data[sample(1:nrow(data),1e5), ]
 ggplot(data) + geom_point(aes(x=Dim.1, y=Dim.2, color=cluster), show.legend = FALSE, alpha=0.2, size=0.2) + 
   geom_point(aes(x = Inf, y = Inf, color = cluster), size = 3, show.legend = TRUE) + 
-  geom_density2d(aes(x=Dim.1, y=Dim.2), linewidth=0.25, color="black") + theme_classic()  + scale_color_manual(values = leiden_colors)   + 
+  geom_density2d(aes(x=Dim.1, y=Dim.2), linewidth=0.25, color="black") + theme_classic()  + 
+  scale_color_manual(values = leiden_colors)   +
   scale_x_continuous(limits=c(min(data$Dim.1) - .10*diff(range(data$Dim.1)),max(data$Dim.1) + .10* diff(range(data$Dim.1)))) +
   scale_y_continuous(limits=c(min(data$Dim.2) - .10*diff(range(data$Dim.2)),max(data$Dim.2) + .10* diff(range(data$Dim.2)))) + 
   ggtitle("All cells - downsampled") +  guides(color = guide_legend(override.aes = list(shape = 16)))
@@ -65,42 +70,53 @@ rm(data)
 ```{r plot-UMAP-Downsample}
 md <- pDataDT(sln); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1e5))$cell_ID
 sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
-leiden_colors <- getDistinctColors(length(unique(md$trnsfr_leiden_harmony)))
-names(leiden_colors) <- unique(md$trnsfr_leiden_harmony)
-plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.projection', cell_color = 'trnsfr_leiden_harmony',
+leiden_colors <- getDistinctColors(length(unique(md$leiden_harmony)))
+names(leiden_colors) <- unique(md$leiden_harmony)
+plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.projection', cell_color = 'leiden_harmony',
          cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.75, point_shape="no_border",
          point_alpha=0.5)
 
 ```
 
 
-```{r cluster-feat-heatmap-AllCells, fig.show="hold", out.width="50%"}
-markers_scran <- findMarkers_one_vs_all(gobject = sln, method = "scran", expression_values = "normalized",
-                                        cluster_column = "trnsfr_leiden_harmony", min_feats = 3)
-
-topgenes_scran <- unique(markers_scran[, head(.SD, 5), by = "cluster"][["feats"]])
-
-plotMetaDataHeatmap(sln, expression_values = "normalized",
-                    metadata_cols = "trnsfr_leiden_harmony", selected_feats = topgenes_scran,
-                    y_text_size = 8, show_values = "zscores_rescaled")
+```{r cluster-feat-heatmap-AllCells, fig.show="hold", fig.width=10, fig.height=5}
+## statistically defining features of the clusters using all features
+# markers_scran <- findMarkers_one_vs_all(gobject = sln, method = "scran", expression_values = "normalized",
+#                                         cluster_column = "trnsfr_leiden_harmony", min_feats = 3)  
+# 
+# topgenes_scran <- unique(markers_scran[, head(.SD, 5), by = "cluster"][["feats"]])  # just take top 5 from each cluster
+# 
+# plotMetaDataHeatmap(sln, expression_values = "normalized",
+#                     metadata_cols = "trnsfr_leiden_harmony", selected_feats = topgenes_scran,
+#                     y_text_size = 8, show_values = "zscores_rescaled")
 
 clusterChannels <- c("CD3E", "CD4", "CD8", "TCF1", "TOX", "CD45RO", "CD19", "CD20","HLA.DR", "CD38", "IGD", "CXCR5", 
                      "KI67", "CD45", "PAN.CYTO", "CD21", "MAC2/GAL3", "IFNG", "MART1", "GP100", "S100B")
 
 plotMetaDataHeatmap(sln, expression_values = "normalized",
-                    metadata_cols = "trnsfr_leiden_harmony", selected_feats = clusterChannels,
+                    metadata_cols = "leiden_harmony", selected_feats = clusterChannels,
                     y_text_size = 8, show_values = "zscores_rescaled")
 
 ```
 
 
-```{r eliminate-most-negative-cluster-exl1}
-df <- calculateMetaTable( sln,  expression_values = c("normalized"), metadata_cols = 'trnsfr_leiden_harmony' )
-df <- df %>% group_by(trnsfr_leiden_harmony) %>% summarise(sum_value = mean(value, na.rm = TRUE), .groups = 'drop')
-df <- df[order(df$sum_value, decreasing = F),]
-toEliminate <- df[1:2,]$trnsfr_leiden_harmony; 
+```{r assess-most-negative-clusters}
+df <- calculateMetaTable( sln,  expression_values = c("normalized"), metadata_cols = 'leiden_harmony' )
+df.mean <- df %>% group_by(leiden_harmony) %>% summarise(sum_value = mean(value, na.rm = TRUE), .groups = 'drop')
+df.sd <- df %>% group_by(leiden_harmony) %>% summarise(sd_value = sd(value, na.rm = TRUE), .groups = 'drop')
+df.mean <- df.mean[order(df.mean$sum_value, decreasing = F),]
+df.sd <- df.sd[order(df.sd$sd_value, decreasing = F),]
+print(df.mean[1:10,])
+cutoff <- quantile(df.mean$sum_value, c(0.02))  # drop clusters that have below 2nd percentile for mean total signal 
+toEliminate <- df.mean[ which(df.mean$sum_value < cutoff), ]$leiden_harmony; # dropping most negative clusters 
 print(paste("Clusters that will be eliminated: ", toEliminate))
-md <- pDataDT(sln); keepCells <- subset(md, !(trnsfr_leiden_harmony %in% c(toEliminate)))$cell_ID  # exclude clusters because pan-neg
+print(paste("Number of cells to be eliminated: ", length(md[which(md$leiden_harmony %in% toEliminate), ]) ))
+rm(df); rm(df.mean); rm(df.sd); rm(toEliminate);  rm(cutoff)
+```
+
+
+```{r eliminate-most-negative-clusters-exl1}
+md <- pDataDT(sln); keepCells <- subset(md, !(leiden_harmony %in% c(toEliminate)))$cell_ID  # exclude clusters because pan-neg
 sln <- subsetGiotto(gobject = sln, cell_ids = keepCells)
 print(paste("Primary object size: ", length(sln@cell_ID$cell), "cells"))
 ```
@@ -120,12 +136,18 @@ signPCA(sln, scale_unit = TRUE, scree_ylim = c(0,40))
 Calculate clusters by Leiden
 ```{r calculate-Clusters-excl1}
 
-sln.sm <- subsetGiotto(gobject = sln, cell_ids = sample(sln$cell_ID, 1e5, replace=F)) # make a smaller dataset to work with 
-sln.sm <- createNearestNetwork(gobject = sln.sm, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
-                            name = 'NN.harmony', dimensions_to_use = 1:10, k = 10)  # calculate nearest neighbors, focus on global differences 
-sln.sm <- doLeidenClusterIgraph(gobject = sln.sm, resolution = 0.3, n_iterations = 100, set_seed=T, seed_number = 43, 
+# sln.sm <- subsetGiotto(gobject = sln, cell_ids = sample(sln$cell_ID, 1e5, replace=F)) # make a smaller dataset to work with 
+# sln.sm <- createNearestNetwork(gobject = sln.sm, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
+#                             name = 'NN.harmony', dimensions_to_use = 1:10, k = 10)  # calculate nearest neighbors, focus on global differences 
+# sln.sm <- doLeidenClusterIgraph(gobject = sln.sm, resolution = 0.3, n_iterations = 100, set_seed=T, seed_number = 43, 
+#                                 network_name = 'NN.harmony', name = 'leiden_harmony')  # make the clusters
+# sln <- labelTransfer(x = sln, y = sln.sm, labels = "leiden_harmony")  # assign cluster labels in the full dataset based on the reduced data
+
+sln <- createNearestNetwork(gobject = sln, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
+                            name = 'NN.harmony', dimensions_to_use = 1:5, k = 10)  # calculate nearest neighbors, focus on global differences 
+sln <- doLeidenClusterIgraph(gobject = sln, resolution = 0.1, n_iterations = 100, set_seed=T, seed_number = 43, 
                                 network_name = 'NN.harmony', name = 'leiden_harmony')  # make the clusters
-sln <- labelTransfer(x = sln, y = sln.sm, labels = "leiden_harmony")  # assign cluster labels in the full dataset based on the reduced data
+
 ```
 
 UMAP projection
@@ -134,8 +156,18 @@ sln <- runUMAPprojection(sln, random_subset = 1e5)  # project UMAP coordinates t
 ```
 
 
+Plot all of the integrated tissues horizontally
+```{r plot-tissues-horizontally, fig.width=20, fig.height=15}
+md <- pDataDT(sln)
+leiden_colors <- getDistinctColors(length(unique(md$leiden_harmony)))
+names(leiden_colors) <- unique(md$leiden_harmony)
+spatPlot(gobject = sln, cell_color = "leiden_harmony", point_shape = "no_border", point_size = 0.1, 
+         cell_color_code = leiden_colors, coord_fix_ratio = 1, label_size = 2)
+```
+
+
 ```{r save-excl-1}
-saveRDS(sln, "sln.harmony.excl-1.RDS")
+saveRDS(sln, "sln.clustering1.RDS")
 ```
 
 

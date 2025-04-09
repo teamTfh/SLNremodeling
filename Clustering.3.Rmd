@@ -32,7 +32,7 @@ sessionInfo()
 
 
 ```{r readRDS-harmony-excl-annot}
-sln <- readRDS("sln.harmony.excl.annot.RDS")
+sln <- readRDS("sln.clustering2.RDS")
 plots <- list()
 ```
 
