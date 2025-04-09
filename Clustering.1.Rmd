@@ -146,9 +146,16 @@ signPCA(sln, scale_unit = TRUE, scree_ylim = c(0,40))
 # sln <- labelTransfer(x = sln, y = sln.sm, labels = "leiden_harmony")  # assign cluster labels in the full dataset based on the reduced data
 
 sln <- createNearestNetwork(gobject = sln, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
-                            name = 'NN.harmony', dimensions_to_use = 1:3, k = 10)  # calculate nearest neighbors, focus on global differences 
-sln <- doLeidenClusterIgraph(gobject = sln, resolution = 0.1, n_iterations = 100, set_seed=T, seed_number = 43, 
+                            name = 'NN.harmony', dimensions_to_use = 1:12, k = 10)  # calculate nearest neighbors 
+sln <- doLeidenClusterIgraph(gobject = sln, resolution = 0.1, n_iterations = 750, set_seed=T, seed_number = 43, 
                                 network_name = 'NN.harmony', name = 'leiden_harmony')  # make the clusters
+
+# dim= 3, k=10:  1111 clusters
+# dim=10, k=10:    62 clusters
+# dim=10, k= 8:
+# dim 12, k= 8:
+# dim=12, k=15:
+#  
 
 ```
 

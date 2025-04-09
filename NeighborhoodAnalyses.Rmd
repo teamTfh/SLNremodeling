@@ -31,7 +31,7 @@ sessionInfo()
 
 # read in L2.annot 
 ```{r read-in-L2annot}
-sln <- readRDS("sln.L2annot.RDS")
+sln <- readRDS("sln.L2.annot.RDS")
 plots = list()
 prox.results = list()
 ```
@@ -53,7 +53,7 @@ for (i in list_ID[1:5])
                                       number_of_simulations = 200, spatial_network_name = "knn_network")
   # Barplot depicting the ratio of observed over expected frequencies of pairwise interacting clusters (left). Barplot showing the total number of interactions between each pair (right).
   
-  plots[i] <- cellProximityBarplot(sln.sm, CPscore = cellprox,  min_orig_ints = 3, min_sim_ints = 3, return_plot = T)
+  plots[i] <- cellProximityBarplot(sln.sm, CPscore = prox.results[i],  min_orig_ints = 3, min_sim_ints = 3, return_plot = T)
 }
 
 ```
