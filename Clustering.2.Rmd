@@ -31,7 +31,7 @@ sessionInfo()
 ```
 
 
-
+# describe cluster size
 ```{r readRDS-excl-1}
 sln <- readRDS("sln.clustering1.RDS")
 print(paste("Primary object size: ", length(sln@cell_ID$cell), "cells"))
@@ -41,7 +41,7 @@ print(table(md$leiden_harmony))
 plots <- list()
 ```
 
-
+# plot downsampled umap
 ```{r plot-UMAP-Downsample-excl1, fig.show="hold", out.width="50%"}
 md <- pDataDT(sln); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 3e5))$cell_ID
 sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
@@ -65,7 +65,7 @@ rm(data)
 
 ```
 
-
+# plot heatmap of features vs clusters
 ```{r cluster-feat-heatmap-excl1-Cells, fig.show="hold", out.width="50%", fig.width=10, fig.height=5}
 # markers_scran <- findMarkers_one_vs_all(gobject = sln, method = "scran", expression_values = "normalized",
 #                                         cluster_column = "leiden_harmony", min_feats = 3)
@@ -82,6 +82,7 @@ plots[[2]] <- plotMetaDataHeatmap(sln, expression_values = "normalized",
                     y_text_size = 8, show_values = "zscores_rescaled", return_plot = T)
 ```
 
+# plot CD3, CD4, CD20, MART1, and TOX onto umap
 ```{r spatDimPlot-CD3E, fig.width=12, fig.height=12}
 md <- pDataDT(sln); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1e5))$cell_ID
 sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
@@ -91,7 +92,7 @@ plots[[3]] <- dimFeatPlot2D(sln.sm, dim_reduction_name = 'umap.projection', expr
 ```
 
 
-
+# filter down to tumor only
 ```{r show-tumor5-only, fig.show="hold", fig.height=12, out.width="50%"}
 md <- pDataDT(sln); keepCells <- subset(md, list_ID == "tumor.5" & y %in% c(10000:20000) )$cell_ID
 sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
@@ -125,6 +126,7 @@ if(.Platform$OS.type == "windows")  # only try to plot this if we're not in Wind
 ```
 
 
+# make merged plots
 ```{r plot-joined-plots-1}
 if(.Platform$OS.type == "windows")  # only try to plot this if we're not in Windows (so presumably on HPC)
 {  
@@ -138,7 +140,7 @@ if(.Platform$OS.type == "windows")  # only try to plot this if we're not in Wind
 }
 ```
 
-
+# violin plot
 ```{r show-violin, fig.show="hold", fig.width=10, fig.height=30, warning=F}
 # don't try to do violinplot on more than 100k cells! 
 md <- pDataDT(sln); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 5e4))$cell_ID
@@ -147,7 +149,7 @@ violinPlot(sln.sm, feats = clusterChannels, cluster_column = "leiden_harmony")
 
 ```
 
-
+# add L1 annotations
 ```{r label-L1annotation}
 md <- pDataDT(sln)
 df <- data.frame(leiden_harmony = md$leiden_harmony, L1.annot = "Unknown")
@@ -176,6 +178,7 @@ plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.projection', cell_color = 
          point_alpha=0.35)
 
 ```
+
 
 ```{r save-excl-1-annotated}
 saveRDS(sln, "sln.clustering2.RDS")
