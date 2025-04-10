@@ -146,16 +146,16 @@ signPCA(sln, scale_unit = TRUE, scree_ylim = c(0,40))
 # sln <- labelTransfer(x = sln, y = sln.sm, labels = "leiden_harmony")  # assign cluster labels in the full dataset based on the reduced data
 
 sln <- createNearestNetwork(gobject = sln, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
-                            name = 'NN.harmony', dimensions_to_use = 1:12, k = 10)  # calculate nearest neighbors 
+                            name = 'NN.harmony', dimensions_to_use = 1:12, k = 15)  # calculate nearest neighbors 
 sln <- doLeidenClusterIgraph(gobject = sln, resolution = 0.1, n_iterations = 750, set_seed=T, seed_number = 43, 
                                 network_name = 'NN.harmony', name = 'leiden_harmony')  # make the clusters
 
 # dim= 3, k=10:  1111 clusters
 # dim=10, k=10:    62 clusters
-# dim=10, k= 8:
-# dim 12, k= 8:
-# dim=12, k=15:
-#  
+# dim 12, k= 8:   197 clusters
+# dim=12, k=10:   174 clusters
+# dim=12, k=15:    64 clusters
+# dim=15, k= 8:   197 clusters
 
 ```
 
@@ -175,15 +175,29 @@ spatPlot(gobject = sln, cell_color = "leiden_harmony", point_shape = "no_border"
 ```
 
 
-# final data save
-```{r save-excl-1}
-saveRDS(sln, "sln.clustering1.RDS")
+# table of clusters and samples
+```{r print-accounting-clusters}
+table(md$list_ID, md$leiden_harmony)
+
 ```
 
 
+# final data save
+```{r save-excl-1}
+saveRDS(sln, "sln.clustering1.dim12.k15.RDS")
+```
 
-
-
+Job ID: 62942719
+Cluster: slurm_cluster
+User/Group: heratr01/heratr01
+State: COMPLETED (exit code 0)
+Nodes: 1
+Cores per node: 10
+CPU Utilized: 10:24:01
+CPU Efficiency: 11.23% of 3-20:39:10 core-walltime
+Job Wall-clock time: 09:15:55
+Memory Utilized: 129.34 GB
+Memory Efficiency: 86.23% of 150.00 GB
 
 
 

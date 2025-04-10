@@ -33,7 +33,7 @@ sessionInfo()
 
 # describe cluster size
 ```{r readRDS-excl-1}
-sln <- readRDS("sln.clustering1.RDS")
+sln <- readRDS("sln.clustering1.dim12.k15.RDS")
 print(paste("Primary object size: ", length(sln@cell_ID$cell), "cells"))
 md <- pDataDT(sln) 
 print("cluster membership")

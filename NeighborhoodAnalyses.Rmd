@@ -312,7 +312,7 @@ cellProxEnrich.cust <- function(gobject,
 
 prox.results.custom <- cellProxEnrich.cust(sln.sm, cluster_column = 'L1.annot', adjust_method = "fdr",
                                       number_of_simulations = 200, spatial_network_name = "knn_network")
-cellProximityBarplot(sln.sm, CPscore = cellprox,  min_orig_ints = 3, min_sim_ints = 3, return_plot = T)
+cellProximityBarplot(sln.sm, CPscore = prox.results.custom,  min_orig_ints = 3, min_sim_ints = 3, return_plot = T)
 ```
 
 
