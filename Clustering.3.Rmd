@@ -36,7 +36,7 @@ sln <- readRDS("sln.clustering2.RDS")
 plots <- list()
 ```
 
-
+# calculate T cell subsets
 ```{r subset-T-cells}
 gc()
 md <- pDataDT(sln); keepCells <- md$cell_ID[which(md$L1.annot == "Tcells")]
