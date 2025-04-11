@@ -15,6 +15,7 @@ img {
 ```
 
 ```{r call-libraries} 
+date()
 library(Giotto)
 library(future); if(parallelly::availableCores() > 2 & .Platform$OS.type == "windows")  
   {plan('multisession', workers = parallelly::availableCores()-2)}
@@ -28,6 +29,32 @@ set.seed(43)
 knitr::opts_chunk$set(fig.retina = 2)
 sessionInfo()
 
+```
+
+# calculate T cell subsets
+```{r subset-T-cells}
+gc()
+md <- pDataDT(sln); keepCells <- md$cell_ID[which(md$L1.annot == "Tcells")]
+Tcells <- subsetGiotto(sln, cell_ids = keepCells )
+print("recalculate clusters post-exclusion")
+clusterChannels <- c("CD3E", "CD4", "CD8", "TCF1", "GZMB", "CD39", "KI67", "PD1", "TOX", "FOXP3", "ICOS", "CD45RA","HLA.DR")
+Tcells <- runPCA(gobject = Tcells, expression_values = "normalized", scale_unit = TRUE, 
+              method = "factominer", feats_to_use = clusterChannels)
+signPCA(Tcells, scale_unit = TRUE, scree_ylim = c(0,40))
+sln.sm <- subsetGiotto(gobject = Tcells, cell_ids = sample(sln$cell_ID, 1e5, replace=F)) # make a smaller dataset to work with 
+sln.sm <- createNearestNetwork(gobject = sln.sm, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
+                            name = 'NN.harmony', dimensions_to_use = 1:10, k = 10)  # calculate nearest neighbors, focus on global differences 
+sln.sm <- doLeidenClusterIgraph(gobject = sln.sm, resolution = 0.3, n_iterations = 100, set_seed = T, seed_number = 43,
+                                network_name = 'NN.harmony', name = 'leiden_Tcells')  # make the clusters
+Tcells <- labelTransfer(x = Tcells, y = sln.sm, labels = "leiden_Tcells")  # assign cluster labels in the full dataset based on the reduced data
+Tcells <- runUMAPprojection(Tcells, random_subset = 1e5)  # project UMAP coordinates to the full dataset based on a subsampling
+saveRDS(Tcells, "Tcells.RDS")
+```
+
+
+```{r readRDS-harmony-excl-annot}
+Tcells <- readRDS("Tcells.RDS")
+plots <- list()
 ```
 
 
@@ -171,6 +198,10 @@ saveRDS(sln, "sln.L2.annot.RDS")
 ```
 
 
+
+```{r call-date}
+date()
+```
 
 
 

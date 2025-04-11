@@ -16,6 +16,7 @@ img {
  
  
 ```{r call-libraries} 
+date()
 library(Giotto)
 library(future); if(parallelly::availableCores() > 2 & .Platform$OS.type == "windows")  
   {plan('multisession', workers = parallelly::availableCores()-2)}

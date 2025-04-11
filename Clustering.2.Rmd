@@ -15,6 +15,7 @@ img {
 ```
 
 ```{r call-libraries} 
+date()
 library(Giotto)
 library(future); if(parallelly::availableCores() > 2 & .Platform$OS.type == "windows")  
   {plan('multisession', workers = parallelly::availableCores()-2)}
@@ -164,7 +165,7 @@ signPCA(sln, scale_unit = TRUE, scree_ylim = c(0,40))
 
 sln <- createNearestNetwork(gobject = sln, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
                             name = 'NN.harmony', dimensions_to_use = 1:12, k = 15)  # calculate nearest neighbors 
-sln <- doLeidenClusterIgraph(gobject = sln, resolution = 0.1, n_iterations = 500, set_seed=T, seed_number = 43, 
+sln <- doLeidenClusterIgraph(gobject = sln, resolution = 0.5, n_iterations = 500, set_seed=T, seed_number = 43, 
                                 network_name = 'NN.harmony', name = 'leiden_harmony')  # make the clusters
 
 ```
@@ -172,6 +173,24 @@ sln <- doLeidenClusterIgraph(gobject = sln, resolution = 0.1, n_iterations = 500
 # UMAP projection
 ```{r UMAP-projection-excl1}
 sln <- runUMAPprojection(sln, random_subset = 1e5)  # project UMAP coordinates to the full dataset based on a subsampling
+```
+
+
+# plot heatmap of features vs clusters
+```{r cluster-feat-heatmap-excl2, fig.show="hold", fig.width=10, fig.height=5}
+# markers_scran <- findMarkers_one_vs_all(gobject = sln, method = "scran", expression_values = "normalized",
+#                                         cluster_column = "leiden_harmony", min_feats = 3)
+# 
+# topgenes_scran <- unique(markers_scran[, head(.SD, 5), by = "cluster"][["feats"]])
+# 
+# plotMetaDataHeatmap(sln, expression_values = "normalized",
+#                     metadata_cols = "leiden_harmony", selected_feats = topgenes_scran,
+#                     y_text_size = 8, show_values = "zscores_rescaled")
+clusterChannels <- c("CD3E", "CD4", "CD8", "TCF1", "TOX", "CD45RO", "CD19", "CD20","HLA.DR", "CD38", "IGD", "CXCR5", 
+                     "KI67", "CD45", "PAN.CYTO", "CD21", "MAC2/GAL3", "IFNG", "MART1", "GP100", "S100B")
+plots[[2]] <- plotMetaDataHeatmap(sln, expression_values = "normalized",
+                    metadata_cols = "leiden_harmony", selected_feats = clusterChannels,
+                    y_text_size = 8, show_values = "zscores_rescaled", return_plot = T)
 ```
 
 
@@ -221,41 +240,23 @@ violinPlot(sln.sm, feats = clusterChannels, cluster_column = "leiden_harmony")
 
 ```
 
-# add L1 annotations
-```{r label-L1annotation}
-# md <- pDataDT(sln)
-# df <- data.frame(leiden_harmony = md$leiden_harmony, L1.annot = "Unknown")
-# df$cell_ID <- md$cell_ID
-# df$L1.annot <- paste0("Clust.", df$leiden_harmony)  # unknown clusters:  
-# df[which(df$leiden_harmony %in% c(  )), 'L1.annot'] <- "Tcells"
-# df[which(df$leiden_harmony %in% c(  )), 'L1.annot'] <- "Bcells.1"
-# df[which(df$leiden_harmony %in% c(  )), 'L1.annot']  <- "FollMant.B"
-# df[which(df$leiden_harmony %in% c(  )), 'L1.annot'] <- "GermCtr.1"
-# df[which(df$leiden_harmony %in% c(  )), 'L1.annot'] <- "GermCtr.2"
-# df[which(df$leiden_harmony %in% c(  )), 'L1.annot'] <- "Tumor.1"
-# df[which(df$leiden_harmony %in% c(  )), 'L1.annot'] <- "Tumor.2"
-# df[which(df$leiden_harmony %in% c(  )), 'L1.annot'] <- "Tumor.3"
-# df[which(df$leiden_harmony %in% c(  )), 'L1.annot'] <- "DC.1"
-# df$leiden_harmony <- NULL
-# 
-# sln <- addCellMetadata(sln, new_metadata = df, by_column = T, column_cell_ID="cell_ID")  # add in the annotations to the main object
-# 
-# md <- pDataDT(sln)
-# keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1e5))$cell_ID
-# sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
-# leiden_colors <- getDistinctColors(length(unique(md$L1.annot)))
-# names(leiden_colors) <- unique(md$L1.annot)
-# plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.projection', cell_color = 'L1.annot',
-#          cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.5, point_shape="no_border",
-#          point_alpha=0.35)
 
+```{r call-date}
+date()
 ```
 
-
-```{r save-excl-1-annotated}
-# saveRDS(sln, "sln.clustering2.RDS")
-```
-
+seff 62956329
+Job ID: 62956329
+Cluster: slurm_cluster
+User/Group: heratr01/heratr01
+State: COMPLETED (exit code 0)
+Nodes: 1
+Cores per node: 15
+CPU Utilized: 08:16:56
+CPU Efficiency: 7.73% of 4-11:12:00 core-walltime
+Job Wall-clock time: 07:08:48
+Memory Utilized: 164.72 GB
+Memory Efficiency: 65.89% of 250.00 GB
 
 
 
