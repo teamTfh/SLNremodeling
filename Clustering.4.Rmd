@@ -194,7 +194,9 @@ plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.projection', cell_color = 
 md <- pDataDT(sln)
 table(md$L1.annot)
 table(md$L2.annot)
-saveRDS(sln, "sln.L2.annot.RDS")
+
+filename <- paste0("sln.L2.annot.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
+saveRDS(sln, filename)
 ```
 
 

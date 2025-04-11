@@ -212,8 +212,9 @@ table(md$list_ID, md$leiden_harmony)
 
 
 # final data save
-```{r save-excl-1}
-saveRDS(sln, "sln.clustering2.RDS")
+```{r save-object}
+filename <- paste0("sln.clustering2.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
+saveRDS(sln, filename)
 ```
 
 

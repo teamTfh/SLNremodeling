@@ -15,6 +15,7 @@ img {
 ```
 
 ```{r call-libraries} 
+date()
 library(Giotto)
 library(future); if(parallelly::availableCores() > 2 & .Platform$OS.type == "windows")  
   {plan('multisession', workers = parallelly::availableCores()-2)}
@@ -76,6 +77,7 @@ sln <- addCellMetadata(gobject = sln, new_metadata = newdf, by_column=T, column_
 
 
 ```{r save-sln-meta}
-saveRDS(sln, "sln.harmony.meta.RDS")
+filename <- paste0("sln.harmony.meta.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
+saveRDS(sln, filename)
 ```
 

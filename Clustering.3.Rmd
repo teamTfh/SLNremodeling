@@ -120,22 +120,22 @@ plots[[5]] <- spatPlot2D(sln.sm, cell_color = 'leiden_harmony', cell_color_code 
                          point_size = 1, point_shape="no_border", point_alpha=0.3, axis_text=14, 
                          legend_text = 14, return_plot=T)
 
-if(.Platform$OS.type == "windows")  # only try to plot this if we're not in Windows (so presumably on HPC)
-{
-  for (i in names(leiden_colors)[1:31])
-  {
-    setwd("output/")
-    print(paste("now plotting cluster", i, "in folder ", getwd()))
-    a <- plots[[4]]  # just plot the full color image 
-    leiden_colors.focus <- rep("gray90",length(leiden_colors))
-    leiden_colors.focus[as.character(i)] <- leiden_colors["13"]
-    b <- spatPlot2D(sln.sm, cell_color = 'leiden_harmony', cell_color_code = leiden_colors.focus, 
-                           point_size = 1, point_shape="no_border", point_alpha=0.3, axis_text=14, 
-                           legend_text = 14, return_plot=T)
-    ggsave(filename = paste("clust.",i,".png"),plot = gridExtra::grid.arrange(a,b,nrow=1) )
-    setwd("..")
-  }
-}
+# if(.Platform$OS.type == "windows")  # only try to plot this if we're NOT in Windows (so presumably on HPC)
+# {
+#   for (i in names(leiden_colors)[1:31])
+#   {
+#     setwd("output/")
+#     print(paste("now plotting cluster", i, "in folder ", getwd()))
+#     a <- plots[[4]]  # just plot the full color image 
+#     leiden_colors.focus <- rep("gray90",length(leiden_colors))
+#     leiden_colors.focus[as.character(i)] <- leiden_colors["13"]
+#     b <- spatPlot2D(sln.sm, cell_color = 'leiden_harmony', cell_color_code = leiden_colors.focus, 
+#                            point_size = 1, point_shape="no_border", point_alpha=0.3, axis_text=14, 
+#                            legend_text = 14, return_plot=T)
+#     ggsave(filename = paste("clust.",i,".png"),plot = gridExtra::grid.arrange(a,b,nrow=1) )
+#     setwd("..")
+#   }
+# }
 ```
 
 
@@ -172,8 +172,9 @@ if(.Platform$OS.type == "windows")  # only try to plot this if we're not in Wind
 ```
 
 
-```{r save-excl-1-annotated}
-# saveRDS(sln, "sln.clustering3.RDS")
+```{r save-object}
+# filename <- paste0("sln.clustering3.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
+# saveRDS(sln, filename)
 ```
 
 

@@ -235,7 +235,8 @@ Plot the umap with a contour overlay
 
 
 ```{r save-harmony-RDS}
-saveRDS(sln, "sln.harmony.RDS")
+filename <- paste0("sln.harmony.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
+saveRDS(sln, filename)
 ```
 
 
