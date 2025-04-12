@@ -16,7 +16,7 @@ library(Giotto)
 
 
 ```{r readRDS-excl-1}
-sln <- readRDS("sln.L2.annot.RDS")
+sln <- readRDS("sln.clustering2.res0.3.20250411.1442.RDS")
 
 ```
 
@@ -38,8 +38,15 @@ corpus <- restrictCorpus(counts, removeAbove = 30.0, removeBelow = 0.01, alpha =
 
 
 ```{r}
-ldas <- fitLDA(t(as.matrix(corpus)), Ks = seq(26, 35, by = 1),perc.rare.thresh = 0.05, plot=TRUE, verbose=TRUE, 
+ldas <- fitLDA(t(as.matrix(corpus)), Ks = seq(20, 40, by = 1),perc.rare.thresh = 0.05, plot=TRUE, verbose=TRUE, 
                ncores = parallel::detectCores())
+```
+
+
+# save state
+```{r save-excl-1}
+filename <- paste0("ldas.sln.clustering2.res0.3.20250411.1442.RDS")
+saveRDS(ldas, filename)
 
 ```
 
@@ -81,7 +88,7 @@ STdeconvolve::correlationPlot(mat = m, colLabs = "L1.annot", rowLabs = "STdeconv
 
 
 ```{r save-result-table}
-saveRDS(results, "STdeconvolve.results.RDS")
+# saveRDS(results, "STdeconvolve.results.RDS")
 ```
 
 
