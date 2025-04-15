@@ -30,9 +30,9 @@ set.seed(43)
 sessionInfo()
 ```
 
-# read in L2.annot 
-```{r read-in-L2annot}
-sln <- readRDS("sln.L2.annot.RDS")
+# read in data object 
+```{r read-in-data}
+sln <- readRDS("sln.clustering2.res0.3.20250411.1442.RDS")
 plots = list()
 prox.results = list()
 ```
@@ -43,18 +43,18 @@ md <- pDataDT(sln)
 list_ID <- unique(md$list_ID)
 gc()
 
-for (i in list_ID[1:1])
+for (i in list_ID[1:2])
 {
   print(i)
   keepCells <- subset(md, list_ID %in% i )$cell_ID
   sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
   sln.sm <- createSpatialKNNnetwork(sln.sm) 
   
-  prox.results <- cellProximityEnrichment(sln.sm, cluster_column = 'L1.annot', adjust_method = "fdr",
+  prox.results[i] <- cellProximityEnrichment(sln.sm, cluster_column = 'leiden_harmony', adjust_method = "fdr",
                                       number_of_simulations = 200, spatial_network_name = "knn_network")
   # Barplot depicting the ratio of observed over expected frequencies of pairwise interacting clusters (left). Barplot showing the total number of interactions between each pair (right).
   
-  plots[i] <- cellProximityBarplot(sln.sm, CPscore = prox.results,  min_orig_ints = 3, min_sim_ints = 3, return_plot = T)
+  plots[i] <- cellProximityBarplot(sln.sm, CPscore = prox.results[i],  min_orig_ints = 3, min_sim_ints = 3, return_plot = T)
 }
 
 ```
@@ -92,7 +92,8 @@ cellProxEnrich.cust <- function(gobject,
         "BY"
     ),
     set_seed = TRUE,
-    seed_number = 1234) {
+    seed_number = 1234) 
+{
     # Set feat_type and spat_unit
     spat_unit <- set_default_spat_unit(
         gobject = gobject,
