@@ -35,7 +35,9 @@ corpus <- restrictCorpus(counts, removeAbove = 30.0, removeBelow = 0.01, alpha =
 
 
 ```{r fit-LDA}
-ldas <- fitLDA(t(as.matrix(corpus)), Ks = seq(61, 63, by = 1),perc.rare.thresh = 0.05, plot=TRUE, verbose=TRUE, 
+# ldas <- fitLDA(t(as.matrix(corpus)), Ks = seq(61, 63, by = 1),perc.rare.thresh = 0.05, plot=TRUE, verbose=TRUE, 
+#                ncores = parallel::detectCores())
+ldas <- fitLDA(t(as.matrix(corpus)), Ks = 62, perc.rare.thresh = 0.05, plot=TRUE, verbose=TRUE, 
                ncores = parallel::detectCores())
 ```
 
