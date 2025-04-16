@@ -3,9 +3,6 @@ title: "R Notebook"
 output: html_notebook
 ---
 
-This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
-
-Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
 
 ```{r}
 # BiocManager::install("fgsea")
@@ -16,12 +13,12 @@ library(Giotto)
 
 
 ```{r readRDS-excl-1}
-sln <- readRDS("sln.clustering2.res0.3.20250411.1442.RDS")
+sln <- readRDS("sln.clustering2.res0.5.20250411.1611.RDS")
 
 ```
 
 
-```{r}
+```{r subsample-restrictCorpus}
 md <- pDataDT(sln)
 keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1e6))$cell_ID
 sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
@@ -37,23 +34,23 @@ corpus <- restrictCorpus(counts, removeAbove = 30.0, removeBelow = 0.01, alpha =
 ```
 
 
-```{r}
-ldas <- fitLDA(t(as.matrix(corpus)), Ks = seq(20, 40, by = 1),perc.rare.thresh = 0.05, plot=TRUE, verbose=TRUE, 
+```{r fit-LDA}
+ldas <- fitLDA(t(as.matrix(corpus)), Ks = seq(61, 63, by = 1),perc.rare.thresh = 0.05, plot=TRUE, verbose=TRUE, 
                ncores = parallel::detectCores())
 ```
 
 
 # save state
-```{r save-excl-1}
-filename <- paste0("ldas.sln.clustering2.res0.3.20250411.1442.RDS")
+```{r save-LDA}
+filename <- paste0("STdeconvolve.ldas.sln.clustering2.res0.5.20250411.1611.RDS")
 saveRDS(ldas, filename)
 
 ```
 
 
-```{r}
+```{r optLA}
 ## select model with minimum perplexity
-optLDA <- optimalModel(models = ldas, opt = 27)
+optLDA <- optimalModel(models = ldas, opt = 62)
 
 ## extract pixel cell-type proportions (theta) and cell-type gene expression profiles (beta) for the given dataset
 ## we can also remove cell-types from pixels that contribute less than 5% of the pixel proportion
@@ -88,11 +85,21 @@ STdeconvolve::correlationPlot(mat = m, colLabs = "L1.annot", rowLabs = "STdeconv
 
 
 ```{r save-result-table}
-# saveRDS(results, "STdeconvolve.results.RDS")
+saveRDS(results, "STdeconvolve.results.sln.clustering2.res0.5.20250411.1611.RDS")
 ```
 
 
-
+Job ID: 63001426
+Cluster: slurm_cluster
+User/Group: heratr01/heratr01
+State: OUT_OF_MEMORY (exit code 0)
+Nodes: 1
+Cores per node: 20
+CPU Utilized: 00:09:48
+CPU Efficiency: 0.02% of 32-01:43:40 core-walltime
+Job Wall-clock time: 1-14:29:11
+Memory Utilized: 48.81 GB
+Memory Efficiency: 16.27% of 300.00 GB
 
 
 

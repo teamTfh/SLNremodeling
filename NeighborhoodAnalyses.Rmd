@@ -32,7 +32,7 @@ sessionInfo()
 
 # read in data object 
 ```{r read-in-data}
-sln <- readRDS("sln.clustering2.res0.3.20250411.1442.RDS")
+sln <- readRDS("sln.clustering2.res0.5.20250411.1611.RDS")
 plots = list()
 prox.results = list()
 ```
@@ -80,7 +80,7 @@ plotCellProximityGenes(sln.sm, cpgObject = ICGscoresHighGenes, method = 'dotplot
 
 # try a customized version of cellProxEnrich
 ```{r custom-cellproxEnrich-function}
-cellProxEnrich.cust <- function(gobject,
+cellProxEnrich.orig <- function(gobject,
     spat_unit = NULL,
     feat_type = NULL,
     spatial_network_name = "Delaunay_network",
@@ -312,8 +312,161 @@ cellProxEnrich.cust <- function(gobject,
     ))
 }
 
-prox.results.custom <- cellProxEnrich.cust(sln.sm, cluster_column = 'L1.annot', adjust_method = "fdr",
+cellProx.sim <- function(gobject, spat_unit = NULL, feat_type = NULL, spatial_network_name = "Delaunay_network",
+    cluster_column, number_of_simulations = 1000, 
+    adjust_method = c("none", "fdr", "bonferroni", "BH", "holm", "hochberg", "hommel", "BY"), 
+    set_seed = TRUE, seed_number = 1234) 
+{
+    # Set feat_type and spat_unit
+    spat_unit <- set_default_spat_unit(
+        gobject = gobject,
+        spat_unit = spat_unit
+    )
+    feat_type <- set_default_feat_type(
+        gobject = gobject,
+        spat_unit = spat_unit,
+        feat_type = feat_type
+    )
+
+    # p.adj test
+    sel_adjust_method <- match.arg(adjust_method, choices = c(
+        "none", "fdr", "bonferroni", "BH",
+        "holm", "hochberg", "hommel",
+        "BY"
+    ))
+
+    spatial_network_annot <- annotateSpatialNetwork(
+        gobject = gobject,
+        feat_type = feat_type,
+        spat_unit = spat_unit,
+        spatial_network_name = spatial_network_name,
+        cluster_column = cluster_column
+    )
+
+    # remove double edges between same cells #
+    # a simplified network does not have double edges between cells #
+
+    # data.table variables
+    unified_cells <- type_int <- N <- NULL
+
+    spatial_network_annot <- GiottoUtils:::dt_sort_combine_two_columns(
+        spatial_network_annot, "to", "from", "unified_cells"
+    )
+    spatial_network_annot <- spatial_network_annot[!duplicated(unified_cells)]
+
+    sample_dt <- Giotto:::make_simulated_network(
+        gobject = gobject,
+        spat_unit = spat_unit,
+        feat_type = feat_type,
+        spatial_network_name = spatial_network_name,
+        cluster_column = cluster_column,
+        number_of_simulations = number_of_simulations,
+        set_seed = set_seed,
+        seed_number = seed_number
+    )
+
+    # combine original and simulated network
+    table_sim_results <- sample_dt[, .N, by = c(
+        "unified_int", "type_int", "round"
+    )]
+
+    ## create complete simulations
+    ## add 0 if no single interaction was found
+    unique_ints <- unique(table_sim_results[, .(unified_int, type_int)])
+
+    # data.table with 0's for all interactions
+    minimum_simulations <- unique_ints[rep(
+        seq_len(nrow(unique_ints)), number_of_simulations
+    ), ]
+    minimum_simulations[, round := rep(
+        paste0("sim", seq_len(number_of_simulations)),
+        each = nrow(unique_ints)
+    )]
+    minimum_simulations[, N := 0]
+
+    table_sim_minimum_results <- rbind(table_sim_results, minimum_simulations)
+    table_sim_minimum_results[, V1 := sum(N), by = c(
+        "unified_int", "type_int", "round"
+    )]
+    table_sim_minimum_results <- unique(
+        table_sim_minimum_results[, .(unified_int, type_int, round, V1)]
+    )
+    table_sim_results <- table_sim_minimum_results
+
+
+    # data.table variables
+    orig <- unified_int <- V1 <- original <- enrichm <- simulations <- NULL
+
+    table_sim_results[, orig := "simulations"]
+    spatial_network_annot[, round := "original"]
+
+    table_orig_results <- spatial_network_annot[, .N, by = c(
+        "unified_int", "type_int", "round"
+    )]
+    table_orig_results[, orig := "original"]
+    data.table::setnames(table_orig_results, old = "N", new = "V1")
+
+    table_results <- rbind(table_orig_results, table_sim_results)
+
+
+
+    # add missing combinations from original or simulations
+    # probably not needed anymore
+    all_simulation_ints <- as.character(unique(table_results[
+        orig == "simulations"
+    ]$unified_int))
+    all_original_ints <- as.character(unique(table_results[
+        orig == "original"
+    ]$unified_int))
+    missing_in_original <- all_simulation_ints[
+        !all_simulation_ints %in% all_original_ints
+    ]
+    missing_in_simulations <- all_original_ints[
+        !all_original_ints %in% all_simulation_ints
+    ]
+    create_missing_for_original <- table_results[
+        unified_int %in% missing_in_original
+    ]
+    create_missing_for_original <- unique(create_missing_for_original[
+        , c("orig", "V1") := list("original", 0)
+    ])
+    create_missing_for_simulations <- table_results[
+        unified_int %in% missing_in_simulations
+    ]
+    create_missing_for_simulations <- unique(
+        create_missing_for_simulations[, c("orig", "V1") := list(
+            "simulations", 0
+        )]
+    )
+
+    table_results <- do.call(
+        "rbind",
+        list(
+            table_results, create_missing_for_original,
+            create_missing_for_simulations
+        )
+    )
+    return(table_results)
+}
+
+md <- pDataDT(sln)
+list_ID <- unique(md$list_ID)
+gc()
+tableResults <- list()
+
+for (i in list_ID[1:1])
+{
+  print(i)
+  keepCells <- subset(md, list_ID %in% i )$cell_ID
+  sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
+  sln.sm <- createSpatialKNNnetwork(sln.sm) 
+  
+  tableResults[i] <- cellProx.sim(sln.sm, cluster_column = 'leiden_harmony', adjust_method = "fdr",
                                       number_of_simulations = 200, spatial_network_name = "knn_network")
+  
+}
+
+
 cellProximityBarplot(sln.sm, CPscore = prox.results.custom,  min_orig_ints = 3, min_sim_ints = 3, return_plot = T)
 ```
 
