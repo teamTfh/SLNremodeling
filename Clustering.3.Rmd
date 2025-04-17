@@ -149,7 +149,7 @@ sln.sub <- runPCA(gobject = sln.sub, expression_values = "normalized", scale_uni
 signPCA(sln.sub, scale_unit = TRUE, scree_ylim = c(0,40))
 sln.sub <- createNearestNetwork(gobject = sln.sub, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
                             name = 'NN.harmony', dimensions_to_use = 1:5, k = 15)  # calculate nearest neighbors 
-sln.sub <- doLeidenClusterIgraph(gobject = sln.sub, resolution = 0.5, n_iterations = 100, set_seed=T, seed_number = 43, 
+sln.sub <- doLeidenClusterIgraph(gobject = sln.sub, resolution = 0.5, n_iterations = 200, set_seed=T, seed_number = 43, 
                                 network_name = 'NN.harmony', name = 'L1_annotations')  # make the clusters
 # filename <- paste0("sln.clustering3.dim3k10.res0.1.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
 # saveRDS(sln.sub, filename)

@@ -356,22 +356,27 @@ long_dt$left <- long_dt$right <- NULL
 out <- cellProx.calcP(long_dt, number_of_simulations = 200 )
 
 saveRDS(out, file="cellProxEnrichment.sln.clustering2.res0.5.20250411.1611.RDS")
+out <- readRDS(file="cellProxEnrichment.sln.clustering2.res0.5.20250411.1611.RDS")
 
-# cellProximityBarplot(sln.sm, CPscore = prox.results.custom,  min_orig_ints = 3, min_sim_ints = 3, return_plot = T)
+# x <- cellProximityBarplot(sln.sm, CPscore = out,  min_orig_ints = 3, min_sim_ints = 3, return_plot = T)
+# ggsave(filename = "cellProxBarplot.pdf", x, height=20, width=7, scale = 2)
+
+df <- out$enrichm_res
+
+
 ```
 
-Job ID: 63075200
+Job ID: 63088869
 Cluster: slurm_cluster
 User/Group: heratr01/heratr01
 State: COMPLETED (exit code 0)
 Nodes: 1
 Cores per node: 5
-CPU Utilized: 01:16:23
-CPU Efficiency: 22.88% of 05:33:50 core-walltime
-Job Wall-clock time: 01:06:46
-Memory Utilized: 165.95 GB
-Memory Efficiency: 82.97% of 200.00 GB
-
+CPU Utilized: 01:17:41
+CPU Efficiency: 23.32% of 05:33:05 core-walltime
+Job Wall-clock time: 01:06:37
+Memory Utilized: 168.35 GB
+Memory Efficiency: 84.17% of 200.00 GB
 
 
 
