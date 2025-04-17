@@ -216,9 +216,8 @@ table(md$list_ID, md$leiden_harmony)
 
 
 # final data save
-```{r save-object}
-filename <- paste0("sln.clustering2.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
-saveRDS(sln, filename)
+```{r save-excl-1}
+saveRDS(sln, "sln.clustering2.RDS")
 ```
 
 
@@ -245,10 +244,41 @@ violinPlot(sln.sm, feats = clusterChannels, cluster_column = "leiden_harmony")
 
 ```
 
+# add L1 annotations
+```{r label-L1annotation}
+# md <- pDataDT(sln)
+# df <- data.frame(leiden_harmony = md$leiden_harmony, L1.annot = "Unknown")
+# df$cell_ID <- md$cell_ID
+# df$L1.annot <- paste0("Clust.", df$leiden_harmony)  # unknown clusters:  
+# df[which(df$leiden_harmony %in% c(  )), 'L1.annot'] <- "Tcells"
+# df[which(df$leiden_harmony %in% c(  )), 'L1.annot'] <- "Bcells.1"
+# df[which(df$leiden_harmony %in% c(  )), 'L1.annot']  <- "FollMant.B"
+# df[which(df$leiden_harmony %in% c(  )), 'L1.annot'] <- "GermCtr.1"
+# df[which(df$leiden_harmony %in% c(  )), 'L1.annot'] <- "GermCtr.2"
+# df[which(df$leiden_harmony %in% c(  )), 'L1.annot'] <- "Tumor.1"
+# df[which(df$leiden_harmony %in% c(  )), 'L1.annot'] <- "Tumor.2"
+# df[which(df$leiden_harmony %in% c(  )), 'L1.annot'] <- "Tumor.3"
+# df[which(df$leiden_harmony %in% c(  )), 'L1.annot'] <- "DC.1"
+# df$leiden_harmony <- NULL
+# 
+# sln <- addCellMetadata(sln, new_metadata = df, by_column = T, column_cell_ID="cell_ID")  # add in the annotations to the main object
+# 
+# md <- pDataDT(sln)
+# keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1e5))$cell_ID
+# sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
+# leiden_colors <- getDistinctColors(length(unique(md$L1.annot)))
+# names(leiden_colors) <- unique(md$L1.annot)
+# plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.projection', cell_color = 'L1.annot',
+#          cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.5, point_shape="no_border",
+#          point_alpha=0.35)
 
-```{r call-date}
-date()
 ```
+
+
+```{r save-excl-1-annotated}
+# saveRDS(sln, "sln.clustering2.RDS")
+```
+
 
 seff 62956329
 Job ID: 62956329
