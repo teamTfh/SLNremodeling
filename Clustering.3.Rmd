@@ -37,7 +37,7 @@ sessionInfo()
 
 
 ```{r readRDS-harmony-excl-annot}
-
+# sln.sub <- readRDS("sln.clustering3.dim5k10.res0.1.20250416.084539.RDS")
 sln <- readRDS("sln.clustering2.res0.5.20250411.1611.RDS")
 print(paste("Primary object size: ", length(sln@cell_ID$cell), "cells"))
 md <- pDataDT(sln) 
@@ -49,7 +49,7 @@ print(table(md$leiden_harmony))
 md <- readRDS(file = "md.exprs.combined.sln.clustering2.res0.5.20250411.1611.RDS")  # sabrina's metadata with L1_annotations
 df <- md[,c("cell_ID","L1_annotations")]
 sln <- addCellMetadata(gobject = sln, new_metadata = df, by_column=T, column_cell_ID = 'cell_ID')
-
+rm(df)
 plots <- list()
 ```
 
@@ -148,16 +148,16 @@ sln.sub <- runPCA(gobject = sln.sub, expression_values = "normalized", scale_uni
               method = "factominer", feats_to_use = clusterChannels)
 signPCA(sln.sub, scale_unit = TRUE, scree_ylim = c(0,40))
 sln.sub <- createNearestNetwork(gobject = sln.sub, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
-                            name = 'NN.harmony', dimensions_to_use = 1:3, k = 10)  # calculate nearest neighbors 
-sln.sub <- doLeidenClusterIgraph(gobject = sln.sub, resolution = 0.1, n_iterations = 100, set_seed=T, seed_number = 43, 
+                            name = 'NN.harmony', dimensions_to_use = 1:8, k = 10)  # calculate nearest neighbors 
+sln.sub <- doLeidenClusterIgraph(gobject = sln.sub, resolution = 0.1, n_iterations = 500, set_seed=T, seed_number = 43, 
                                 network_name = 'NN.harmony', name = 'L1_annotations')  # make the clusters
-filename <- paste0("sln.clustering3.dim3k10.res0.1.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
-saveRDS(sln.sub, filename)
+# filename <- paste0("sln.clustering3.dim3k10.res0.1.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
+# saveRDS(sln.sub, filename)
 ```
 
 # UMAP projection
 ```{r UMAP-projection-res0.1}
-sln.sub <- runUMAPprojection(sln.sub, random_subset = 1e5)  # project UMAP coordinates to the full dataset based on a subsampling
+sln.sub <- runUMAPprojection(sln.sub, random_subset = 1e5, dimensions_to_use=1:5, n_threads = 4)  # project UMAP coordinates to the full dataset based on a subsampling
 ```
 
 
@@ -172,7 +172,7 @@ plotMetaDataHeatmap(sln.sub, expression_values = "normalized",
 
 
 ```{r save-object-0.1}
-filename <- paste0("sln.clustering3.dim3k10.res0.1.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
+filename <- paste0("sln.clustering3.dim8k10.res0.1.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
 saveRDS(sln.sub, filename)
 md <- pDataDT(sln) 
 saveRDS(md, paste0("md.",filename))
@@ -197,16 +197,16 @@ sln.sub <- runPCA(gobject = sln.sub, expression_values = "normalized", scale_uni
               method = "factominer", feats_to_use = clusterChannels)
 signPCA(sln.sub, scale_unit = TRUE, scree_ylim = c(0,40))
 sln.sub <- createNearestNetwork(gobject = sln.sub, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
-                            name = 'NN.harmony', dimensions_to_use = 1:3, k = 10)  # calculate nearest neighbors 
-sln.sub <- doLeidenClusterIgraph(gobject = sln.sub, resolution = 0.3, n_iterations = 100, set_seed=T, seed_number = 43, 
+                            name = 'NN.harmony', dimensions_to_use = 1:8, k = 10)  # calculate nearest neighbors 
+sln.sub <- doLeidenClusterIgraph(gobject = sln.sub, resolution = 0.3, n_iterations = 500, set_seed=T, seed_number = 43, 
                                 network_name = 'NN.harmony', name = 'L1_annotations')  # make the clusters
-filename <- paste0("sln.clustering3.dim3k10.res0.3.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
-saveRDS(sln.sub, filename)
+# filename <- paste0("sln.clustering3.dim3k10.res0.3.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
+# saveRDS(sln.sub, filename)
 ```
 
 # UMAP projection
 ```{r UMAP-projection-res0.3}
-sln.sub <- runUMAPprojection(sln.sub, random_subset = 1e5)  # project UMAP coordinates to the full dataset based on a subsampling
+sln.sub <- runUMAPprojection(sln.sub, random_subset = 1e5, dimensions_to_use=1:5, n_threads = 4)  # project UMAP coordinates to the full dataset based on a subsampling
 ```
 
 
@@ -221,7 +221,7 @@ plotMetaDataHeatmap(sln.sub, expression_values = "normalized",
 
 
 ```{r save-object-0.3}
-filename <- paste0("sln.clustering3.dim3k10.res0.3.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
+filename <- paste0("sln.clustering3.dim8k10.res0.3.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
 saveRDS(sln.sub, filename)
 md <- pDataDT(sln) 
 saveRDS(md, paste0("md.",filename))
@@ -245,15 +245,15 @@ sln.sub <- runPCA(gobject = sln.sub, expression_values = "normalized", scale_uni
               method = "factominer", feats_to_use = clusterChannels)
 signPCA(sln.sub, scale_unit = TRUE, scree_ylim = c(0,40))
 sln.sub <- createNearestNetwork(gobject = sln.sub, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
-                            name = 'NN.harmony', dimensions_to_use = 1:3, k = 10)  # calculate nearest neighbors 
-sln.sub <- doLeidenClusterIgraph(gobject = sln.sub, resolution = 0.5, n_iterations = 100, set_seed=T, seed_number = 43, 
+                            name = 'NN.harmony', dimensions_to_use = 1:8, k = 10)  # calculate nearest neighbors 
+sln.sub <- doLeidenClusterIgraph(gobject = sln.sub, resolution = 0.5, n_iterations = 500, set_seed=T, seed_number = 43, 
                                 network_name = 'NN.harmony', name = 'L1_annotations')  # make the clusters
 
 ```
 
 # UMAP projection
 ```{r UMAP-projection-res0.5}
-sln.sub <- runUMAPprojection(sln.sub, random_subset = 1e5)  # project UMAP coordinates to the full dataset based on a subsampling
+sln.sub <- runUMAPprojection(sln.sub, random_subset = 1e5, dimensions_to_use=1:5, n_threads = 4)  # project UMAP coordinates to the full dataset based on a subsampling
 ```
 
 
@@ -268,7 +268,7 @@ plotMetaDataHeatmap(sln.sub, expression_values = "normalized",
 
 
 ```{r save-object-0.5}
-filename <- paste0("sln.clustering3.dim3k10.res0.5.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
+filename <- paste0("sln.clustering3.dim8k10.res0.5.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
 saveRDS(sln.sub, filename)
 md <- pDataDT(sln) 
 saveRDS(md, paste0("md.",filename))
@@ -277,14 +277,26 @@ saveRDS(Giotto::getExpression(sln, values = "scaled", output = c("matrix"),  set
 ```
 
 
+# plot downsampled umap
+```{r plot-UMAP-Downsample-end, fig.show="hold", out.width="50%"}
+md <- pDataDT(sln); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 3e5))$cell_ID
+sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
+leiden_colors <- getDistinctColors(length(unique(md$leiden_harmony)))
+names(leiden_colors) <- unique(md$leiden_harmony)
+plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.projection', cell_color = 'L1_annotations',
+         cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.75, point_shape="no_border",
+         point_alpha=0.5)
+```
+
+
 ```{r call-date}
 date()
 ```
 
 Cluster numbers
-      dim5k8      dim8k10        dim10k10       dim12k15    
-0.1
-0.3
-0.5
+      dim3k10   dim5k10   dim5k15     dim8k10           
+0.1     >100                14
+0.3     >100                28
+0.5     >100                48
 
 
