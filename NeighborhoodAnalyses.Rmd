@@ -26,6 +26,8 @@ library(data.table)
 library(gplots); library(ggplot2); library(viridis)
 library(dbscan)
 library(dplyr); library(leidenAlg)
+BiocManager::install("ComplexHeatmap", update = F)
+library(ComplexHeatmap)
 set.seed(43)
 sessionInfo()
 ```
@@ -37,46 +39,9 @@ md <- readRDS(file = "md.exprs.combined.sln.clustering2.res0.5.20250411.1611.RDS
 df <- md[,c("cell_ID","L1_annotations")]
 sln <- addCellMetadata(gobject = sln, new_metadata = df, by_column=T, column_cell_ID = 'cell_ID')
 rm(df)
-```
+sln <- createSpatialKNNnetwork(sln) 
+saveRDS(sln, "neighborhood.spatialnetwork.sln.clustering2.res0.5.20250411.1611.RDS")
 
-# calculate cellProximityEnrichment 
-```{r cellProximityEnrichment}
-# md <- pDataDT(sln)
-# list_ID <- unique(md$list_ID)
-# gc()
-# 
-# for (i in list_ID[1:2])
-# {
-#   print(i)
-#   keepCells <- subset(md, list_ID %in% i )$cell_ID
-#   sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
-#   sln.sm <- createSpatialKNNnetwork(sln.sm) 
-#   
-#   prox.results[i] <- cellProximityEnrichment(sln.sm, cluster_column = 'leiden_harmony', adjust_method = "fdr",
-#                                       number_of_simulations = 200, spatial_network_name = "knn_network")
-#   # Barplot depicting the ratio of observed over expected frequencies of pairwise interacting clusters (left). Barplot showing the total number of interactions between each pair (right).
-#   
-#   plots[i] <- cellProximityBarplot(sln.sm, CPscore = prox.results[i],  min_orig_ints = 3, min_sim_ints = 3, return_plot = T)
-# }
-
-```
-
-
-
-
-# interaction changed genes
-```{r Interaction-changed-genes, eval=FALSE, echo=FALSE}
-# gene_metadata = fDataDT(sln.sm)
-# 
-# high_expressed_genes = gene_metadata[mean_expr_det > quantile(gene_metadata$mean_expr_det)[4]]$gene_ID
-# 
-# ## identify genes that are associated with proximity to other cell types
-# ICGscoresHighGenes = findInteractionChangedFeats(gobject = sln.sm, selected_feats = high_expressed_genes,
-#                                                  spatial_network_name = "knn_network", cluster_column = 'L1.annot',
-#                                                  diff_test = 'permutation', adjust_method = 'fdr', 
-#                                                  nr_permutations = 20, do_parallel = FALSE)
-# ## visualize
-# plotCellProximityGenes(sln.sm, cpgObject = ICGscoresHighGenes, method = 'dotplot')
 ```
 
 
@@ -367,27 +332,99 @@ stage3 <- cellProx.subgroup(subset(dt, id %in% c("tumor.1","tumor.2","tumor.3","
 stage1 <- cellProx.subgroup(subset(dt, id %in% c("ctrl.1","ctrl.2","ctrl.3","ctrl.4","ctrl.5") ))
 x <- list(stage1 = stage1, stage3=stage3)
 saveRDS(x, file="neighborhood.x.sln.clustering2.res0.5.20250411.1611.RDS")  # all data merged 
-x <- readRDS(file="neighborhood.x.sln.clustering2.res0.5.20250411.1611.RDS")  # all data merged 
+
+
 ```
 
 
 ```{r interact-with-pairwise-enrichment}
-# out <- readRDS(file="cellProxEnrichment.sln.clustering2.res0.5.20250411.1611.RDS")
-# 
+x <- readRDS(file="neighborhood.x.sln.clustering2.res0.5.20250411.1611.RDS")  # all data merged 
+stage1 <- x$stage1; stage3 <- x$stage3
+md <- pDataDT(sln)
 # x <- cellProximityBarplot(sln.sm, CPscore = out,  min_orig_ints = 3, min_sim_ints = 3, return_plot = T)
-# # ggsave(filename = "cellProxBarplot.pdf", x, height=20, width=7, scale = 2)
-# 
-# df <- out$enrichm_res
-# df$tosplit <- df$unified_int
-# df <- as.data.table(tidyr::separate(df, col = tosplit, into = c("left", "right"), sep = "--"))
-# md <- as.data.table(md)
-# md$leiden_harmony <- as.character(md$leiden_harmony)
-# setkey(md, leiden_harmony)
-# df[md, on = .(left = leiden_harmony), left := i.L1_annotations]
-# df[md, on = .(right = leiden_harmony), right := i.L1_annotations]
-# df
+# ggsave(filename = "cellProxBarplot.pdf", x, height=20, width=7, scale = 2)
+md <- as.data.table(md)
+
+addClusterLabels <- function(dt, md)
+{
+  df <- dt$enrichm_res
+  df$tosplit <- df$unified_int
+  df <- as.data.table(tidyr::separate(df, col = tosplit, into = c("left", "right"), sep = "--"))
+  md$leiden_harmony <- as.character(md$leiden_harmony)
+  setkey(md, leiden_harmony)
+  df[md, on = .(left = leiden_harmony), left := i.L1_annotations]
+  df[md, on = .(right = leiden_harmony), right := i.L1_annotations]
+  return(df)
+}
+
+stage1$enrichm_res <- addClusterLabels(dt=stage1, md=md)
+stage3$enrichm_res <- addClusterLabels(dt=stage3, md=md)
+sub.stage1 <- stage1$enrichm_res
+sub.stage1$subgroup <- "stage1"
+sub.stage3 <- stage3$enrichm_res
+sub.stage3$subgroup <- "stage3"
+ # plot x=stage 1 PI_value, y= stage 3 PI_value
+x <- rbind(sub.stage1, sub.stage3)
+x$unified_int <- factor(x$unified_int, levels = sub.stage3$unified_int[order(sub.stage3$PI_value, decreasing = T)])
+```
+
+
+```{r plot-pairwise-enrichment, fig.width=10}
+ggplot(x, aes(x=unified_int, y=PI_value, color=subgroup, label = unified_int)) + geom_point() + theme_classic() + 
+  theme(axis.text.x = element_text(angle=45, hjust=1,vjust=1))
+
+y <- merge(x=sub.stage1, y=sub.stage3, by='unified_int', suffixes = c(".stage1",".stage3"), all=T)
+y$diff.PI_value <- y$PI_value.stage3 - y$PI_value.stage1
+y <- y[!is.na(y$diff.PI_value),]  # remove NA values, which imply interactions not present in both settings
+y$unified_int <- factor(y$unified_int, levels = y$unified_int[order(y$diff.PI_value, decreasing = T)])
+# y$label <- NA
+# y$label[which(abs(y$diff.PI_value )>10)] <- y$unified_int[which(abs(y$diff.PI_value )>10)]
+y$unified_char <- paste0(y$left.stage1,"--",y$right.stage1)
+
+y <- y[which(y$original.stage1 > 20),]
+
+ggplot(y, aes(x=unified_int, y=diff.PI_value, label=unified_int)) + geom_point() + theme_classic() + 
+  ggrepel::geom_label_repel(max.overlaps = 20) + ggtitle("PI_value:  Stage3 - Stage1") + 
+  geom_hline(yintercept = 0, color="grey50") + 
+  theme(axis.text.x = element_blank())  
+
+ggplot(y, aes(x=unified_int, y=diff.PI_value, label=unified_char)) + geom_point() + theme_classic() + 
+  ggrepel::geom_label_repel(max.overlaps = 20) + ggtitle("PI_value:  Stage3 - Stage1") + 
+  geom_hline(yintercept = 0, color="grey50") + 
+  theme(axis.text.x = element_blank())  
+
 
 ```
+
+```{r proximity-heatmap-stage1, fig.width=10}
+cellProximityHeatmap( sln, CPscore = stage1, scale = TRUE, order_cell_types = TRUE, color_breaks = NULL, color_names = NULL )
+cellProximityNetwork(sln, CPscore = stage1)
+```
+
+
+```{r proximity-heatmap-stage3, fig.width=10}
+cellProximityHeatmap( sln, CPscore = stage3, scale = TRUE, order_cell_types = TRUE, return_plot = T)  
+cellProximityNetwork(sln, CPscore = stage3)
+
+```
+
+
+# interaction changed genes
+```{r Interaction-changed-genes, eval=FALSE, echo=FALSE}
+gd = fDataDT(sln)
+
+# high_expressed_genes = gd[mean_expr_det > quantile(gd$mean_expr_det)[4]]$feat_ID
+
+## identify genes that are associated with proximity to other cell types
+ICGscoresHighGenes = findInteractionChangedFeats(gobject = sln, selected_feats = gd$feat_ID,
+                                                 spatial_network_name = "knn_network", cluster_column = 'L1_annotations',
+                                                 diff_test = 'permutation', adjust_method = 'fdr',
+                                                 nr_permutations = 200, do_parallel = T)
+## visualize
+plotCellProximityGenes(sln, cpgObject = ICGscoresHighGenes, method = 'dotplot')
+
+```
+
 
 Job ID: 63088869
 Cluster: slurm_cluster
