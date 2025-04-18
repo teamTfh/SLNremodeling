@@ -21,15 +21,15 @@ sln <- readRDS("sln.clustering2.res0.5.20250411.1611.RDS")
 
 ```{r subsample-restrictCorpus}
 md <- pDataDT(sln)
-keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1e5))$cell_ID
-sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
-md <- pDataDT(sln.sm)
-pos <- data.frame(x = sln.sm@spatial_locs$cell$raw$sdimx, y=sln.sm@spatial_locs$cell$raw$sdimy, 
-                  row.names = sln.sm@spatial_locs$cell$raw$cell_ID) ## x and y positions of each pixel
-cd <- Giotto::getExpression(sln.sm, output = "matrix")
-annot <- md$L1.annot
+# keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1e5))$cell_ID
+# sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
+# md <- pDataDT(sln.sm)
+# pos <- data.frame(x = sln.sm@spatial_locs$cell$raw$sdimx, y=sln.sm@spatial_locs$cell$raw$sdimy, 
+#                   row.names = sln.sm@spatial_locs$cell$raw$cell_ID) ## x and y positions of each pixel
+cd <- Giotto::getExpression(sln, output = "matrix")
+# annot <- md$L1_annotations
 counts <- cleanCounts(counts = cd, verbose = TRUE)
-counts <- round(counts)  # need integer values so round off
+counts <- ceiling(counts)  # need integer values so round up
 corpus <- restrictCorpus(counts, removeAbove = 30.0, removeBelow = 0.01, alpha = 1, plot = TRUE,verbose = TRUE)
 # corpus <- counts
 ```
@@ -39,7 +39,12 @@ corpus <- restrictCorpus(counts, removeAbove = 30.0, removeBelow = 0.01, alpha =
 # ldas <- fitLDA(t(as.matrix(corpus)), Ks = seq(61, 63, by = 1),perc.rare.thresh = 0.05, plot=TRUE, verbose=TRUE, 
 #                ncores = parallel::detectCores())
 ldas <- fitLDA(t(as.matrix(corpus)), Ks = 62, perc.rare.thresh = 0.05, plot=TRUE, verbose=TRUE, 
-               ncores = parallel::detectCores())
+               ncores = 10) # parallel::detectCores())
+
+# dense_matrix <- t(as.matrix(corpus))
+# row_all_zero <- apply(dense_matrix, 1, function(x) all(x == 0)) # Find rows with all zeros
+# zero_rows_indices <- which(row_all_zero)  # Identify the row indices where all elements are zero
+# print(zero_rows_indices) # Print the result
 ```
 
 
