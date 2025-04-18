@@ -23,7 +23,7 @@ sln <- readRDS("sln.clustering2.res0.5.20250411.1611.RDS")
 md <- pDataDT(sln)
 # keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1e5))$cell_ID
 # sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
-# md <- pDataDT(sln.sm)
+md <- pDataDT(sln.sm)
 # pos <- data.frame(x = sln.sm@spatial_locs$cell$raw$sdimx, y=sln.sm@spatial_locs$cell$raw$sdimy, 
 #                   row.names = sln.sm@spatial_locs$cell$raw$cell_ID) ## x and y positions of each pixel
 cd <- Giotto::getExpression(sln, output = "matrix")
