@@ -398,13 +398,13 @@ ggplot(y, aes(x=unified_int, y=diff.PI_value, label=unified_char)) + geom_point(
 ```
 
 ```{r proximity-heatmap-stage1, fig.width=10}
-# cellProximityHeatmap( sln, CPscore = stage1, scale = TRUE, order_cell_types = TRUE, color_breaks = NULL, color_names = NULL )
+cellProximityHeatmap( sln, CPscore = stage1, scale = TRUE, order_cell_types = TRUE, color_breaks = NULL, color_names = NULL )
 cellProximityNetwork(sln, CPscore = stage1)
 ```
 
 
 ```{r proximity-heatmap-stage3, fig.width=10}
-# cellProximityHeatmap( sln, CPscore = stage3, scale = TRUE, order_cell_types = TRUE, return_plot = T)  
+cellProximityHeatmap( sln, CPscore = stage3, scale = TRUE, order_cell_types = TRUE, return_plot = T)
 cellProximityNetwork(sln, CPscore = stage3)
 
 ```
