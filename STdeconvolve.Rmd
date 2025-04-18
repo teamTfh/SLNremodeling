@@ -9,6 +9,7 @@ output: html_notebook
 # remotes::install_github('JEFworks-Lab/STdeconvolve')
 library(STdeconvolve)
 library(Giotto)
+set.seed(44)
 ```
 
 
