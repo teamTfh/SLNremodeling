@@ -1,6 +1,13 @@
 ---
 title: "R Notebook"
-output: html_notebook
+output:
+  html_document:
+    df_print: paged    
+    toc: TRUE
+    toc_float: true
+    toc_collapsed: true
+    toc_depth: 3
+    number_sections: true
 ---
 
 
