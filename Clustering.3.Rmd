@@ -148,19 +148,19 @@ sln.sub <- runPCA(gobject = sln.sub, expression_values = "normalized", scale_uni
               method = "factominer", feats_to_use = clusterChannels)
 signPCA(sln.sub, scale_unit = TRUE, scree_ylim = c(0,40))
 sln.sub <- createNearestNetwork(gobject = sln.sub, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
-                            name = 'NN.harmony', dimensions_to_use = 1:5, k = 15)  # calculate nearest neighbors 
+                            name = 'NN.harmony.clust3', dimensions_to_use = 1:5, k = 15)  # calculate nearest neighbors 
 sln.sub <- doLeidenClusterIgraph(gobject = sln.sub, resolution = 0.7, n_iterations = 200, set_seed=T, seed_number = 43, 
-                                network_name = 'NN.harmony', name = 'L1_annotations')  # make the clusters
-filename <- paste0("sln.clustering3.dim3k10.res0.7.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
-saveRDS(sln.sub, filename)
+                                network_name = 'NN.harmony.clust3', name = 'leiden.clust3.r0.7')  # make the clusters
+md <- pDataDT(sln.sub)
+print(table(md$leiden.clust3.r0.7))
 ```
 
 # plot heatmap of features vs clusters
 ```{r cluster-feat-heatmap-res0.7, fig.show="hold", fig.width=10, fig.height=5}
 clusterChannels <- c("CD3E", "CD4", "CD8", "TCF1", "TOX", "CD45RO", "CD19", "CD20","HLA.DR", "CD38", "IGD", "CXCR5", 
                      "KI67", "CD45", "PAN.CYTO", "CD21", "MAC2/GAL3", "IFNG", "MART1", "GP100", "S100B")
-plotMetaDataHeatmap(sln.sub, expression_values = "normalized",
-                    metadata_cols = "L1_annotations", selected_feats = clusterChannels,
+plotMetaDataHeatmap(sln.sub, expression_values = "normalized", 
+                    metadata_cols = "leiden.clust3.r0.7", selected_feats = clusterChannels,
                     y_text_size = 8, show_values = "zscores_rescaled")
 ```
 
@@ -179,11 +179,11 @@ md <- pDataDT(sln.sub); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 
 sln.sm <- subsetGiotto(gobject = sln.sub, cell_ids = keepCells)
 leiden_colors <- getDistinctColors(length(unique(md$leiden_harmony)))
 names(leiden_colors) <- unique(md$leiden_harmony)
-plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.clust3.d8', cell_color = 'L1_annotations',
+plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.clust3.d8', cell_color = 'leiden.clust3.r0.7',
          cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.75, point_shape="no_border",
          point_alpha=0.5)
 
-plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.clust3.d5', cell_color = 'L1_annotations',
+plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.clust3.d5', cell_color = 'leiden.clust3.r0.7',
          cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.75, point_shape="no_border",
          point_alpha=0.5)
 ```
@@ -218,9 +218,11 @@ sln.sub <- runPCA(gobject = sln.sub, expression_values = "normalized", scale_uni
               method = "factominer", feats_to_use = clusterChannels)
 signPCA(sln.sub, scale_unit = TRUE, scree_ylim = c(0,40))
 sln.sub <- createNearestNetwork(gobject = sln.sub, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
-                            name = 'NN.harmony', dimensions_to_use = 1:5, k = 15)  # calculate nearest neighbors 
+                            name = 'NN.harmony.clust3', dimensions_to_use = 1:5, k = 15)  # calculate nearest neighbors 
 sln.sub <- doLeidenClusterIgraph(gobject = sln.sub, resolution = 1, n_iterations = 200, set_seed=T, seed_number = 43, 
-                                network_name = 'NN.harmony', name = 'L1_annotations')  # make the clusters
+                                network_name = 'NN.harmony.clust3', name = 'leiden.clust3.r1')  # make the clusters
+md <- pDataDT(sln.sub)
+print(table(md$leiden.clust3.r1))
 
 ```
 
@@ -229,7 +231,7 @@ sln.sub <- doLeidenClusterIgraph(gobject = sln.sub, resolution = 1, n_iterations
 clusterChannels <- c("CD3E", "CD4", "CD8", "TCF1", "TOX", "CD45RO", "CD19", "CD20","HLA.DR", "CD38", "IGD", "CXCR5", 
                      "KI67", "CD45", "PAN.CYTO", "CD21", "MAC2/GAL3", "IFNG", "MART1", "GP100", "S100B")
 plotMetaDataHeatmap(sln.sub, expression_values = "normalized",
-                    metadata_cols = "L1_annotations", selected_feats = clusterChannels,
+                    metadata_cols = "leiden.clust3.r1", selected_feats = clusterChannels,
                     y_text_size = 8, show_values = "zscores_rescaled")
 ```
 
@@ -248,11 +250,11 @@ md <- pDataDT(sln.sub); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 
 sln.sm <- subsetGiotto(gobject = sln.sub, cell_ids = keepCells)
 leiden_colors <- getDistinctColors(length(unique(md$leiden_harmony)))
 names(leiden_colors) <- unique(md$leiden_harmony)
-plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.clust3.d8', cell_color = 'L1_annotations',
+plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.clust3.d8', cell_color = 'leiden.clust3.r1',
          cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.75, point_shape="no_border",
          point_alpha=0.5)
 
-plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.clust3.d5', cell_color = 'L1_annotations',
+plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.clust3.d5', cell_color = 'leiden.clust3.r1',
          cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.75, point_shape="no_border",
          point_alpha=0.5)
 ```
