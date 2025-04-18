@@ -26,6 +26,8 @@ library(data.table)
 library(gplots); library(ggplot2); library(viridis)
 library(dbscan)
 library(dplyr); library(leidenAlg)
+BiocManager::install("ComplexHeatmap", update = F)
+library(ComplexHeatmap)
 set.seed(43)
 sessionInfo()
 ```
@@ -33,53 +35,423 @@ sessionInfo()
 # read in data object 
 ```{r read-in-data}
 sln <- readRDS("sln.clustering2.res0.5.20250411.1611.RDS")
-plots = list()
-prox.results = list()
+md <- readRDS(file = "md.exprs.combined.sln.clustering2.res0.5.20250411.1611.RDS")  # sabrina's metadata with L1_annotations
+df <- md[,c("cell_ID","L1_annotations")]
+sln <- addCellMetadata(gobject = sln, new_metadata = df, by_column=T, column_cell_ID = 'cell_ID')
+rm(df)
+sln <- createSpatialKNNnetwork(sln) 
+saveRDS(sln, "neighborhood.spatialnetwork.sln.clustering2.res0.5.20250411.1611.RDS")
+
 ```
 
-# calculate cellProximityEnrichment 
-```{r cellProximityEnrichment}
+
+# try a customized version of cellProxEnrich
+```{r custom-cellproxEnrich-function}
+cellProx.sim <- function(gobject, spat_unit = NULL, feat_type = NULL, spatial_network_name = "Delaunay_network",
+    cluster_column, number_of_simulations = 1000, 
+    adjust_method = c("none", "fdr", "bonferroni", "BH", "holm", "hochberg", "hommel", "BY"), 
+    set_seed = TRUE, seed_number = 1234) 
+{
+    # Set feat_type and spat_unit
+    spat_unit <- set_default_spat_unit(
+        gobject = gobject,
+        spat_unit = spat_unit
+    )
+    feat_type <- set_default_feat_type(
+        gobject = gobject,
+        spat_unit = spat_unit,
+        feat_type = feat_type
+    )
+
+    # p.adj test
+    sel_adjust_method <- match.arg(adjust_method, choices = c(
+        "none", "fdr", "bonferroni", "BH",
+        "holm", "hochberg", "hommel",
+        "BY"
+    ))
+
+    spatial_network_annot <- annotateSpatialNetwork(
+        gobject = gobject,
+        feat_type = feat_type,
+        spat_unit = spat_unit,
+        spatial_network_name = spatial_network_name,
+        cluster_column = cluster_column
+    )
+
+    # remove double edges between same cells #
+    # a simplified network does not have double edges between cells #
+
+    # data.table variables
+    unified_cells <- type_int <- N <- NULL
+
+    spatial_network_annot <- GiottoUtils:::dt_sort_combine_two_columns(
+        spatial_network_annot, "to", "from", "unified_cells"
+    )
+    spatial_network_annot <- spatial_network_annot[!duplicated(unified_cells)]
+
+    sample_dt <- Giotto:::make_simulated_network(
+        gobject = gobject,
+        spat_unit = spat_unit,
+        feat_type = feat_type,
+        spatial_network_name = spatial_network_name,
+        cluster_column = cluster_column,
+        number_of_simulations = number_of_simulations,
+        set_seed = set_seed,
+        seed_number = seed_number
+    )
+
+    # combine original and simulated network
+    table_sim_results <- sample_dt[, .N, by = c(
+        "unified_int", "type_int", "round"
+    )]
+
+    ## create complete simulations
+    ## add 0 if no single interaction was found
+    unique_ints <- unique(table_sim_results[, .(unified_int, type_int)])
+
+    # data.table with 0's for all interactions
+    minimum_simulations <- unique_ints[rep(
+        seq_len(nrow(unique_ints)), number_of_simulations
+    ), ]
+    minimum_simulations[, round := rep(
+        paste0("sim", seq_len(number_of_simulations)),
+        each = nrow(unique_ints)
+    )]
+    minimum_simulations[, N := 0]
+
+    table_sim_minimum_results <- rbind(table_sim_results, minimum_simulations)
+    table_sim_minimum_results[, V1 := sum(N), by = c(
+        "unified_int", "type_int", "round"
+    )]
+    table_sim_minimum_results <- unique(
+        table_sim_minimum_results[, .(unified_int, type_int, round, V1)]
+    )
+    table_sim_results <- table_sim_minimum_results
+
+
+    # data.table variables
+    orig <- unified_int <- V1 <- original <- enrichm <- simulations <- NULL
+
+    table_sim_results[, orig := "simulations"]
+    spatial_network_annot[, round := "original"]
+
+    table_orig_results <- spatial_network_annot[, .N, by = c(
+        "unified_int", "type_int", "round"
+    )]
+    table_orig_results[, orig := "original"]
+    data.table::setnames(table_orig_results, old = "N", new = "V1")
+
+    table_results <- rbind(table_orig_results, table_sim_results)
+
+
+
+    # add missing combinations from original or simulations
+    # probably not needed anymore
+    all_simulation_ints <- as.character(unique(table_results[
+        orig == "simulations"
+    ]$unified_int))
+    all_original_ints <- as.character(unique(table_results[
+        orig == "original"
+    ]$unified_int))
+    missing_in_original <- all_simulation_ints[
+        !all_simulation_ints %in% all_original_ints
+    ]
+    missing_in_simulations <- all_original_ints[
+        !all_original_ints %in% all_simulation_ints
+    ]
+    create_missing_for_original <- table_results[
+        unified_int %in% missing_in_original
+    ]
+    create_missing_for_original <- unique(create_missing_for_original[
+        , c("orig", "V1") := list("original", 0)
+    ])
+    create_missing_for_simulations <- table_results[
+        unified_int %in% missing_in_simulations
+    ]
+    create_missing_for_simulations <- unique(
+        create_missing_for_simulations[, c("orig", "V1") := list(
+            "simulations", 0
+        )]
+    )
+# stop **********************************************************************************************
+
+    table_results <- do.call(
+        "rbind",
+        list(
+            table_results, create_missing_for_original,
+            create_missing_for_simulations
+        )
+    )
+    return(table_results)
+}
+
+cellProx.calcP <- function(table_results, number_of_simulations = 1000, 
+    adjust_method = c("none", "fdr", "bonferroni", "BH", "holm", "hochberg", "hommel", "BY"), 
+    set_seed = TRUE, seed_number = 1234)
+{
+    sel_adjust_method <- match.arg(adjust_method, choices = c(
+        "none", "fdr", "bonferroni", "BH",
+        "holm", "hochberg", "hommel",
+        "BY"
+    ))
+    ## p-values
+    combo_list <- rep(NA, length = length(unique(table_results$unified_int)))
+    p_high <- rep(NA, length = length(unique(table_results$unified_int)))
+    p_low <- rep(NA, length = length(unique(table_results$unified_int)))
+
+    for (int_combo in seq_along(unique(table_results$unified_int))) {
+        this_combo <- as.character(unique(table_results$unified_int)[int_combo])
+
+        sub <- table_results[unified_int == this_combo]
+
+        orig_value <- sub[orig == "original"]$V1
+        sim_values <- sub[orig == "simulations"]$V1
+
+        length_simulations <- length(sim_values)
+        if (length_simulations != number_of_simulations) {
+            additional_length_needed <- number_of_simulations -
+                length_simulations
+            sim_values <- c(sim_values, rep(0, additional_length_needed))
+        }
+
+        p_orig_higher <- 1 - (sum((orig_value + 1) > (sim_values + 1)) /
+            number_of_simulations)
+        p_orig_lower <- 1 - (sum((orig_value + 1) < (sim_values + 1)) /
+            number_of_simulations)
+
+        combo_list[[int_combo]] <- this_combo
+        p_high[[int_combo]] <- p_orig_higher
+        p_low[[int_combo]] <- p_orig_lower
+    }
+    res_pvalue_DT <- data.table::data.table(
+        unified_int = as.vector(combo_list),
+        p_higher_orig = p_high,
+        p_lower_orig = p_low
+    )
+
+
+    # depletion or enrichment in barplot format
+    table_mean_results <- table_results[, .(mean(V1)), by = c(
+        "orig", "unified_int", "type_int"
+    )]
+    table_mean_results_dc <- data.table::dcast.data.table(
+        data = table_mean_results, formula = type_int + unified_int ~ orig,
+        value.var = "V1"
+    )
+    table_mean_results_dc[, original := ifelse(is.na(original), 0, original)]
+    table_mean_results_dc[, enrichm := log2((original + 1) / (simulations + 1))]
+
+
+    table_mean_results_dc <- merge(
+        table_mean_results_dc, res_pvalue_DT,
+        by = "unified_int"
+    )
+    data.table::setorder(table_mean_results_dc, enrichm)
+    table_mean_results_dc[, unified_int := factor(unified_int, unified_int)]
+
+    # adjust p-values for mht
+
+    # data.table variables
+    p.adj_higher <- p.adj_lower <- p_lower_orig <- p_higher_orig <-
+        PI_value <- int_ranking <- NULL
+
+    table_mean_results_dc[, p.adj_higher := stats::p.adjust(
+        p_higher_orig,
+        method = sel_adjust_method
+    )]
+    table_mean_results_dc[, p.adj_lower := stats::p.adjust(
+        p_lower_orig,
+        method = sel_adjust_method
+    )]
+
+
+    table_mean_results_dc[, PI_value := ifelse(p.adj_higher <= p.adj_lower,
+        -log10(p.adj_higher + (1 / number_of_simulations)) * enrichm,
+        -log10(p.adj_lower + (1 / number_of_simulations)) * enrichm
+    )]
+    data.table::setorder(table_mean_results_dc, PI_value)
+
+    # order
+    table_mean_results_dc <- table_mean_results_dc[order(-PI_value)]
+    table_mean_results_dc[, int_ranking := seq_len(.N)]
+
+    return(list(
+        raw_sim_table = table_results,
+        enrichm_res = table_mean_results_dc
+    ))
+}
+
 md <- pDataDT(sln)
 list_ID <- unique(md$list_ID)
 gc()
 
-for (i in list_ID[1:2])
+tableResults <- list()
+
+for (i in list_ID)
 {
   print(i)
   keepCells <- subset(md, list_ID %in% i )$cell_ID
   sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
   sln.sm <- createSpatialKNNnetwork(sln.sm) 
   
-  prox.results[i] <- cellProximityEnrichment(sln.sm, cluster_column = 'leiden_harmony', adjust_method = "fdr",
-                                      number_of_simulations = 200, spatial_network_name = "knn_network")
-  # Barplot depicting the ratio of observed over expected frequencies of pairwise interacting clusters (left). Barplot showing the total number of interactions between each pair (right).
-  
-  plots[i] <- cellProximityBarplot(sln.sm, CPscore = prox.results[i],  min_orig_ints = 3, min_sim_ints = 3, return_plot = T)
+  tableResults[[i]] <- cellProx.sim(sln.sm, cluster_column = 'leiden_harmony', adjust_method = "fdr",
+                                       number_of_simulations = 200, spatial_network_name = "knn_network")
 }
+dt <- purrr::list_rbind(tableResults, names_to = "id")
+saveRDS(dt, file="neighborhood.tableResults.sln.clustering2.res0.5.20250411.1611.RDS")  # all data merged 
+dt <- readRDS(file="neighborhood.tableResults.sln.clustering2.res0.5.20250411.1611.RDS")  # all data merged 
+
+# subset dt based on groupings of interest 
+cellProx.subgroup <- function(dt)
+{
+  wide_dt <- dcast(dt,                # Your input data.table
+                   unified_int ~ round, # Formula: rows ~ columns
+                   value.var = "V1",  # Column with values for the new wide cells
+                   fun.aggregate = sum, # Function to aggregate values (when multiple rows match a cell)
+                   na.rm = TRUE,      # Tell sum() to ignore NA values during aggregation
+                   fill = 0)    
+  setkey(wide_dt, unified_int) # Good practice
+  long_dt <- melt(wide_dt,
+                  id.vars = "unified_int",       # Column(s) to keep as identifier variables
+                  variable.name = "round",       # Name for the new column holding the former column names (1, 2, 3)
+                  value.name = "V1",             # Name for the new column holding the values from the melted columns
+                  variable.factor = FALSE)       # Keep the 'round' column as character initially (avoids factor issues)
+  long_dt$orig <- "NA"
+  long_dt$orig[grep("original", long_dt$round)] <- "original"
+  long_dt$orig[grep("^sim", long_dt$round)] <- "simulations"
+  long_dt$type_int <- "NA"
+  long_dt$tosplit <- long_dt$unified_int
+  long_dt <- as.data.table(tidyr::separate(long_dt, col = tosplit, into = c("left", "right"), sep = "--"))
+  long_dt$type_int <- ifelse( long_dt$left == long_dt$right, "homo", "hetero")
+  long_dt$left <- long_dt$right <- NULL
+  out <- cellProx.calcP(long_dt, number_of_simulations = 200 )
+  return(out)
+}
+
+stage3 <- cellProx.subgroup(subset(dt, id %in% c("tumor.1","tumor.2","tumor.3","tumor.4","tumor.5","tumor.6","tumor.7")))
+stage1 <- cellProx.subgroup(subset(dt, id %in% c("ctrl.1","ctrl.2","ctrl.3","ctrl.4","ctrl.5") ))
+x <- list(stage1 = stage1, stage3=stage3)
+saveRDS(x, file="neighborhood.x.sln.clustering2.res0.5.20250411.1611.RDS")  # all data merged 
+
 
 ```
 
 
+```{r interact-with-pairwise-enrichment}
+x <- readRDS(file="neighborhood.x.sln.clustering2.res0.5.20250411.1611.RDS")  # all data merged 
+stage1 <- x$stage1; stage3 <- x$stage3
+md <- pDataDT(sln)
+# x <- cellProximityBarplot(sln.sm, CPscore = out,  min_orig_ints = 3, min_sim_ints = 3, return_plot = T)
+# ggsave(filename = "cellProxBarplot.pdf", x, height=20, width=7, scale = 2)
+md <- as.data.table(md)
+
+addClusterLabels <- function(dt, md)
+{
+  df <- dt$enrichm_res
+  df$tosplit <- df$unified_int
+  df <- as.data.table(tidyr::separate(df, col = tosplit, into = c("left", "right"), sep = "--"))
+  md$leiden_harmony <- as.character(md$leiden_harmony)
+  setkey(md, leiden_harmony)
+  df[md, on = .(left = leiden_harmony), left := i.L1_annotations]
+  df[md, on = .(right = leiden_harmony), right := i.L1_annotations]
+  return(df)
+}
+
+stage1$enrichm_res <- addClusterLabels(dt=stage1, md=md)
+stage3$enrichm_res <- addClusterLabels(dt=stage3, md=md)
+sub.stage1 <- stage1$enrichm_res
+sub.stage1$subgroup <- "stage1"
+sub.stage3 <- stage3$enrichm_res
+sub.stage3$subgroup <- "stage3"
+ # plot x=stage 1 PI_value, y= stage 3 PI_value
+x <- rbind(sub.stage1, sub.stage3)
+x$unified_int <- factor(x$unified_int, levels = sub.stage3$unified_int[order(sub.stage3$PI_value, decreasing = T)])
+```
+
+
+```{r plot-pairwise-enrichment, fig.width=10}
+ggplot(x, aes(x=unified_int, y=PI_value, color=subgroup, label = unified_int)) + geom_point() + theme_classic() + 
+  theme(axis.text.x = element_text(angle=45, hjust=1,vjust=1))
+
+y <- merge(x=sub.stage1, y=sub.stage3, by='unified_int', suffixes = c(".stage1",".stage3"), all=T)
+y$diff.PI_value <- y$PI_value.stage3 - y$PI_value.stage1
+y <- y[!is.na(y$diff.PI_value),]  # remove NA values, which imply interactions not present in both settings
+y$unified_int <- factor(y$unified_int, levels = y$unified_int[order(y$diff.PI_value, decreasing = T)])
+# y$label <- NA
+# y$label[which(abs(y$diff.PI_value )>10)] <- y$unified_int[which(abs(y$diff.PI_value )>10)]
+y$unified_char <- paste0(y$left.stage1,"--",y$right.stage1)
+
+y <- y[which(y$original.stage1 > 20),]
+
+ggplot(y, aes(x=unified_int, y=diff.PI_value, label=unified_int)) + geom_point() + theme_classic() + 
+  ggrepel::geom_label_repel(max.overlaps = 20) + ggtitle("PI_value:  Stage3 - Stage1") + 
+  geom_hline(yintercept = 0, color="grey50") + 
+  theme(axis.text.x = element_blank())  
+
+ggplot(y, aes(x=unified_int, y=diff.PI_value, label=unified_char)) + geom_point() + theme_classic() + 
+  ggrepel::geom_label_repel(max.overlaps = 20) + ggtitle("PI_value:  Stage3 - Stage1") + 
+  geom_hline(yintercept = 0, color="grey50") + 
+  theme(axis.text.x = element_blank())  
+
+
+```
+
+```{r proximity-heatmap-stage1, fig.width=10}
+cellProximityHeatmap( sln, CPscore = stage1, scale = TRUE, order_cell_types = TRUE, color_breaks = NULL, color_names = NULL )
+cellProximityNetwork(sln, CPscore = stage1)
+```
+
+
+```{r proximity-heatmap-stage3, fig.width=10}
+cellProximityHeatmap( sln, CPscore = stage3, scale = TRUE, order_cell_types = TRUE, return_plot = T)  
+cellProximityNetwork(sln, CPscore = stage3)
+
+```
 
 
 # interaction changed genes
 ```{r Interaction-changed-genes, eval=FALSE, echo=FALSE}
-gene_metadata = fDataDT(sln.sm)
+gd = fDataDT(sln)
 
-high_expressed_genes = gene_metadata[mean_expr_det > quantile(gene_metadata$mean_expr_det)[4]]$gene_ID
+# high_expressed_genes = gd[mean_expr_det > quantile(gd$mean_expr_det)[4]]$feat_ID
 
 ## identify genes that are associated with proximity to other cell types
-ICGscoresHighGenes = findInteractionChangedFeats(gobject = sln.sm, selected_feats = high_expressed_genes,
-                                                 spatial_network_name = "knn_network", cluster_column = 'L1.annot',
-                                                 diff_test = 'permutation', adjust_method = 'fdr', 
-                                                 nr_permutations = 20, do_parallel = FALSE)
+ICGscoresHighGenes = findInteractionChangedFeats(gobject = sln, selected_feats = gd$feat_ID,
+                                                 spatial_network_name = "knn_network", cluster_column = 'L1_annotations',
+                                                 diff_test = 'permutation', adjust_method = 'fdr',
+                                                 nr_permutations = 200, do_parallel = T)
 ## visualize
-plotCellProximityGenes(sln.sm, cpgObject = ICGscoresHighGenes, method = 'dotplot')
+plotCellProximityGenes(sln, cpgObject = ICGscoresHighGenes, method = 'dotplot')
+
 ```
 
 
-# try a customized version of cellProxEnrich
-```{r custom-cellproxEnrich-function}
+Job ID: 63088869
+Cluster: slurm_cluster
+User/Group: heratr01/heratr01
+State: COMPLETED (exit code 0)
+Nodes: 1
+Cores per node: 5
+CPU Utilized: 01:17:41
+CPU Efficiency: 23.32% of 05:33:05 core-walltime
+Job Wall-clock time: 01:06:37
+Memory Utilized: 168.35 GB
+Memory Efficiency: 84.17% of 200.00 GB
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# original function for cellProximityEnrichment from github
 cellProxEnrich.orig <- function(gobject,
     spat_unit = NULL,
     feat_type = NULL,
@@ -311,163 +683,3 @@ cellProxEnrich.orig <- function(gobject,
         enrichm_res = table_mean_results_dc
     ))
 }
-
-cellProx.sim <- function(gobject, spat_unit = NULL, feat_type = NULL, spatial_network_name = "Delaunay_network",
-    cluster_column, number_of_simulations = 1000, 
-    adjust_method = c("none", "fdr", "bonferroni", "BH", "holm", "hochberg", "hommel", "BY"), 
-    set_seed = TRUE, seed_number = 1234) 
-{
-    # Set feat_type and spat_unit
-    spat_unit <- set_default_spat_unit(
-        gobject = gobject,
-        spat_unit = spat_unit
-    )
-    feat_type <- set_default_feat_type(
-        gobject = gobject,
-        spat_unit = spat_unit,
-        feat_type = feat_type
-    )
-
-    # p.adj test
-    sel_adjust_method <- match.arg(adjust_method, choices = c(
-        "none", "fdr", "bonferroni", "BH",
-        "holm", "hochberg", "hommel",
-        "BY"
-    ))
-
-    spatial_network_annot <- annotateSpatialNetwork(
-        gobject = gobject,
-        feat_type = feat_type,
-        spat_unit = spat_unit,
-        spatial_network_name = spatial_network_name,
-        cluster_column = cluster_column
-    )
-
-    # remove double edges between same cells #
-    # a simplified network does not have double edges between cells #
-
-    # data.table variables
-    unified_cells <- type_int <- N <- NULL
-
-    spatial_network_annot <- GiottoUtils:::dt_sort_combine_two_columns(
-        spatial_network_annot, "to", "from", "unified_cells"
-    )
-    spatial_network_annot <- spatial_network_annot[!duplicated(unified_cells)]
-
-    sample_dt <- Giotto:::make_simulated_network(
-        gobject = gobject,
-        spat_unit = spat_unit,
-        feat_type = feat_type,
-        spatial_network_name = spatial_network_name,
-        cluster_column = cluster_column,
-        number_of_simulations = number_of_simulations,
-        set_seed = set_seed,
-        seed_number = seed_number
-    )
-
-    # combine original and simulated network
-    table_sim_results <- sample_dt[, .N, by = c(
-        "unified_int", "type_int", "round"
-    )]
-
-    ## create complete simulations
-    ## add 0 if no single interaction was found
-    unique_ints <- unique(table_sim_results[, .(unified_int, type_int)])
-
-    # data.table with 0's for all interactions
-    minimum_simulations <- unique_ints[rep(
-        seq_len(nrow(unique_ints)), number_of_simulations
-    ), ]
-    minimum_simulations[, round := rep(
-        paste0("sim", seq_len(number_of_simulations)),
-        each = nrow(unique_ints)
-    )]
-    minimum_simulations[, N := 0]
-
-    table_sim_minimum_results <- rbind(table_sim_results, minimum_simulations)
-    table_sim_minimum_results[, V1 := sum(N), by = c(
-        "unified_int", "type_int", "round"
-    )]
-    table_sim_minimum_results <- unique(
-        table_sim_minimum_results[, .(unified_int, type_int, round, V1)]
-    )
-    table_sim_results <- table_sim_minimum_results
-
-
-    # data.table variables
-    orig <- unified_int <- V1 <- original <- enrichm <- simulations <- NULL
-
-    table_sim_results[, orig := "simulations"]
-    spatial_network_annot[, round := "original"]
-
-    table_orig_results <- spatial_network_annot[, .N, by = c(
-        "unified_int", "type_int", "round"
-    )]
-    table_orig_results[, orig := "original"]
-    data.table::setnames(table_orig_results, old = "N", new = "V1")
-
-    table_results <- rbind(table_orig_results, table_sim_results)
-
-
-
-    # add missing combinations from original or simulations
-    # probably not needed anymore
-    all_simulation_ints <- as.character(unique(table_results[
-        orig == "simulations"
-    ]$unified_int))
-    all_original_ints <- as.character(unique(table_results[
-        orig == "original"
-    ]$unified_int))
-    missing_in_original <- all_simulation_ints[
-        !all_simulation_ints %in% all_original_ints
-    ]
-    missing_in_simulations <- all_original_ints[
-        !all_original_ints %in% all_simulation_ints
-    ]
-    create_missing_for_original <- table_results[
-        unified_int %in% missing_in_original
-    ]
-    create_missing_for_original <- unique(create_missing_for_original[
-        , c("orig", "V1") := list("original", 0)
-    ])
-    create_missing_for_simulations <- table_results[
-        unified_int %in% missing_in_simulations
-    ]
-    create_missing_for_simulations <- unique(
-        create_missing_for_simulations[, c("orig", "V1") := list(
-            "simulations", 0
-        )]
-    )
-
-    table_results <- do.call(
-        "rbind",
-        list(
-            table_results, create_missing_for_original,
-            create_missing_for_simulations
-        )
-    )
-    return(table_results)
-}
-
-md <- pDataDT(sln)
-list_ID <- unique(md$list_ID)
-gc()
-tableResults <- list()
-
-for (i in list_ID[1:1])
-{
-  print(i)
-  keepCells <- subset(md, list_ID %in% i )$cell_ID
-  sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
-  sln.sm <- createSpatialKNNnetwork(sln.sm) 
-  
-  tableResults[i] <- cellProx.sim(sln.sm, cluster_column = 'leiden_harmony', adjust_method = "fdr",
-                                      number_of_simulations = 200, spatial_network_name = "knn_network")
-  
-}
-
-
-cellProximityBarplot(sln.sm, CPscore = prox.results.custom,  min_orig_ints = 3, min_sim_ints = 3, return_plot = T)
-```
-
-
