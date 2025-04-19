@@ -4,7 +4,10 @@ output:
   html_document:
     df_print: paged    
     toc: TRUE
-
+    toc_float: true
+    toc_collapsed: true
+    toc_depth: 3
+    number_sections: true
 ---
 
 ```{css, echo=FALSE}
@@ -30,6 +33,23 @@ knitr::opts_chunk$set(fig.retina = 2)
 sessionInfo()
 
 ```
+
+```{r readRDS-harmony-excl-annot}
+sln <- readRDS("sln.clustering2.res0.5.20250411.1611.RDS")
+print(paste("Primary object size: ", length(sln@cell_ID$cell), "cells"))
+md <- pDataDT(sln) 
+# saveRDS(md, file="md.sln.clustering2.RDS")
+# saveRDS(Giotto::getExpression(sln, values = "scaled", output = c("matrix"),  set_defaults = TRUE ), "exprs.sln.clustering2.RDS")
+print("cluster membership")
+print(table(md$leiden_harmony))
+
+md <- readRDS(file = "md.exprs.combined.sln.clustering2.res0.5.20250411.1611.RDS")  # sabrina's metadata with L1_annotations
+df <- md[,c("cell_ID","L1_annotations")]
+sln <- addCellMetadata(gobject = sln, new_metadata = df, by_column=T, column_cell_ID = 'cell_ID')
+rm(df)
+plots <- list()
+```
+
 
 # calculate T cell subsets
 ```{r subset-T-cells}
