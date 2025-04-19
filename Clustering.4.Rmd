@@ -34,20 +34,88 @@ sessionInfo()
 
 ```
 
-```{r readRDS-harmony-excl-annot}
-sln <- readRDS("sln.clustering2.res0.5.20250411.1611.RDS")
+```{r readRDS-clustering3}
+sln <- readRDS("sln.clustering3.dim5k15.res0.7.20250418.091140.RDS")
 print(paste("Primary object size: ", length(sln@cell_ID$cell), "cells"))
 md <- pDataDT(sln) 
-# saveRDS(md, file="md.sln.clustering2.RDS")
-# saveRDS(Giotto::getExpression(sln, values = "scaled", output = c("matrix"),  set_defaults = TRUE ), "exprs.sln.clustering2.RDS")
 print("cluster membership")
 print(table(md$leiden_harmony))
+print(table(md$L1_annotations))
+```
 
-md <- readRDS(file = "md.exprs.combined.sln.clustering2.res0.5.20250411.1611.RDS")  # sabrina's metadata with L1_annotations
-df <- md[,c("cell_ID","L1_annotations")]
+
+```{r assign_newLabels}
+df <- data.frame(leiden.clust3.r0.7 = md$leiden.clust3.r0.7, L2_annotations = "Unknown")
+df$cell_ID <- md$cell_ID
+df$L2_annotations <- paste0("Clust.", df$leiden.clust3.r0.7)  # unknown clusters:
+df[which(df$leiden.clust3.r0.7  == "1" ), 'L2_annotations'] <-  "TBMixed.1"
+df[which(df$leiden.clust3.r0.7  == "2" ), 'L2_annotations'] <-  "TBMixed.2"
+df[which(df$leiden.clust3.r0.7  == "3" ), 'L2_annotations'] <-  "TBMixed.3"
+df[which(df$leiden.clust3.r0.7  == "4" ), 'L2_annotations'] <-  "TBMixed.4"
+df[which(df$leiden.clust3.r0.7  == "5" ), 'L2_annotations'] <-  "BCells.1"
+df[which(df$leiden.clust3.r0.7  == "6" ), 'L2_annotations'] <-  "TBMixed.5"
+df[which(df$leiden.clust3.r0.7  == "7" ), 'L2_annotations'] <-  "BCells.2"
+df[which(df$leiden.clust3.r0.7  == "8" ), 'L2_annotations'] <-  "TCells.1"
+df[which(df$leiden.clust3.r0.7  == "9" ), 'L2_annotations'] <-  "BCells.3"
+df[which(df$leiden.clust3.r0.7  == "10" ), 'L2_annotations'] <-  "TCells.2"
+df[which(df$leiden.clust3.r0.7  == "11" ), 'L2_annotations'] <-  "TBMixed.6"
+df[which(df$leiden.clust3.r0.7  == "12" ), 'L2_annotations'] <-  "TBMixed.7"
+df[which(df$leiden.clust3.r0.7  == "13" ), 'L2_annotations'] <-  "TBMixed.8"
+df[which(df$leiden.clust3.r0.7  == "14" ), 'L2_annotations'] <-  "TBMixed.9"
+df[which(df$leiden.clust3.r0.7  == "15" ), 'L2_annotations'] <-  "TBMixed.10"
+df[which(df$leiden.clust3.r0.7  == "16" ), 'L2_annotations'] <-  "TBMixed.11"
+df[which(df$leiden.clust3.r0.7  == "17" ), 'L2_annotations'] <-  "TCells.3"
+df[which(df$leiden.clust3.r0.7  == "18" ), 'L2_annotations'] <-  "TCells.4"
+df[which(df$leiden.clust3.r0.7  == "19" ), 'L2_annotations'] <-  "TCells.5"
+df[which(df$leiden.clust3.r0.7  == "20" ), 'L2_annotations'] <-  "TCells.6"
+df[which(df$leiden.clust3.r0.7  == "21" ), 'L2_annotations'] <-  "TCells.7"
+df[which(df$leiden.clust3.r0.7  == "22" ), 'L2_annotations'] <-  "TCells.8"
+df[which(df$leiden.clust3.r0.7  == "23" ), 'L2_annotations'] <-  "TCells.9"
+df[which(df$leiden.clust3.r0.7  == "24" ), 'L2_annotations'] <-  "TCells.10"
+df[which(df$leiden.clust3.r0.7  == "25" ), 'L2_annotations'] <-  "TCells.11"
+df[which(df$leiden.clust3.r0.7  == "26" ), 'L2_annotations'] <-  "BCells.4"
+df[which(df$leiden.clust3.r0.7  == "27" ), 'L2_annotations'] <-  "TBMixed.12"
+df[which(df$leiden.clust3.r0.7  == "28" ), 'L2_annotations'] <-  "TBMixed.13"
+df[which(df$leiden.clust3.r0.7  == "29" ), 'L2_annotations'] <-  "BCells.5"
+df[which(df$leiden.clust3.r0.7  == "30" ), 'L2_annotations'] <-  "TBMixed.14"
+df[which(df$leiden.clust3.r0.7  == "31" ), 'L2_annotations'] <-  "TCells.12"
+df[which(df$leiden.clust3.r0.7  == "32" ), 'L2_annotations'] <-  "BCells.6"
+df[which(df$leiden.clust3.r0.7  == "33" ), 'L2_annotations'] <-  "TCells.13"
+df[which(df$leiden.clust3.r0.7  == "34" ), 'L2_annotations'] <-  "TCells.14"
+df[which(df$leiden.clust3.r0.7  == "35" ), 'L2_annotations'] <-  "BCells.7"
+df[which(df$leiden.clust3.r0.7  == "36" ), 'L2_annotations'] <-  "BCells.8"
+df[which(df$leiden.clust3.r0.7  == "37" ), 'L2_annotations'] <-  "TBMixed.15"
+df[which(df$leiden.clust3.r0.7  == "38" ), 'L2_annotations'] <-  "TBMixed.16"
+df[which(df$leiden.clust3.r0.7  == "39" ), 'L2_annotations'] <-  "TBMixed.17"
+df[which(df$leiden.clust3.r0.7  == "40" ), 'L2_annotations'] <-  "TBMixed.18"
+df[which(df$leiden.clust3.r0.7  == "41" ), 'L2_annotations'] <-  "TBMixed.19"
+df[which(df$leiden.clust3.r0.7  == "42" ), 'L2_annotations'] <-  "BCells.9"
+df[which(df$leiden.clust3.r0.7  == "43" ), 'L2_annotations'] <-  "TCells.15"
+df[which(df$leiden.clust3.r0.7  == "44" ), 'L2_annotations'] <-  "TCells.16"
+df[which(df$leiden.clust3.r0.7  == "45" ), 'L2_annotations'] <-  "TBMixed.20"
+df[which(df$leiden.clust3.r0.7  == "46" ), 'L2_annotations'] <-  "BCells.10"
+df[which(df$leiden.clust3.r0.7  == "47" ), 'L2_annotations'] <-  "TCells.17"
+df[which(df$leiden.clust3.r0.7  == "48" ), 'L2_annotations'] <-  "TCells.18"
+df[which(df$leiden.clust3.r0.7  == "49" ), 'L2_annotations'] <-  "BCells.11"
+df[which(df$leiden.clust3.r0.7  == "50" ), 'L2_annotations'] <-  "TCells.19"
+df[which(df$leiden.clust3.r0.7  == "51" ), 'L2_annotations'] <-  "BCells.12"
+df[which(df$leiden.clust3.r0.7  == "52" ), 'L2_annotations'] <-  "BCells.13"
+df[which(df$leiden.clust3.r0.7  == "53" ), 'L2_annotations'] <-  "TBMixed.21"
+df[which(df$leiden.clust3.r0.7  == "54" ), 'L2_annotations'] <-  "BCells.14"
+df[which(df$leiden.clust3.r0.7  == "55" ), 'L2_annotations'] <-  "BCells.15"
+df[which(df$leiden.clust3.r0.7  == "56" ), 'L2_annotations'] <-  "TCells.20"
+df[which(df$leiden.clust3.r0.7  == "57" ), 'L2_annotations'] <-  "TCells.21"
+df[which(df$leiden.clust3.r0.7  == "58" ), 'L2_annotations'] <-  "TCells.22"
+df[which(df$leiden.clust3.r0.7  == "59" ), 'L2_annotations'] <-  "TBMixed.22"
+df[which(df$leiden.clust3.r0.7  == "60" ), 'L2_annotations'] <-  "TBMixed.23"
+df[which(df$leiden.clust3.r0.7  == "61" ), 'L2_annotations'] <-  "TCells.23"
+df[which(df$leiden.clust3.r0.7  == "62" ), 'L2_annotations'] <-  "TBMixed.24"
+df[which(df$leiden.clust3.r0.7  == "63" ), 'L2_annotations'] <-  "TBMixed.25"
+df[which(df$leiden.clust3.r0.7  == "64" ), 'L2_annotations'] <-  "BCells.16"
+df <- md[,c("cell_ID","L2_annotations")]
 sln <- addCellMetadata(gobject = sln, new_metadata = df, by_column=T, column_cell_ID = 'cell_ID')
 rm(df)
-plots <- list()
+
 ```
 
 
