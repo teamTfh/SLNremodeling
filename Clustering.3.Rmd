@@ -176,9 +176,9 @@ dimFeatPlot2D(sln.sm, dim_reduction_name = 'umap.projection', expression_values 
 # violin plot
 ```{r show-violin, fig.show="hold", fig.width=10, fig.height=30, warning=F}
 # don't try to do violinplot on more than 100k cells! 
-# md <- pDataDT(sln); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 5e4))$cell_ID
-# sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
-# violinPlot(sln.sm, feats = clusterChannels, cluster_column = "L1_annotations")
+md <- pDataDT(sln); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 5e4))$cell_ID
+sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
+violinPlot(sln.sm, feats = clusterChannels, cluster_column = "L1_annotations")
 
 ```
 
