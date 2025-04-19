@@ -103,7 +103,7 @@ STdeconvolve::correlationPlot(mat = m, colLabs = "L1.annot", rowLabs = "STdeconv
 saveRDS(results, "STdeconvolve.results.sln.clustering2.res0.5.20250411.1611.RDS")
 ```
 
-
+Runing Ks=40-80 with parallel on all cells
 Job ID: 63001426
 Cluster: slurm_cluster
 User/Group: heratr01/heratr01
@@ -117,8 +117,19 @@ Memory Utilized: 48.81 GB
 Memory Efficiency: 16.27% of 300.00 GB
 
 
-
-
+Running just Ks=62
+seff 63104519
+Job ID: 63104519
+Cluster: slurm_cluster
+User/Group: heratr01/heratr01
+State: TIMEOUT (exit code 0)
+Nodes: 1
+Cores per node: 10
+CPU Utilized: 00:00:00
+CPU Efficiency: 0.00% of 10-20:00:10 core-walltime
+Job Wall-clock time: 1-02:00:01
+Memory Utilized: 115.76 GB
+Memory Efficiency: 38.59% of 300.00 GB
 
 
 

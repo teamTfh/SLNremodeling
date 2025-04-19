@@ -30,21 +30,20 @@ library(data.table)
 library(gplots); library(ggplot2); library(viridis)
 library(dbscan)
 library(dplyr); library(leidenAlg)
-# BiocManager::install("ComplexHeatmap", update = F)
-# library(ComplexHeatmap)
+library(ComplexHeatmap)
 set.seed(43)
 sessionInfo()
 ```
 
 # read in data object 
 ```{r read-in-data}
-sln <- readRDS("sln.clustering2.res0.5.20250411.1611.RDS")
-md <- readRDS(file = "md.exprs.combined.sln.clustering2.res0.5.20250411.1611.RDS")  # sabrina's metadata with L1_annotations
-df <- md[,c("cell_ID","L1_annotations")]
-sln <- addCellMetadata(gobject = sln, new_metadata = df, by_column=T, column_cell_ID = 'cell_ID')
-rm(df)
-sln <- createSpatialKNNnetwork(sln) 
-saveRDS(sln, "neighborhood.spatialnetwork.sln.clustering2.res0.5.20250411.1611.RDS")
+# sln <- readRDS("sln.clustering2.res0.5.20250411.1611.RDS")
+# md <- readRDS(file = "md.exprs.combined.sln.clustering2.res0.5.20250411.1611.RDS")  # sabrina's metadata with L1_annotations
+# df <- md[,c("cell_ID","L1_annotations")]
+# sln <- addCellMetadata(gobject = sln, new_metadata = df, by_column=T, column_cell_ID = 'cell_ID')
+# rm(df)
+# sln <- createSpatialKNNnetwork(sln) 
+# saveRDS(sln, "neighborhood.spatialnetwork.sln.clustering2.res0.5.20250411.1611.RDS")
 sln <- readRDS("neighborhood.spatialnetwork.sln.clustering2.res0.5.20250411.1611.RDS")
 
 ```
@@ -415,7 +414,7 @@ cellProximityNetwork(sln, CPscore = stage3)
 
 
 # interaction changed genes
-```{r Interaction-changed-genes, eval=FALSE, echo=FALSE}
+```{r Interaction-changed-genes}
 gd = fDataDT(sln)
 
 # high_expressed_genes = gd[mean_expr_det > quantile(gd$mean_expr_det)[4]]$feat_ID
@@ -427,6 +426,18 @@ ICGscoresHighGenes = findInteractionChangedFeats(gobject = sln, selected_feats =
                                                  nr_permutations = 200, do_parallel = T)
 ## visualize
 plotCellProximityGenes(sln, cpgObject = ICGscoresHighGenes, method = 'dotplot')
+
+
+md <- pDataDT(sln); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1e5))$cell_ID
+sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
+gd = fDataDT(sln.sm)
+
+## identify genes that are associated with proximity to other cell types
+ICGscoresHighGenes = findInteractionChangedFeats(gobject = sln.sm, selected_feats = gd$feat_ID,
+                                                 spatial_network_name = "knn_network", cluster_column = 'L1_annotations',
+                                                 diff_test = 'permutation', adjust_method = 'fdr',
+                                                 nr_permutations = 50, do_parallel = F)
+
 
 ```
 
