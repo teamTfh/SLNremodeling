@@ -35,9 +35,9 @@ sessionInfo()
 ```
 
 ```{r readRDS-clustering3}
-sln <- readRDS("sln.clustering3.dim5k15.res0.7.20250418.091140.RDS")
-print(paste("Primary object size: ", length(sln@cell_ID$cell), "cells"))
+sln <- readRDS("sln.clustering3.dim5k15.res0.7.20250419.222847.RDS")
 md <- pDataDT(sln) 
+print(paste("Primary object size: ", nrow(md), "cells"))
 print("cluster membership")
 print(table(md$leiden_harmony))
 print(table(md$L1_annotations))
@@ -112,179 +112,274 @@ df[which(df$leiden.clust3.r0.7  == "61" ), 'L2_annotations'] <-  "TCells.23"
 df[which(df$leiden.clust3.r0.7  == "62" ), 'L2_annotations'] <-  "TBMixed.24"
 df[which(df$leiden.clust3.r0.7  == "63" ), 'L2_annotations'] <-  "TBMixed.25"
 df[which(df$leiden.clust3.r0.7  == "64" ), 'L2_annotations'] <-  "BCells.16"
-df <- md[,c("cell_ID","L2_annotations")]
 sln <- addCellMetadata(gobject = sln, new_metadata = df, by_column=T, column_cell_ID = 'cell_ID')
 rm(df)
 
 ```
 
+select all cells in this object that have a CD8.Positive.Classification = 1 and cluster into CD8 T Cell Object, all other T Cells left will make up the CD4 Object.
 
 # calculate T cell subsets
-```{r subset-T-cells}
+```{r subset-cd8T-cells}
 gc()
-md <- pDataDT(sln); keepCells <- md$cell_ID[which(md$L1.annot == "Tcells")]
+md <- pDataDT(sln); keepCells <- md$cell_ID[grep(pattern = "TCells", md$L2_annotations)]
 Tcells <- subsetGiotto(sln, cell_ids = keepCells )
-print("recalculate clusters post-exclusion")
-clusterChannels <- c("CD3E", "CD4", "CD8", "TCF1", "GZMB", "CD39", "KI67", "PD1", "TOX", "FOXP3", "ICOS", "CD45RA","HLA.DR")
-Tcells <- runPCA(gobject = Tcells, expression_values = "normalized", scale_unit = TRUE, 
+
+md <- pDataDT(Tcells)
+keepCells <- md$cell_ID[which(md$CD8.Positive.Classification == 1)]
+cd8.Tcells <- subsetGiotto(Tcells, cell_ids = keepCells )
+print("subcluster CD8 T cells")
+clusterChannels <- c("CD3E", "CD4", "CD8", "TCF1", "GZMB", "CD39", "KI67", "PD1", "TOX", "FOXP3", "ICOS", "CD45RO", "HLA.DR")
+cd8.Tcells <- runPCA(gobject = cd8.Tcells, expression_values = "normalized", scale_unit = TRUE, 
               method = "factominer", feats_to_use = clusterChannels)
-signPCA(Tcells, scale_unit = TRUE, scree_ylim = c(0,40))
-sln.sm <- subsetGiotto(gobject = Tcells, cell_ids = sample(sln$cell_ID, 1e5, replace=F)) # make a smaller dataset to work with 
-sln.sm <- createNearestNetwork(gobject = sln.sm, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
-                            name = 'NN.harmony', dimensions_to_use = 1:10, k = 10)  # calculate nearest neighbors, focus on global differences 
-sln.sm <- doLeidenClusterIgraph(gobject = sln.sm, resolution = 0.3, n_iterations = 100, set_seed = T, seed_number = 43,
-                                network_name = 'NN.harmony', name = 'leiden_Tcells')  # make the clusters
-Tcells <- labelTransfer(x = Tcells, y = sln.sm, labels = "leiden_Tcells")  # assign cluster labels in the full dataset based on the reduced data
-Tcells <- runUMAPprojection(Tcells, random_subset = 1e5)  # project UMAP coordinates to the full dataset based on a subsampling
-saveRDS(Tcells, "Tcells.RDS")
+signPCA(cd8.Tcells, scale_unit = TRUE, scree_ylim = c(0,40))
+cd8.Tcells <- createNearestNetwork(gobject = cd8.Tcells, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
+                            name = 'NN.harmony', dimensions_to_use = 1:5, k = 15)  # calculate nearest neighbors, focus on global differences 
+cd8.Tcells <- doLeidenClusterIgraph(gobject = cd8.Tcells, resolution = 0.5, n_iterations = 200, set_seed = T, seed_number = 43,
+                                network_name = 'NN.harmony', name = 'leiden_cd8Tcells')  # make the clusters
+cd8.Tcells <- runUMAPprojection(cd8.Tcells, random_subset = 1e5, n_threads = parallelly::availableCores(), 
+                                name="umap.cd8")  # project UMAP coordinates to the full dataset based on a subsampling
 ```
 
 
-```{r readRDS-harmony-excl-annot}
-Tcells <- readRDS("Tcells.RDS")
-plots <- list()
+```{r save-cd8Tcells-res0.5}
+filename <- paste0("clustering4.cd8tcells.dim5k15.res0.5.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
+saveRDS(cd8.Tcells, filename)
+md <- pDataDT(cd8.Tcells)
+saveRDS(md, paste0("md.",filename))
+saveRDS(Giotto::getExpression(cd8.Tcells, values = "scaled", output = c("matrix"),  set_defaults = TRUE ),
+        paste0("exprs.",filename))
+
 ```
 
 
-```{r readRDS-harmony-Tcells}
-Tcells <- readRDS("Tcells.RDS")
-plots <- list()
-```
-
-
-
-
-```{r plot-UMAP-heatmap-Tcells, fig.show="hold", out.width="50%"}
-md <- pDataDT(Tcells); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 5e5))$cell_ID
-sln.sm <- subsetGiotto(gobject = Tcells, cell_ids = keepCells)
-leiden_colors <- getDistinctColors(length(unique(md$trnsfr_leiden_Tcells)))
-names(leiden_colors) <- unique(md$trnsfr_leiden_Tcells)
-plots[[1]] <- plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.projection', cell_color = 'trnsfr_leiden_Tcells',
+```{r plot-UMAP-heatmap-cd8cells, fig.show="hold", out.width="50%"}
+md <- pDataDT(cd8.Tcells); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1e5))$cell_ID
+sln.sm <- subsetGiotto(gobject = cd8.Tcells, cell_ids = keepCells)
+leiden_colors <- getDistinctColors(length(unique(md$leiden_cd8Tcells)))
+names(leiden_colors) <- unique(md$leiden_cd8Tcells)
+plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.cd8', cell_color = 'leiden_cd8Tcells',
          cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.75, point_shape="no_border",
-         point_alpha=0.5, return_plot=T)
+         point_alpha=0.5)
 
-# markers_scran <- findMarkers_one_vs_all(gobject = Tcells, method = "scran", expression_values = "normalized",
-#                                         cluster_column = "trnsfr_leiden_harmony", min_feats = 3)
-# 
-# topgenes_scran <- unique(markers_scran[, head(.SD, 5), by = "cluster"][["feats"]])
+clusterChannels <- c("CD3E", "CD4", "CD8", "TCF1", "GZMB", "CD39", "KI67", "PD1", "TOX", "FOXP3", "ICOS", "CD45RO", "HLA.DR")
 
-clusterChannels <- c("CD3E", "CD4", "CD8", "TCF1", "GZMB", "CD39", "KI67", "PD1", "TOX", "FOXP3", "ICOS")
-
-plots[[2]] <- plotMetaDataHeatmap(Tcells, expression_values = "normalized",
-                    metadata_cols = "trnsfr_leiden_Tcells", selected_feats = clusterChannels,
-                    y_text_size = 8, show_values = "zscores_rescaled", return_plot = T)
+plotMetaDataHeatmap(cd8.Tcells, expression_values = "normalized",
+                    metadata_cols = "leiden_cd8Tcells", selected_feats = clusterChannels,
+                    y_text_size = 8, show_values = "zscores_rescaled")
 ```
 
-
-```{r spatDimPlot-Tcells, fig.width=12, fig.height=12}
-md <- pDataDT(Tcells); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1e5))$cell_ID
-sln.sm <- subsetGiotto(gobject = Tcells, cell_ids = keepCells)
-plots[[3]] <- dimFeatPlot2D(sln.sm, dim_reduction_name = 'umap.projection', expression_values = "scaled", 
-              feats = c("TCF1","TOX", "CD8", "CD4","FOXP3","ICOS"), 
-              point_alpha = 0.2, point_shape = "no_border", cow_n_col = 2, return_plot=T)
-```
-
-
-```{r show-violin, fig.show="hold", fig.width=5, fig.height=10, warning=F}
-# don't try to do violinplot on more than 100k cells! 
-md <- pDataDT(Tcells); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 5e4))$cell_ID
-sln.sm <- subsetGiotto(gobject = Tcells, cell_ids = keepCells)
-violinPlot(sln.sm, feats = clusterChannels, cluster_column = "trnsfr_leiden_Tcells")
+```{r show-violin-cd8Tcells, fig.show="hold", fig.width=10, fig.height=15, warning=F}
+md <- pDataDT(cd8.Tcells); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 5e4))$cell_ID
+sln.sm <- subsetGiotto(gobject = cd8.Tcells, cell_ids = keepCells)
+violinPlot(sln.sm, feats = clusterChannels, cluster_column = "leiden_cd8Tcells")
 
 ```
 
 
-```{r plot-joined-plots-2}
-if(.Platform$OS.type == "windows")  # only try to plot this if we're not in Windows (so presumably on HPC)
-{  
-  plt <- gridExtra::grid.arrange(grobs = list(plots[[1]], plots[[2]],plots[[3]]),
-                        layout_matrix = rbind(c(1,1,2,2,2),
-                                              c(3,3,3,3,4),
-                                              c(3,3,3,3,5)))
-  ggsave(plot=plt,filename = "annotation_Tcells.png",height = 15,width=10)
-  # ggsave(plot=plots[[4]],filename="tumor.5.clusters.pdf",height=14,width=10)
-  plt; rm(plt)
-}
-```
+```{r subset-cd4T-cells}
+keepCells <- subset(md, !(cell_ids %in% keepCells))$cell_ID
+cd4.Tcells <- subsetGiotto(Tcells, cell_ids = keepCells )
+print("subcluster CD4 T cells")
+clusterChannels <- c("CD3E", "CD4", "CD8", "TCF1", "GZMB", "CD39", "KI67", "PD1", "TOX", "FOXP3", "ICOS", "CD45RO", "HLA.DR")
+cd4.Tcells <- runPCA(gobject = cd4.Tcells, expression_values = "normalized", scale_unit = TRUE, 
+              method = "factominer", feats_to_use = clusterChannels)
+signPCA(cd4.Tcells, scale_unit = TRUE, scree_ylim = c(0,40))
+cd4.Tcells <- createNearestNetwork(gobject = cd4.Tcells, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
+                            name = 'NN.harmony', dimensions_to_use = 1:5, k = 15)  # calculate nearest neighbors, focus on global differences 
+cd4.Tcells <- doLeidenClusterIgraph(gobject = cd4.Tcells, resolution = 0.5, n_iterations = 200, set_seed = T, seed_number = 43,
+                                network_name = 'NN.harmony', name = 'leiden_cd4Tcells')  # make the clusters
+cd4.Tcells <- runUMAPprojection(cd4.Tcells, random_subset = 1e5, n_threads = parallelly::availableCores(), 
+                                name="umap.cd4")  # project UMAP coordinates to the full dataset  
 
-
-
-
-```{r label-L2annotation}
-md <- pDataDT(Tcells)
-df <- data.frame(trnsfr_leiden_Tcells = md$trnsfr_leiden_Tcells, L2.annot = "Unknown")
-df$cell_ID <- md$cell_ID
-df$L2.annot <- paste0("Tcells.", df$trnsfr_leiden_Tcells)  # unknown clusters:  1,2,3,5,7,8,9,11,21
-df[which(df$trnsfr_leiden_Tcells %in% c(4)), 'L2.annot'] <- "CD8.1"
-df[which(df$trnsfr_leiden_Tcells %in% c(6)), 'L2.annot'] <- "CD8.2"
-df[which(df$trnsfr_leiden_Tcells %in% c(10)), 'L2.annot']  <- "CD8.3"
-df[which(df$trnsfr_leiden_Tcells %in% c(12)), 'L2.annot'] <- "CD4.1"
-df[which(df$trnsfr_leiden_Tcells %in% c(13)), 'L2.annot'] <- "Treg.1"
-df[which(df$trnsfr_leiden_Tcells %in% c(14)), 'L2.annot'] <- "CD4.2"
-df[which(df$trnsfr_leiden_Tcells %in% c(15)), 'L2.annot'] <- "CD4.3"
-df[which(df$trnsfr_leiden_Tcells %in% c(16)), 'L2.annot'] <- "CD4.4"
-df[which(df$trnsfr_leiden_Tcells %in% c(17)), 'L2.annot'] <- "CD4.5"
-df[which(df$trnsfr_leiden_Tcells %in% c(18)), 'L2.annot'] <- "CD4.6"
-df[which(df$trnsfr_leiden_Tcells %in% c(19)), 'L2.annot'] <- "CD4.6"
-df[which(df$trnsfr_leiden_Tcells %in% c(20)), 'L2.annot'] <- "CD8.4"
-df$trnsfr_leiden_Tcells <- NULL
-
-Tcells <- addCellMetadata(Tcells, new_metadata = df, by_column = T, column_cell_ID="cell_ID")  # add in the annotations to the main object
-
-md <- pDataDT(Tcells)
-keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1e5))$cell_ID
-sln.sm <- subsetGiotto(gobject = Tcells, cell_ids = keepCells)
-leiden_colors <- getDistinctColors(length(unique(md$L2.annot)))
-names(leiden_colors) <- unique(md$L2.annot)
-plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.projection', cell_color = 'L2.annot',
-         cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.5, point_shape="no_border",
-         point_alpha=0.35)
 
 ```
 
 
-```{r readRDS-harmony-excl-annot}
-sln <- readRDS("sln.harmony.excl.annot.RDS")
-plots <- list()
-```
-
-
-```{r merge-in-Tcell-annotations, fig.show="hold", out.width="50%"}
-md.sln <- pDataDT(sln)
-md.T <- pDataDT(Tcells)
-md.sln$L2.annot <- "N/A"
-md.sln$L2.annot[which(md.sln$cell_ID %in% md.T$cell_ID)] <- md.T$L2.annot
-table(md.sln$L2.annot, useNA="ifany")
-df <- md.sln[,c("cell_ID","L2.annot")]
-sln <- addCellMetadata(sln, new_metadata = df, by_column = T, column_cell_ID="cell_ID")  # add in the annotations to the main object
-rm(md.sln)
-rm(md.T)
-
-md <- pDataDT(sln)
-keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1e5))$cell_ID
-sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
-leiden_colors <- getDistinctColors(length(unique(md$L1.annot)))
-names(leiden_colors) <- unique(md$L1.annot)
-plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.projection', cell_color = 'L1.annot',
-         cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.5, point_shape="no_border",
-         point_alpha=0.35)
-
-leiden_colors <- getDistinctColors(length(unique(md$L2.annot)))
-names(leiden_colors) <- unique(md$L2.annot)
-plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.projection', cell_color = 'L2.annot',
-         cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.5, point_shape="no_border",
-         point_alpha=0.35)
+```{r save-cd4Tcells-res0.5}
+filename <- paste0("clustering4.cd4tcells.dim5k15.res0.5.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
+saveRDS(cd4.Tcells, filename)
+md <- pDataDT(cd4.Tcells)
+saveRDS(md, paste0("md.",filename))
+saveRDS(Giotto::getExpression(cd4.Tcells, values = "scaled", output = c("matrix"),  set_defaults = TRUE ),
+        paste0("exprs.",filename))
 
 ```
 
 
-```{r writeRDS-sln-Tcell-annot}
-md <- pDataDT(sln)
-table(md$L1.annot)
-table(md$L2.annot)
+```{r plot-UMAP-heatmap-cd4cells, fig.show="hold", out.width="50%"}
+md <- pDataDT(cd4.Tcells); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1e5))$cell_ID
+sln.sm <- subsetGiotto(gobject = cd4.Tcells, cell_ids = keepCells)
+leiden_colors <- getDistinctColors(length(unique(md$leiden_cd4Tcells)))
+names(leiden_colors) <- unique(md$leiden_cd4Tcells)
+plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.cd4', cell_color = 'leiden_cd4Tcells',
+         cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.75, point_shape="no_border",
+         point_alpha=0.5)
 
-filename <- paste0("sln.L2.annot.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
-saveRDS(sln, filename)
+clusterChannels <- c("CD3E", "CD4", "CD8", "TCF1", "GZMB", "CD39", "KI67", "PD1", "TOX", "FOXP3", "ICOS", "CD45RO", "HLA.DR")
+
+plotMetaDataHeatmap(cd4.Tcells, expression_values = "normalized",
+                    metadata_cols = "leiden_cd4Tcells", selected_feats = clusterChannels,
+                    y_text_size = 8, show_values = "zscores_rescaled")
+```
+
+```{r show-violin-cd4Tcells, fig.show="hold", fig.width=10, fig.height=15, warning=F}
+md <- pDataDT(cd4.Tcells); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 5e4))$cell_ID
+sln.sm <- subsetGiotto(gobject = cd4.Tcells, cell_ids = keepCells)
+violinPlot(sln.sm, feats = clusterChannels, cluster_column = "leiden_cd4Tcells")
+
+```
+
+
+# calculate B cell subsets
+BCells: Cluster out BCells.1-16, cluster on the panel below
+B Cells Object Panel:
+CD20
+CD19
+PAX5
+HLA DR
+CD38
+IGD
+KI67
+CXCR5
+CD21
+CD11C
+
+```{r subset-bcells}
+gc()
+md <- pDataDT(sln); keepCells <- md$cell_ID[grep(pattern = "BCells", md$L2_annotations)]
+Bcells <- subsetGiotto(sln, cell_ids = keepCells )
+
+md <- pDataDT(Bcells)
+keepCells <- md$cell_ID[which(md$CD8.Positive.Classification == 1)]
+Bcells <- subsetGiotto(Tcells, cell_ids = keepCells )
+print("subcluster Bcells")
+clusterChannels <- c("CD19", "CD20", "PAX5", "HLA.DR", "CD38", "IGD", "KI67", "CXCR5", "CD21", "CD11C")
+Bcells <- runPCA(gobject = Bcells, expression_values = "normalized", scale_unit = TRUE, 
+              method = "factominer", feats_to_use = clusterChannels)
+signPCA(Bcells, scale_unit = TRUE, scree_ylim = c(0,40))
+Bcells <- createNearestNetwork(gobject = Bcells, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
+                            name = 'NN.harmony', dimensions_to_use = 1:5, k = 15)  # calculate nearest neighbors, focus on global differences 
+Bcells <- doLeidenClusterIgraph(gobject = Bcells, resolution = 0.5, n_iterations = 200, set_seed = T, seed_number = 43,
+                                network_name = 'NN.harmony', name = 'leiden_Bcells')  # make the clusters
+Bcells <- runUMAPprojection(Bcells, random_subset = 1e5, n_threads = parallelly::availableCores(), 
+                                name="umap.Bcells")  # project UMAP coordinates to the full dataset based on a subsampling
+```
+
+
+```{r save-Bcells-res0.5}
+filename <- paste0("sln.clustering4.bcells.dim5k15.res0.5.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
+saveRDS(Bcells, filename)
+md <- pDataDT(Bcells)
+saveRDS(md, paste0("md.",filename))
+saveRDS(Giotto::getExpression(Bcells, values = "scaled", output = c("matrix"),  set_defaults = TRUE ),
+        paste0("exprs.",filename))
+
+```
+
+
+```{r plot-UMAP-heatmap-Bcells, fig.show="hold", out.width="50%"}
+md <- pDataDT(Bcells); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1e5))$cell_ID
+sln.sm <- subsetGiotto(gobject = Bcells, cell_ids = keepCells)
+leiden_colors <- getDistinctColors(length(unique(md$leiden_Bcells)))
+names(leiden_colors) <- unique(md$leiden_Bcells)
+plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.Bcells', cell_color = 'leiden_Bcells',
+         cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.75, point_shape="no_border",
+         point_alpha=0.5)
+
+clusterChannels <- c("CD19", "CD20", "PAX5", "HLA.DR", "CD38", "IGD", "KI67", "CXCR5", "CD21", "CD11C")
+
+plotMetaDataHeatmap(Bcells, expression_values = "normalized",
+                    metadata_cols = "leiden_Bcells", selected_feats = clusterChannels,
+                    y_text_size = 8, show_values = "zscores_rescaled")
+```
+
+```{r show-violin-Bcells, fig.show="hold", fig.width=10, fig.height=15, warning=F}
+md <- pDataDT(Bcells); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 5e4))$cell_ID
+sln.sm <- subsetGiotto(gobject = Bcells, cell_ids = keepCells)
+violinPlot(sln.sm, feats = clusterChannels, cluster_column = "leiden_Bcells")
+
+```
+
+
+# TBMixed Cells: Cluster out TBMixed.1-25
+TBMixed Cells Object Panel:
+CD20
+CD19
+PAX5
+HLA DR
+CD38
+IGD
+KI67
+CXCR5
+CD21
+CD11C
+CD3E
+CD4
+CD8
+TCF1
+GZMB
+CD39
+PD1
+TOX
+FOXP3
+ICOS
+CD45RO
+
+# calculate T/B mixed cell subsets
+```{r subset-TBmixed-cells}
+gc()
+md <- pDataDT(sln); keepCells <- md$cell_ID[grep(pattern = "TBMixed", md$L2_annotations)]
+TBmixcells <- subsetGiotto(sln, cell_ids = keepCells )
+print("subcluster TBmixcells")
+clusterChannels <- c("CD20", "CD19", "PAX5", "HLA.DR", "CD38", "IGD", "KI67", "CXCR5", "CD21", "CD11C", "CD3E", 
+                     "CD4", "CD8", "TCF1", "GZMB", "CD39", "PD1", "TOX", "FOXP3", "ICOS", "CD45RO")
+TBmixcells <- runPCA(gobject = TBmixcells, expression_values = "normalized", scale_unit = TRUE, 
+              method = "factominer", feats_to_use = clusterChannels)
+signPCA(TBmixcells, scale_unit = TRUE, scree_ylim = c(0,40))
+TBmixcells <- createNearestNetwork(gobject = TBmixcells, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
+                            name = 'NN.harmony', dimensions_to_use = 1:5, k = 15)  # calculate nearest neighbors, focus on global differences 
+TBmixcells <- doLeidenClusterIgraph(gobject = TBmixcells, resolution = 0.5, n_iterations = 200, set_seed = T, seed_number = 43,
+                                network_name = 'NN.harmony', name = 'leiden_TBmixed')  # make the clusters
+TBmixcells <- runUMAPprojection(TBmixcells, random_subset = 1e5, n_threads = parallelly::availableCores(), 
+                                name="umap.TBmixed")  # project UMAP coordinates to the full dataset based on a subsampling
+```
+
+
+```{r save-TBmixed-res0.5}
+filename <- paste0("sln.clustering4.tbmixed.dim5k15.res0.5.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
+saveRDS(TBmixcells, filename)
+md <- pDataDT(TBmixcells)
+saveRDS(md, paste0("md.",filename))
+saveRDS(Giotto::getExpression(TBmixcells, values = "scaled", output = c("matrix"),  set_defaults = TRUE ),
+        paste0("exprs.",filename))
+
+```
+
+
+
+```{r plot-UMAP-heatmap-TBmixed, fig.show="hold", out.width="50%"}
+md <- pDataDT(TBmixcells); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1e5))$cell_ID
+sln.sm <- subsetGiotto(gobject = TBmixcells, cell_ids = keepCells)
+leiden_colors <- getDistinctColors(length(unique(md$leiden_TBmixed)))
+names(leiden_colors) <- unique(md$leiden_TBmixed)
+plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.TBmixed', cell_color = 'leiden_TBmixed',
+         cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.75, point_shape="no_border",
+         point_alpha=0.5)
+
+clusterChannels <- c("CD20", "CD19", "PAX5", "HLA.DR", "CD38", "IGD", "KI67", "CXCR5", "CD21", "CD11C", "CD3E", 
+                     "CD4", "CD8", "TCF1", "GZMB", "CD39", "PD1", "TOX", "FOXP3", "ICOS", "CD45RO")
+plotMetaDataHeatmap(TBmixcells, expression_values = "normalized",
+                    metadata_cols = "leiden_TBmixed", selected_feats = clusterChannels,
+                    y_text_size = 8, show_values = "zscores_rescaled")
+```
+
+
+```{r show-violin-TBmixed, fig.show="hold", fig.width=10, fig.height=15, warning=F}
+md <- pDataDT(TBmixcells); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 5e4))$cell_ID
+sln.sm <- subsetGiotto(gobject = TBmixcells, cell_ids = keepCells)
+violinPlot(sln.sm, feats = clusterChannels, cluster_column = "leiden_TBmixed")
+
 ```
 
 
