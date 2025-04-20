@@ -428,7 +428,7 @@ ICGscoresHighGenes = findInteractionChangedFeats(gobject = sln, selected_feats =
 plotCellProximityGenes(sln, cpgObject = ICGscoresHighGenes, method = 'dotplot')
 
 
-md <- pDataDT(sln); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1e5))$cell_ID
+md <- pDataDT(sln); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 3e5))$cell_ID
 sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
 gd = fDataDT(sln.sm)
 
@@ -436,9 +436,11 @@ gd = fDataDT(sln.sm)
 ICGscoresHighGenes = findInteractionChangedFeats(gobject = sln.sm, selected_feats = gd$feat_ID,
                                                  spatial_network_name = "knn_network", cluster_column = 'L1_annotations',
                                                  diff_test = 'permutation', adjust_method = 'fdr',
-                                                 nr_permutations = 50, do_parallel = F)
+                                                 nr_permutations = 100, do_parallel = F)
+df <- ICGscoresHighGenes$ICFscores
 
-
+# df.2 has 1e5 cells at 100 permutations 
+date()
 ```
 
 
