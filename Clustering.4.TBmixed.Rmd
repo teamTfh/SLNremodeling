@@ -143,7 +143,6 @@ FOXP3
 ICOS
 CD45RO
 
-# calculate T/B mixed cell subsets
 ```{r subset-TBmixed-cells}
 gc()
 md <- pDataDT(sln); keepCells <- md$cell_ID[grep(pattern = "TBMixed", md$L2_annotations)]
@@ -199,6 +198,7 @@ md <- pDataDT(TBmixcells); keepCells <- subset(md, cell_ID %in% sample(md$cell_I
 sln.sm <- subsetGiotto(gobject = TBmixcells, cell_ids = keepCells)
 violinPlot(sln.sm, feats = clusterChannels, cluster_column = "leiden_TBmixed")
 
+print(paste("Primary object size: ", nrow(md), "cells"))
 ```
 
 

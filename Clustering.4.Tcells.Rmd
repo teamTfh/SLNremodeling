@@ -126,6 +126,8 @@ md <- pDataDT(sln); keepCells <- md$cell_ID[grep(pattern = "TCells", md$L2_annot
 Tcells <- subsetGiotto(sln, cell_ids = keepCells )
 
 md <- pDataDT(Tcells)
+print(paste("Primary object size: ", nrow(md), "cells"))
+
 keepCells <- md$cell_ID[which(md$CD8.Positive.Classification == 1)]
 cd8.Tcells <- subsetGiotto(Tcells, cell_ids = keepCells )
 print("subcluster CD8 T cells")
@@ -196,6 +198,7 @@ print(table(cd8.Tcells$leiden_cd8Tcells.res0.7))
 md <- pDataDT(cd8.Tcells); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 5e4))$cell_ID
 sln.sm <- subsetGiotto(gobject = cd8.Tcells, cell_ids = keepCells)
 violinPlot(sln.sm, feats = clusterChannels, cluster_column = "leiden_cd8Tcells.res0.7")
+print(paste("Primary object size: ", nrow(md), "cells"))
 
 ```
 
@@ -241,6 +244,8 @@ plotMetaDataHeatmap(cd8.Tcells, expression_values = "normalized",
                     metadata_cols = "leiden_cd8Tcells.res0.5", selected_feats = clusterChannels,
                     y_text_size = 8, show_values = "zscores_rescaled")
 print(table(cd8.Tcells$leiden_cd8Tcells.res0.5))
+print(paste("Primary object size: ", nrow(md), "cells"))
+
 
 ```
 
@@ -291,6 +296,7 @@ md <- pDataDT(cd4.Tcells)
 saveRDS(md, paste0("md.",filename))
 saveRDS(Giotto::getExpression(cd4.Tcells, values = "scaled", output = c("matrix"),  set_defaults = TRUE ),
         paste0("exprs.",filename))
+print(paste("Primary object size: ", nrow(md), "cells"))
 
 ```
 
@@ -393,6 +399,9 @@ plotMetaDataHeatmap(cd4.Tcells, expression_values = "normalized",
                     metadata_cols = "leiden_cd4Tcells.res0.7", selected_feats = clusterChannels,
                     y_text_size = 8, show_values = "zscores_rescaled")
 print(table(cd4.Tcells$leiden_cd4Tcells.res0.7))
+
+print(paste("Primary object size: ", nrow(md), "cells"))
+
 ```
 
 # save cd4 objects 

@@ -161,6 +161,7 @@ md <- pDataDT(Bcells)
 saveRDS(md, paste0("md.",filename))
 saveRDS(Giotto::getExpression(Bcells, values = "scaled", output = c("matrix"),  set_defaults = TRUE ),
         paste0("exprs.",filename))
+print(paste("Primary object size: ", nrow(md), "cells"))
 
 ```
 
@@ -206,6 +207,7 @@ print(table(Bcells$leiden_Bcells.res0.7))
 md <- pDataDT(Bcells); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 5e4))$cell_ID
 sln.sm <- subsetGiotto(gobject = Bcells, cell_ids = keepCells)
 violinPlot(sln.sm, feats = clusterChannels, cluster_column = "leiden_Bcells.res0.7")
+print(paste("Primary object size: ", nrow(md), "cells"))
 
 ```
 
