@@ -160,9 +160,11 @@ TBmixcells <- doLeidenClusterIgraph(gobject = TBmixcells, resolution = 0.5, n_it
                                 network_name = 'NN.harmony', name = 'leiden_TBmixed')  # make the clusters
 TBmixcells <- runUMAPprojection(TBmixcells, random_subset = 1e5, n_threads = parallelly::availableCores(), 
                                 name="umap.TBmixed")  # project UMAP coordinates to the full dataset based on a subsampling
+print(table(TBmixcells$leiden_TBmixed))
+
 ```
 
-
+# save object 
 ```{r save-TBmixed-res0.5, eval=FALSE, echo=FALSE}
 filename <- paste0("sln.clustering4.tbmixed.dim5k15.res0.5.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
 saveRDS(TBmixcells, filename)
@@ -174,8 +176,8 @@ saveRDS(Giotto::getExpression(TBmixcells, values = "scaled", output = c("matrix"
 ```
 
 
-
-```{r plot-UMAP-heatmap-TBmixed, fig.show="hold", out.width="50%"}
+# heatmap and umap of TBmixed
+```{r plot-UMAP-heatmap-TBmixed, fig.show="hold"}
 md <- pDataDT(TBmixcells); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1e5))$cell_ID
 sln.sm <- subsetGiotto(gobject = TBmixcells, cell_ids = keepCells)
 leiden_colors <- getDistinctColors(length(unique(md$leiden_TBmixed)))
@@ -191,7 +193,7 @@ plotMetaDataHeatmap(TBmixcells, expression_values = "normalized",
                     y_text_size = 8, show_values = "zscores_rescaled")
 ```
 
-
+# violin plot TBmixed
 ```{r show-violin-TBmixed, fig.show="hold", fig.width=10, fig.height=15, warning=F}
 md <- pDataDT(TBmixcells); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 5e4))$cell_ID
 sln.sm <- subsetGiotto(gobject = TBmixcells, cell_ids = keepCells)
@@ -207,7 +209,18 @@ date()
 
 
 
-
+seff 63157507
+Job ID: 63157507
+Cluster: slurm_cluster
+User/Group: heratr01/heratr01
+State: COMPLETED (exit code 0)
+Nodes: 1
+Cores per node: 10
+CPU Utilized: 01:30:51
+CPU Efficiency: 14.02% of 10:48:00 core-walltime
+Job Wall-clock time: 01:04:48
+Memory Utilized: 103.35 GB
+Memory Efficiency: 51.67% of 200.00 GB
 
 
 

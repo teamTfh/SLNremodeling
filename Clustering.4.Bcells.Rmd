@@ -182,6 +182,7 @@ plotMetaDataHeatmap(Bcells, expression_values = "normalized",
                     metadata_cols = "leiden_Bcells.res0.5", selected_feats = clusterChannels,
                     y_text_size = 8, show_values = "zscores_rescaled")
 
+print(table(Bcells$leiden_Bcells.res0.5))
 
 # ********************* res 0.7 ***********************
 leiden_colors <- getDistinctColors(length(unique(md$leiden_Bcells.res0.7)))
@@ -195,6 +196,8 @@ clusterChannels <- c("CD19", "CD20", "PAX5", "HLA.DR", "CD38", "IGD", "KI67", "C
 plotMetaDataHeatmap(Bcells, expression_values = "normalized",
                     metadata_cols = "leiden_Bcells.res0.7", selected_feats = clusterChannels,
                     y_text_size = 8, show_values = "zscores_rescaled")
+
+print(table(Bcells$leiden_Bcells.res0.7))
 
 ```
 
@@ -214,7 +217,18 @@ date()
 
 
 
-
+seff 63157653
+Job ID: 63157653
+Cluster: slurm_cluster
+User/Group: heratr01/heratr01
+State: COMPLETED (exit code 0)
+Nodes: 1
+Cores per node: 10
+CPU Utilized: 01:34:41
+CPU Efficiency: 12.44% of 12:41:00 core-walltime
+Job Wall-clock time: 01:16:06
+Memory Utilized: 79.95 GB
+Memory Efficiency: 39.97% of 200.00 GB
 
 
 
