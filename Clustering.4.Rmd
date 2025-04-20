@@ -178,7 +178,7 @@ violinPlot(sln.sm, feats = clusterChannels, cluster_column = "leiden_cd8Tcells")
 
 
 ```{r subset-cd4T-cells}
-keepCells <- subset(md, !(cell_ids %in% keepCells))$cell_ID
+keepCells <- subset(md, !(cell_ID %in% keepCells))$cell_ID
 cd4.Tcells <- subsetGiotto(Tcells, cell_ids = keepCells )
 print("subcluster CD4 T cells")
 clusterChannels <- c("CD3E", "CD4", "CD8", "TCF1", "GZMB", "CD39", "KI67", "PD1", "TOX", "FOXP3", "ICOS", "CD45RO", "HLA.DR")
