@@ -284,7 +284,7 @@ cd4.Tcells <- runUMAPprojection(cd4.Tcells, random_subset = 1e5, n_threads = par
 ```
 
 # save CD4 objects 
-```{r save-cd4Tcells-res0.5}
+```{r save-cd4Tcells}
 filename <- paste0("clustering4.cd4tcells.dim5k15.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
 saveRDS(cd4.Tcells, filename)
 md <- pDataDT(cd4.Tcells)
@@ -345,11 +345,74 @@ print(table(cd4.Tcells$leiden_cd4Tcells.res1))
 
 ```
 
+
+# remove outlier cd4 cluster 
+```{r subset-cd4T-cells-again}
+gc()
+print("remove res0.5 cluster 26")
+md <- pDataDT(cd4.Tcells)
+finalLabel <- data.frame(cell_ID = subset(md, leiden_cd4Tcells.res0.5 == 26 )$cell_ID, L1_annotations = "CD4.outlier")
+saveRDS( object = finalLabel, file = "finalAnnotation.cd4outlier.RDS")  # set aside for later 
+
+keepCells <- subset(md, !(leiden_cd4Tcells.res0.5 == 26 ))$cell_ID
+cd4.Tcells <- subsetGiotto(gobject = cd4.Tcells, cell_ids = keepCells)  # take away just those cluster 26 cells 
+
+print("subcluster CD4 T cells")
+clusterChannels <- c("CD3E", "CD4", "CD8", "TCF1", "GZMB", "CD39", "KI67", "PD1", "TOX", "FOXP3", "ICOS", "CD45RO", "HLA.DR")
+cd4.Tcells <- runPCA(gobject = cd4.Tcells, expression_values = "normalized", scale_unit = TRUE, 
+              method = "factominer", feats_to_use = clusterChannels)
+signPCA(cd4.Tcells, scale_unit = TRUE, scree_ylim = c(0,40))
+cd4.Tcells <- createNearestNetwork(gobject = cd4.Tcells, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
+                            name = 'NN.harmony', dimensions_to_use = 1:5, k = 15)  # calculate nearest neighbors, focus on global differences 
+cd4.Tcells <- doLeidenClusterIgraph(gobject = cd4.Tcells, resolution = 0.5, n_iterations = 200, set_seed = T, seed_number = 43,
+                                network_name = 'NN.harmony', name = 'leiden_cd4Tcells.res0.5')  # make the clusters
+cd4.Tcells <- doLeidenClusterIgraph(gobject = cd4.Tcells, resolution = 0.7, n_iterations = 200, set_seed = T, seed_number = 43,
+                                network_name = 'NN.harmony', name = 'leiden_cd4Tcells.res0.7')  # make the clusters
+cd4.Tcells <- runUMAPprojection(cd4.Tcells, random_subset = 1e5, n_threads = parallelly::availableCores(), 
+                                name="umap.cd4")  # project UMAP coordinates to the full dataset  
+
+
+md <- pDataDT(cd4.Tcells); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1e5))$cell_ID
+sln.sm <- subsetGiotto(gobject = cd4.Tcells, cell_ids = keepCells)
+
+leiden_colors <- getDistinctColors(length(unique(md$leiden_cd8Tcells.res0.5)))
+names(leiden_colors) <- unique(md$leiden_cd8Tcells.res0.5)
+plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.cd4', cell_color = 'leiden_cd4Tcells.res0.5',
+         cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.75, point_shape="no_border",
+         point_alpha=0.5)
+
+clusterChannels <- c("CD3E", "CD4", "CD8", "TCF1", "GZMB", "CD39", "KI67", "PD1", "TOX", "FOXP3", "ICOS", "CD45RO", "HLA.DR")
+
+plotMetaDataHeatmap(cd4.Tcells, expression_values = "normalized",
+                    metadata_cols = "leiden_cd4Tcells.res0.5", selected_feats = clusterChannels,
+                    y_text_size = 8, show_values = "zscores_rescaled")
+print(table(cd4.Tcells$leiden_cd4Tcells.res0.5))
+
+
+plotMetaDataHeatmap(cd4.Tcells, expression_values = "normalized",
+                    metadata_cols = "leiden_cd4Tcells.res0.7", selected_feats = clusterChannels,
+                    y_text_size = 8, show_values = "zscores_rescaled")
+print(table(cd4.Tcells$leiden_cd4Tcells.res0.7))
+```
+
+# save cd4 objects 
+```{r save-cd4Tcells-revised}
+# use prior filename so will overwrite with new object
+# filename <- paste0("clustering4.cd4tcells.dim5k15.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
+saveRDS(cd4.Tcells, filename)
+md <- pDataDT(cd4.Tcells)
+saveRDS(md, paste0("md.",filename))
+saveRDS(Giotto::getExpression(cd4.Tcells, values = "scaled", output = c("matrix"),  set_defaults = TRUE ),
+        paste0("exprs.",filename))
+
+```
+
+
 # cd4 violin plot
 ```{r show-violin-cd4Tcells, fig.show="hold", fig.width=10, fig.height=15, warning=F}
 md <- pDataDT(cd4.Tcells); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 5e4))$cell_ID
 sln.sm <- subsetGiotto(gobject = cd4.Tcells, cell_ids = keepCells)
-violinPlot(sln.sm, feats = clusterChannels, cluster_column = "leiden_cd4Tcells.res1")
+violinPlot(sln.sm, feats = clusterChannels, cluster_column = "leiden_cd4Tcells.res0.7")
 
 ```
 
@@ -361,7 +424,18 @@ date()
 ```
 
 
-
+seff 63157801
+Job ID: 63157801
+Cluster: slurm_cluster
+User/Group: heratr01/heratr01
+State: COMPLETED (exit code 0)
+Nodes: 1
+Cores per node: 10
+CPU Utilized: 03:21:40
+CPU Efficiency: 13.08% of 1-01:41:40 core-walltime
+Job Wall-clock time: 02:34:10
+Memory Utilized: 106.78 GB
+Memory Efficiency: 53.39% of 200.00 GB
 
 
 

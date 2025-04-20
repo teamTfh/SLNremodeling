@@ -165,8 +165,8 @@ print(table(TBmixcells$leiden_TBmixed))
 ```
 
 # save object 
-```{r save-TBmixed-res0.5, eval=FALSE, echo=FALSE}
-filename <- paste0("sln.clustering4.tbmixed.dim5k15.res0.5.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
+```{r save-TBmixed-res0.5}
+filename <- paste0("sln.clustering4.tbmixed.dim5k15.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
 saveRDS(TBmixcells, filename)
 md <- pDataDT(TBmixcells)
 saveRDS(md, paste0("md.",filename))
