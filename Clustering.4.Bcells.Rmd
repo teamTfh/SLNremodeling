@@ -1,0 +1,229 @@
+---
+title: "Clustering part 4"
+output:
+  html_document:
+    df_print: paged    
+    toc: TRUE
+    toc_float: true
+    toc_collapsed: true
+    toc_depth: 3
+    number_sections: true
+---
+
+```{css, echo=FALSE}
+img {
+  max-width:150%;
+  height: auto;
+}
+```
+
+```{r call-libraries} 
+date()
+library(Giotto)
+library(future); if(parallelly::availableCores() > 2 & .Platform$OS.type == "windows")  
+  {plan('multisession', workers = parallelly::availableCores()-2)}
+options(future.globals.maxSize= 1e12)
+library(scran); library(MAST); library(leiden);    
+library(data.table)
+library(gplots); library(ggplot2); library(viridis)
+library(dbscan)
+library(dplyr); library(leidenAlg)
+set.seed(43)
+knitr::opts_chunk$set(fig.retina = 2)
+sessionInfo()
+
+```
+
+```{r readRDS-clustering3}
+sln <- readRDS("sln.clustering3.dim5k15.res0.7.20250420.092625.RDS")
+md <- pDataDT(sln) 
+print(paste("Primary object size: ", nrow(md), "cells"))
+print("cluster membership")
+print(table(md$leiden_harmony))
+print(table(md$L1_annotations))
+```
+
+
+```{r assign_newLabels}
+df <- data.frame(leiden.clust3.r0.7 = md$leiden.clust3.r0.7, L2_annotations = "Unknown")
+df$cell_ID <- md$cell_ID
+df$L2_annotations <- paste0("Clust.", df$leiden.clust3.r0.7)  # unknown clusters:
+df[which(df$leiden.clust3.r0.7  == "1" ), 'L2_annotations'] <-  "TBMixed.1"
+df[which(df$leiden.clust3.r0.7  == "2" ), 'L2_annotations'] <-  "TBMixed.2"
+df[which(df$leiden.clust3.r0.7  == "3" ), 'L2_annotations'] <-  "TBMixed.3"
+df[which(df$leiden.clust3.r0.7  == "4" ), 'L2_annotations'] <-  "TBMixed.4"
+df[which(df$leiden.clust3.r0.7  == "5" ), 'L2_annotations'] <-  "BCells.1"
+df[which(df$leiden.clust3.r0.7  == "6" ), 'L2_annotations'] <-  "TBMixed.5"
+df[which(df$leiden.clust3.r0.7  == "7" ), 'L2_annotations'] <-  "BCells.2"
+df[which(df$leiden.clust3.r0.7  == "8" ), 'L2_annotations'] <-  "TCells.1"
+df[which(df$leiden.clust3.r0.7  == "9" ), 'L2_annotations'] <-  "BCells.3"
+df[which(df$leiden.clust3.r0.7  == "10" ), 'L2_annotations'] <-  "TCells.2"
+df[which(df$leiden.clust3.r0.7  == "11" ), 'L2_annotations'] <-  "TBMixed.6"
+df[which(df$leiden.clust3.r0.7  == "12" ), 'L2_annotations'] <-  "TBMixed.7"
+df[which(df$leiden.clust3.r0.7  == "13" ), 'L2_annotations'] <-  "TBMixed.8"
+df[which(df$leiden.clust3.r0.7  == "14" ), 'L2_annotations'] <-  "TBMixed.9"
+df[which(df$leiden.clust3.r0.7  == "15" ), 'L2_annotations'] <-  "TBMixed.10"
+df[which(df$leiden.clust3.r0.7  == "16" ), 'L2_annotations'] <-  "TBMixed.11"
+df[which(df$leiden.clust3.r0.7  == "17" ), 'L2_annotations'] <-  "TCells.3"
+df[which(df$leiden.clust3.r0.7  == "18" ), 'L2_annotations'] <-  "TCells.4"
+df[which(df$leiden.clust3.r0.7  == "19" ), 'L2_annotations'] <-  "TCells.5"
+df[which(df$leiden.clust3.r0.7  == "20" ), 'L2_annotations'] <-  "TCells.6"
+df[which(df$leiden.clust3.r0.7  == "21" ), 'L2_annotations'] <-  "TCells.7"
+df[which(df$leiden.clust3.r0.7  == "22" ), 'L2_annotations'] <-  "TCells.8"
+df[which(df$leiden.clust3.r0.7  == "23" ), 'L2_annotations'] <-  "TCells.9"
+df[which(df$leiden.clust3.r0.7  == "24" ), 'L2_annotations'] <-  "TCells.10"
+df[which(df$leiden.clust3.r0.7  == "25" ), 'L2_annotations'] <-  "TCells.11"
+df[which(df$leiden.clust3.r0.7  == "26" ), 'L2_annotations'] <-  "BCells.4"
+df[which(df$leiden.clust3.r0.7  == "27" ), 'L2_annotations'] <-  "TBMixed.12"
+df[which(df$leiden.clust3.r0.7  == "28" ), 'L2_annotations'] <-  "TBMixed.13"
+df[which(df$leiden.clust3.r0.7  == "29" ), 'L2_annotations'] <-  "BCells.5"
+df[which(df$leiden.clust3.r0.7  == "30" ), 'L2_annotations'] <-  "TBMixed.14"
+df[which(df$leiden.clust3.r0.7  == "31" ), 'L2_annotations'] <-  "TCells.12"
+df[which(df$leiden.clust3.r0.7  == "32" ), 'L2_annotations'] <-  "BCells.6"
+df[which(df$leiden.clust3.r0.7  == "33" ), 'L2_annotations'] <-  "TCells.13"
+df[which(df$leiden.clust3.r0.7  == "34" ), 'L2_annotations'] <-  "TCells.14"
+df[which(df$leiden.clust3.r0.7  == "35" ), 'L2_annotations'] <-  "BCells.7"
+df[which(df$leiden.clust3.r0.7  == "36" ), 'L2_annotations'] <-  "BCells.8"
+df[which(df$leiden.clust3.r0.7  == "37" ), 'L2_annotations'] <-  "TBMixed.15"
+df[which(df$leiden.clust3.r0.7  == "38" ), 'L2_annotations'] <-  "TBMixed.16"
+df[which(df$leiden.clust3.r0.7  == "39" ), 'L2_annotations'] <-  "TBMixed.17"
+df[which(df$leiden.clust3.r0.7  == "40" ), 'L2_annotations'] <-  "TBMixed.18"
+df[which(df$leiden.clust3.r0.7  == "41" ), 'L2_annotations'] <-  "TBMixed.19"
+df[which(df$leiden.clust3.r0.7  == "42" ), 'L2_annotations'] <-  "BCells.9"
+df[which(df$leiden.clust3.r0.7  == "43" ), 'L2_annotations'] <-  "TCells.15"
+df[which(df$leiden.clust3.r0.7  == "44" ), 'L2_annotations'] <-  "TCells.16"
+df[which(df$leiden.clust3.r0.7  == "45" ), 'L2_annotations'] <-  "TBMixed.20"
+df[which(df$leiden.clust3.r0.7  == "46" ), 'L2_annotations'] <-  "BCells.10"
+df[which(df$leiden.clust3.r0.7  == "47" ), 'L2_annotations'] <-  "TCells.17"
+df[which(df$leiden.clust3.r0.7  == "48" ), 'L2_annotations'] <-  "TCells.18"
+df[which(df$leiden.clust3.r0.7  == "49" ), 'L2_annotations'] <-  "BCells.11"
+df[which(df$leiden.clust3.r0.7  == "50" ), 'L2_annotations'] <-  "TCells.19"
+df[which(df$leiden.clust3.r0.7  == "51" ), 'L2_annotations'] <-  "BCells.12"
+df[which(df$leiden.clust3.r0.7  == "52" ), 'L2_annotations'] <-  "BCells.13"
+df[which(df$leiden.clust3.r0.7  == "53" ), 'L2_annotations'] <-  "TBMixed.21"
+df[which(df$leiden.clust3.r0.7  == "54" ), 'L2_annotations'] <-  "BCells.14"
+df[which(df$leiden.clust3.r0.7  == "55" ), 'L2_annotations'] <-  "BCells.15"
+df[which(df$leiden.clust3.r0.7  == "56" ), 'L2_annotations'] <-  "TCells.20"
+df[which(df$leiden.clust3.r0.7  == "57" ), 'L2_annotations'] <-  "TCells.21"
+df[which(df$leiden.clust3.r0.7  == "58" ), 'L2_annotations'] <-  "TCells.22"
+df[which(df$leiden.clust3.r0.7  == "59" ), 'L2_annotations'] <-  "TBMixed.22"
+df[which(df$leiden.clust3.r0.7  == "60" ), 'L2_annotations'] <-  "TBMixed.23"
+df[which(df$leiden.clust3.r0.7  == "61" ), 'L2_annotations'] <-  "TCells.23"
+df[which(df$leiden.clust3.r0.7  == "62" ), 'L2_annotations'] <-  "TBMixed.24"
+df[which(df$leiden.clust3.r0.7  == "63" ), 'L2_annotations'] <-  "TBMixed.25"
+df[which(df$leiden.clust3.r0.7  == "64" ), 'L2_annotations'] <-  "BCells.16"
+sln <- addCellMetadata(gobject = sln, new_metadata = df, by_column=T, column_cell_ID = 'cell_ID')
+rm(df)
+
+```
+
+
+
+# calculate B cell subsets
+BCells: Cluster out BCells.1-16, cluster on the panel below
+B Cells Object Panel:
+CD20
+CD19
+PAX5
+HLA DR
+CD38
+IGD
+KI67
+CXCR5
+CD21
+CD11C
+
+```{r subset-bcells}
+gc()
+md <- pDataDT(sln); keepCells <- md$cell_ID[grep(pattern = "BCells", md$L2_annotations)]
+Bcells <- subsetGiotto(sln, cell_ids = keepCells )
+
+print("subcluster Bcells")
+clusterChannels <- c("CD19", "CD20", "PAX5", "HLA.DR", "CD38", "IGD", "KI67", "CXCR5", "CD21", "CD11C")
+Bcells <- runPCA(gobject = Bcells, expression_values = "normalized", scale_unit = TRUE, 
+              method = "factominer", feats_to_use = clusterChannels)
+signPCA(Bcells, scale_unit = TRUE, scree_ylim = c(0,40))
+Bcells <- createNearestNetwork(gobject = Bcells, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
+                            name = 'NN.harmony', dimensions_to_use = 1:5, k = 15)  # calculate nearest neighbors, focus on global differences 
+Bcells <- doLeidenClusterIgraph(gobject = Bcells, resolution = 0.5, n_iterations = 200, set_seed = T, seed_number = 43,
+                                network_name = 'NN.harmony', name = 'leiden_Bcells.res0.5')  # make the clusters
+Bcells <- doLeidenClusterIgraph(gobject = Bcells, resolution = 0.7, n_iterations = 200, set_seed = T, seed_number = 43,
+                                network_name = 'NN.harmony', name = 'leiden_Bcells.res0.7')  # make the clusters
+Bcells <- runUMAPprojection(Bcells, random_subset = 1e5, n_threads = parallelly::availableCores(), 
+                                name="umap.Bcells")  # project UMAP coordinates to the full dataset based on a subsampling
+```
+
+# save B cells object
+```{r save-Bcells}
+filename <- paste0("sln.clustering4.bcells.dim5k15.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
+saveRDS(Bcells, filename)
+md <- pDataDT(Bcells)
+saveRDS(md, paste0("md.",filename))
+saveRDS(Giotto::getExpression(Bcells, values = "scaled", output = c("matrix"),  set_defaults = TRUE ),
+        paste0("exprs.",filename))
+
+```
+
+# heatmap and umap of B cells 
+```{r plot-UMAP-heatmap-Bcells, fig.show="hold"}
+md <- pDataDT(Bcells); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1e5))$cell_ID
+sln.sm <- subsetGiotto(gobject = Bcells, cell_ids = keepCells)
+
+# ********************* res 0.5 ***********************
+leiden_colors <- getDistinctColors(length(unique(md$leiden_Bcells.res0.5)))
+names(leiden_colors) <- unique(md$leiden_Bcells.res0.5)
+plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.Bcells', cell_color = 'leiden_Bcells.res0.5',
+         cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.75, point_shape="no_border",
+         point_alpha=0.5)
+
+clusterChannels <- c("CD19", "CD20", "PAX5", "HLA.DR", "CD38", "IGD", "KI67", "CXCR5", "CD21", "CD11C")
+
+plotMetaDataHeatmap(Bcells, expression_values = "normalized",
+                    metadata_cols = "leiden_Bcells.res0.5", selected_feats = clusterChannels,
+                    y_text_size = 8, show_values = "zscores_rescaled")
+
+
+# ********************* res 0.7 ***********************
+leiden_colors <- getDistinctColors(length(unique(md$leiden_Bcells.res0.7)))
+names(leiden_colors) <- unique(md$leiden_Bcells.res0.7)
+plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.Bcells', cell_color = 'leiden_Bcells.res0.7',
+         cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.75, point_shape="no_border",
+         point_alpha=0.5)
+
+clusterChannels <- c("CD19", "CD20", "PAX5", "HLA.DR", "CD38", "IGD", "KI67", "CXCR5", "CD21", "CD11C")
+
+plotMetaDataHeatmap(Bcells, expression_values = "normalized",
+                    metadata_cols = "leiden_Bcells.res0.7", selected_feats = clusterChannels,
+                    y_text_size = 8, show_values = "zscores_rescaled")
+
+```
+
+# violin plot of B cells
+```{r show-violin-Bcells, fig.show="hold", fig.width=10, fig.height=15, warning=F}
+md <- pDataDT(Bcells); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 5e4))$cell_ID
+sln.sm <- subsetGiotto(gobject = Bcells, cell_ids = keepCells)
+violinPlot(sln.sm, feats = clusterChannels, cluster_column = "leiden_Bcells.res0.7")
+
+```
+
+
+
+```{r call-date}
+date()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
