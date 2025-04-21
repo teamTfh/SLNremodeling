@@ -332,10 +332,16 @@ cellProx.subgroup <- function(dt)
   return(out)
 }
 
-stage3 <- cellProx.subgroup(subset(dt, id %in% c("tumor.1","tumor.2","tumor.3","tumor.4","tumor.5","tumor.6","tumor.7")))
+stage3 <- cellProx.subgroup(subset(dt, id %in% c("tumor.1","tumor.2","tumor.3","tumor.4","tumor.5","tumor.6","tumor.7", "tumor.8",
+                                                 "tumor.9","tumor.10")))
 stage1 <- cellProx.subgroup(subset(dt, id %in% c("ctrl.1","ctrl.2","ctrl.3","ctrl.4","ctrl.5") ))
 x <- list(stage1 = stage1, stage3=stage3)
 saveRDS(x, file="neighborhood.x.sln.clustering2.res0.5.20250411.1611.RDS")  # all data merged 
+
+recur <- cellProx.subgroup(subset(dt, id %in% c("tumor.3","tumor.4","tumor.5","tumor.7","tumor.8","tumor.10")))
+no.recur <- cellProx.subgroup(subset(dt, id %in% c("tumor.1","tumor.2", "tumor.6") ))
+
+
 
 
 ```
@@ -370,6 +376,21 @@ sub.stage3$subgroup <- "stage3"
  # plot x=stage 1 PI_value, y= stage 3 PI_value
 x <- rbind(sub.stage1, sub.stage3)
 x$unified_int <- factor(x$unified_int, levels = sub.stage3$unified_int[order(sub.stage3$PI_value, decreasing = T)])
+
+
+# df <- readRDS(file="neighborhood.recur.sln.clustering2.res0.5.20250411.1611.RDS")  # all data merged 
+# recur <- df$recur; no.recur <- df$no.recur
+md <- as.data.table(md)
+recur$enrichm_res <- addClusterLabels(dt=recur, md=md)
+no.recur$enrichm_res <- addClusterLabels(dt=no.recur, md=md)
+sub.recur <- recur$enrichm_res
+sub.recur$subgroup <- "recur"
+sub.no.recur <- no.recur$enrichm_res
+sub.no.recur$subgroup <- "no.recur"
+df <- rbind(sub.recur, sub.no.recur)
+df$unified_int <- factor(df$unified_int, levels = sub.no.recur$unified_int[order(sub.no.recur$PI_value, decreasing = T)])
+saveRDS(df, file="neighborhood.recur.sln.clustering2.res0.5.20250411.1611.RDS")
+
 ```
 
 
