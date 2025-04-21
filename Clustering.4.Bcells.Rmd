@@ -145,6 +145,10 @@ Bcells <- runPCA(gobject = Bcells, expression_values = "normalized", scale_unit 
 signPCA(Bcells, scale_unit = TRUE, scree_ylim = c(0,40))
 Bcells <- createNearestNetwork(gobject = Bcells, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
                             name = 'NN.harmony', dimensions_to_use = 1:5, k = 15)  # calculate nearest neighbors, focus on global differences 
+Bcells <- doLeidenClusterIgraph(gobject = Bcells, resolution = 0.1, n_iterations = 200, set_seed = T, seed_number = 43,
+                                network_name = 'NN.harmony', name = 'leiden_Bcells.res0.1')  # make the clusters
+Bcells <- doLeidenClusterIgraph(gobject = Bcells, resolution = 0.3, n_iterations = 200, set_seed = T, seed_number = 43,
+                                network_name = 'NN.harmony', name = 'leiden_Bcells.res0.3')  # make the clusters
 Bcells <- doLeidenClusterIgraph(gobject = Bcells, resolution = 0.5, n_iterations = 200, set_seed = T, seed_number = 43,
                                 network_name = 'NN.harmony', name = 'leiden_Bcells.res0.5')  # make the clusters
 Bcells <- doLeidenClusterIgraph(gobject = Bcells, resolution = 0.7, n_iterations = 200, set_seed = T, seed_number = 43,
@@ -180,25 +184,27 @@ plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.Bcells', cell_color = 'lei
 clusterChannels <- c("CD19", "CD20", "PAX5", "HLA.DR", "CD38", "IGD", "KI67", "CXCR5", "CD21", "CD11C")
 
 plotMetaDataHeatmap(Bcells, expression_values = "normalized",
+                    metadata_cols = "leiden_Bcells.res0.1", selected_feats = clusterChannels,
+                    y_text_size = 8, show_values = "zscores_rescaled")
+print(table(Bcells$leiden_Bcells.res0.1))
+
+plotMetaDataHeatmap(Bcells, expression_values = "normalized",
+                    metadata_cols = "leiden_Bcells.res0.3", selected_feats = clusterChannels,
+                    y_text_size = 8, show_values = "zscores_rescaled")
+print(table(Bcells$leiden_Bcells.res0.3))
+
+
+plotMetaDataHeatmap(Bcells, expression_values = "normalized",
                     metadata_cols = "leiden_Bcells.res0.5", selected_feats = clusterChannels,
                     y_text_size = 8, show_values = "zscores_rescaled")
-
 print(table(Bcells$leiden_Bcells.res0.5))
 
-# ********************* res 0.7 ***********************
-leiden_colors <- getDistinctColors(length(unique(md$leiden_Bcells.res0.7)))
-names(leiden_colors) <- unique(md$leiden_Bcells.res0.7)
-plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.Bcells', cell_color = 'leiden_Bcells.res0.7',
-         cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.75, point_shape="no_border",
-         point_alpha=0.5)
-
-clusterChannels <- c("CD19", "CD20", "PAX5", "HLA.DR", "CD38", "IGD", "KI67", "CXCR5", "CD21", "CD11C")
 
 plotMetaDataHeatmap(Bcells, expression_values = "normalized",
                     metadata_cols = "leiden_Bcells.res0.7", selected_feats = clusterChannels,
                     y_text_size = 8, show_values = "zscores_rescaled")
-
 print(table(Bcells$leiden_Bcells.res0.7))
+
 
 ```
 
