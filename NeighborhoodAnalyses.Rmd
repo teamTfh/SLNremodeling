@@ -340,7 +340,7 @@ saveRDS(x, file="neighborhood.x.sln.clustering2.res0.5.20250411.1611.RDS")  # al
 
 ```
 
-
+# subgroup by Stage 1 vs Stage 3
 ```{r interact-with-pairwise-enrichment}
 x <- readRDS(file="neighborhood.x.sln.clustering2.res0.5.20250411.1611.RDS")  # all data merged 
 stage1 <- x$stage1; stage3 <- x$stage3
@@ -373,6 +373,7 @@ x$unified_int <- factor(x$unified_int, levels = sub.stage3$unified_int[order(sub
 ```
 
 
+# plots of pairwise enrichment
 ```{r plot-pairwise-enrichment, fig.width=10}
 ggplot(x, aes(x=unified_int, y=PI_value, color=subgroup, label = unified_int)) + geom_point() + theme_classic() + 
   theme(axis.text.x = element_text(angle=45, hjust=1,vjust=1))
@@ -397,18 +398,19 @@ ggplot(y, aes(x=unified_int, y=diff.PI_value, label=unified_char)) + geom_point(
   geom_hline(yintercept = 0, color="grey50") + 
   theme(axis.text.x = element_blank())  
 
-
+saveRDS(y, file="neighborhood.y.sln.clustering2.res0.5.20250411.1611.RDS")
 ```
 
+# show stage 1 interactions
 ```{r proximity-heatmap-stage1, fig.width=10}
 cellProximityHeatmap( sln, CPscore = stage1, scale = TRUE, order_cell_types = TRUE, color_breaks = NULL, color_names = NULL )
 cellProximityNetwork(sln, CPscore = stage1)
 ```
 
-
+# show stage 3 interactions 
 ```{r proximity-heatmap-stage3, fig.width=10}
 cellProximityHeatmap( sln, CPscore = stage3, scale = TRUE, order_cell_types = TRUE, return_plot = T)
-cellProximityNetwork(sln, CPscore = stage3)
+cellProximityNetwork(sln, CPscore = stage3, )
 
 ```
 
