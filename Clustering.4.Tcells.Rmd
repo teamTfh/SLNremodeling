@@ -148,7 +148,7 @@ cd8.Tcells <- runUMAPprojection(cd8.Tcells, random_subset = 1e5, n_threads = par
 
 # save cd8 objects 
 ```{r save-cd8Tcells-res0.5}
-filename <- paste0("clustering4.cd8tcells.dim5k15.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
+filename <- paste0("sln.clustering4.cd8tcells.dim5k15.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
 saveRDS(cd8.Tcells, filename)
 md <- pDataDT(cd8.Tcells)
 saveRDS(md, paste0("md.",filename))
@@ -290,7 +290,7 @@ cd4.Tcells <- runUMAPprojection(cd4.Tcells, random_subset = 1e5, n_threads = par
 
 # save CD4 objects 
 ```{r save-cd4Tcells}
-filename <- paste0("clustering4.cd4tcells.dim5k15.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
+filename <- paste0("sln.clustering4.cd4tcells.dim5k15.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
 saveRDS(cd4.Tcells, filename)
 md <- pDataDT(cd4.Tcells)
 saveRDS(md, paste0("md.",filename))
@@ -381,8 +381,8 @@ cd4.Tcells <- runUMAPprojection(cd4.Tcells, random_subset = 1e5, n_threads = par
 md <- pDataDT(cd4.Tcells); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1e5))$cell_ID
 sln.sm <- subsetGiotto(gobject = cd4.Tcells, cell_ids = keepCells)
 
-leiden_colors <- getDistinctColors(length(unique(md$leiden_cd8Tcells.res0.5)))
-names(leiden_colors) <- unique(md$leiden_cd8Tcells.res0.5)
+leiden_colors <- getDistinctColors(length(unique(md$leiden_cd4Tcells.res0.5)))
+names(leiden_colors) <- unique(md$leiden_cd4Tcells.res0.5)
 plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.cd4', cell_color = 'leiden_cd4Tcells.res0.5',
          cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.75, point_shape="no_border",
          point_alpha=0.5)
