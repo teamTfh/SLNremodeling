@@ -390,7 +390,7 @@ sub.no.recur$subgroup <- "no.recur"
 df <- rbind(sub.recur, sub.no.recur)
 df$unified_int <- factor(df$unified_int, levels = sub.no.recur$unified_int[order(sub.no.recur$PI_value, decreasing = T)])
 saveRDS(df, file="neighborhood.recur.sln.clustering2.res0.5.20250411.1611.RDS")
-
+df <- readRDS(file = "neighborhood.recur.sln.clustering2.res0.5.20250411.1611.RDS")
 ```
 
 
@@ -399,15 +399,14 @@ saveRDS(df, file="neighborhood.recur.sln.clustering2.res0.5.20250411.1611.RDS")
 ggplot(x, aes(x=unified_int, y=PI_value, color=subgroup, label = unified_int)) + geom_point() + theme_classic() + 
   theme(axis.text.x = element_text(angle=45, hjust=1,vjust=1))
 
-y <- merge(x=sub.stage1, y=sub.stage3, by='unified_int', suffixes = c(".stage1",".stage3"), all=T)
-y$diff.PI_value <- y$PI_value.stage3 - y$PI_value.stage1
-y <- y[!is.na(y$diff.PI_value),]  # remove NA values, which imply interactions not present in both settings
-y$unified_int <- factor(y$unified_int, levels = y$unified_int[order(y$diff.PI_value, decreasing = T)])
-# y$label <- NA
-# y$label[which(abs(y$diff.PI_value )>10)] <- y$unified_int[which(abs(y$diff.PI_value )>10)]
-y$unified_char <- paste0(y$left.stage1,"--",y$right.stage1)
+  y <- merge(x=sub.stage1, y=sub.stage3, by='unified_int', suffixes = c(".stage1",".stage3"), all=T)
+  y$diff.PI_value <- y$PI_value.stage3 - y$PI_value.stage1
+  y <- y[!is.na(y$diff.PI_value),]  # remove NA values, which imply interactions not present in both settings
+  y$unified_int <- factor(y$unified_int, levels = y$unified_int[order(y$diff.PI_value, decreasing = T)])
+  y$unified_char <- paste0(y$left.stage1,"--",y$right.stage1)
+  
+  y <- y[which(y$original.stage1 > 20),]
 
-y <- y[which(y$original.stage1 > 20),]
 
 ggplot(y, aes(x=unified_int, y=diff.PI_value, label=unified_int)) + geom_point() + theme_classic() + 
   ggrepel::geom_label_repel(max.overlaps = 20) + ggtitle("PI_value:  Stage3 - Stage1") + 
@@ -420,19 +419,115 @@ ggplot(y, aes(x=unified_int, y=diff.PI_value, label=unified_char)) + geom_point(
   theme(axis.text.x = element_blank())  
 
 saveRDS(y, file="neighborhood.y.sln.clustering2.res0.5.20250411.1611.RDS")
+
+
+
+y <- merge(x=df[which(df$subgroup=='no.recur'),], y=df[which(df$subgroup == 'recur'),] , by='unified_int', suffixes = c(".no.recur",".recur"), all=T)
+y$diff.PI_value <- y$PI_value.recur / y$PI_value.no.recur
+y <- y[!is.na(y$diff.PI_value),]  # remove NA values, which imply interactions not present in both settings
+y$unified_int <- factor(y$unified_int, levels = y$unified_int[order(y$diff.PI_value, decreasing = T)])
+y$unified_char <- paste0(y$left.recur,"--",y$right.recur)
+
+y <- y[which(y$original.recur > 20),]
+
+
+ggplot(y, aes(x=unified_int, y=diff.PI_value, label=unified_char)) + geom_point() + theme_classic() + 
+  ggrepel::geom_label_repel(max.overlaps = 20) + ggtitle("PI_value:  Recur / noRecur") + 
+  # geom_hline(yintercept = 0.001, color="grey50") + 
+  theme(axis.text.x = element_blank())  + scale_y_log10()
+
 ```
 
 # show stage 1 interactions
 ```{r proximity-heatmap-stage1, fig.width=10}
-cellProximityHeatmap( sln, CPscore = stage1, scale = TRUE, order_cell_types = TRUE, color_breaks = NULL, color_names = NULL )
+cellProximityHeatmap( sln, CPscore = stage1, scale = TRUE, order_cell_types = TRUE, color_breaks = NULL, color_names = NULL, )
 cellProximityNetwork(sln, CPscore = stage1)
+
+cellProximityHeatmap.retMatrix <- function(gobject, CPscore, scale = TRUE, order_cell_types = TRUE, color_breaks = NULL,
+                                           color_names = NULL, show_plot = NULL, return_plot = NULL, save_plot = NULL, 
+                                           save_param = list(), default_save_name = "cellProximityHeatmap") 
+{
+    enrich_res <- CPscore$enrichm_res
+
+    # data.table variables
+    first_type <- second_type <- unified_int <- NULL
+
+    enrich_res[, first_type := strsplit( x = as.character(unified_int), split = "--"    )[[1]][1],by = seq_len(nrow(enrich_res))]
+    enrich_res[, second_type := strsplit( x = as.character(unified_int), split = "--" )[[1]][2],by = seq_len(nrow(enrich_res)) ]
+
+    # create matrix
+    enrich_mat <- data.table::dcast.data.table( data = enrich_res, formula = first_type ~ second_type, value.var = "enrichm")
+    matrix_d <- as.matrix(enrich_mat[, -1])
+    rownames(matrix_d) <- as.vector(enrich_mat[[1]])
+    t_matrix_d <- t_flex(matrix_d)
+
+    # fill in NAs based on values in upper and lower matrix triangle
+    t_matrix_d[upper.tri(t_matrix_d)][is.na(t_matrix_d[
+        upper.tri(t_matrix_d)
+    ])] <- matrix_d[upper.tri(matrix_d)][
+        is.na(t_matrix_d[upper.tri(t_matrix_d)])
+    ]
+    t_matrix_d[lower.tri(t_matrix_d)][is.na(t_matrix_d[
+        lower.tri(t_matrix_d)
+    ])] <- matrix_d[lower.tri(matrix_d)][
+        is.na(t_matrix_d[lower.tri(t_matrix_d)])
+    ]
+    t_matrix_d[is.na(t_matrix_d)] <- 0
+    final_matrix <- t_matrix_d
+
+    # scale data
+    if (scale == TRUE) {
+        final_matrix <- t_flex(scale(t_flex(final_matrix)))
+        final_matrix <- t_flex(final_matrix)
+        final_matrix[lower.tri(final_matrix)] <- t_flex(final_matrix)[
+            lower.tri(final_matrix)
+        ]
+    }
+
+    # order cell types
+    if (order_cell_types == TRUE) {
+        cordist <- stats::as.dist(1 - cor_flex(final_matrix))
+        clus <- stats::hclust(cordist)
+        myorder <- clus$order
+        mylabels <- clus$labels
+        names(mylabels) <- seq_along(mylabels)
+        sample_order <- mylabels[myorder]
+
+        final_matrix <- final_matrix[sample_order, sample_order]
+    }
+
+    # create custom colors or not
+    if (!is.null(color_breaks) & !is.null(color_names)) {
+        if (length(color_breaks) != 3 | !is.numeric(color_breaks)) {
+            stop("color_breaks needs to be a numerical vector of length 3")
+        }
+
+        if (length(color_names) != 3 | !is.character(color_names)) {
+            stop("color_names needs to be a character vector of length 3")
+        }
+
+        heatm <- ComplexHeatmap::Heatmap(matrix = final_matrix, cluster_rows = F, cluster_columns = F,
+                                         col = GiottoVisuals::colorRamp2( breaks = color_breaks, colors = color_names) )
+    } else {
+        heatm <- ComplexHeatmap::Heatmap( matrix = final_matrix, cluster_rows = FALSE, cluster_columns = FALSE )
+    }
+
+    return(  list(final_matrix=final_matrix, clus=clus) )
+}
+
+
 ```
 
 # show stage 3 interactions 
 ```{r proximity-heatmap-stage3, fig.width=10}
-cellProximityHeatmap( sln, CPscore = stage3, scale = TRUE, order_cell_types = TRUE, return_plot = T)
-cellProximityNetwork(sln, CPscore = stage3, )
+# Giotto::cellProximityHeatmap( sln, CPscore = stage3, scale = F, order_cell_types = TRUE, return_plot = T)
+final_matrix <- cellProximityHeatmap.retMatrix( sln, CPscore = stage3, scale = TRUE, order_cell_types = T)$final_matrix
+clus <- cellProximityHeatmap.retMatrix( sln, CPscore = stage3, scale = TRUE, order_cell_types = T)$clus
+plot(clus)
+ComplexHeatmap::Heatmap(final_matrix)
 
+cellProximityNetwork(sln, CPscore = stage3 )
+write.csv(stage3$enrichm_res, file = "cellProximityHeatmap.stage3.csv")
 ```
 
 
