@@ -31,6 +31,7 @@ library(gplots); library(ggplot2); library(viridis)
 library(dbscan)
 library(dplyr); library(leidenAlg)
 library(ComplexHeatmap)
+library(circlize)
 set.seed(43)
 sessionInfo()
 ```
@@ -555,10 +556,15 @@ ICGscoresHighGenes = findInteractionChangedFeats(gobject = sln.sm, selected_feat
                                                  spatial_network_name = "knn_network", cluster_column = 'L1_annotations',
                                                  diff_test = 'permutation', adjust_method = 'fdr',
                                                  nr_permutations = 50, do_parallel = F)
-df <- ICGscoresHighGenes$ICFscores
-
+df.icg <- ICGscoresHighGenes$ICFscores
+df.icg.fil <- df.icg[ p.adj<0.1]
+pair_counts <- df.icg[p.adj < 0.1, .N, by = .(cell_type, int_cell_type)] # .N is a special data.table symbol that gives the number of rows in each group
+pair_counts <- pair_counts[N > 1]
+circlize::chordDiagram(pair_counts[1:15], direction.type = 'arrows', directional=-1, transparency = 0) # negative direction to show direction of the effect, e.g. target is modified for x many features because of source
+title("interaction changed features")
 # df.2 has 1e5 cells at 100 permutations 
 date()
+
 ```
 
 
