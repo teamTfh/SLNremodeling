@@ -33,6 +33,7 @@ library(dplyr); library(leidenAlg)
 library(ComplexHeatmap)
 library(circlize)
 set.seed(43)
+knitr::opts_chunk$set(fig.retina = 2)
 sessionInfo()
 ```
 
@@ -312,8 +313,8 @@ cellProx.subgroup <- function(dt)
   wide_dt <- dcast(dt,                # Your input data.table
                    unified_int ~ round, # Formula: rows ~ columns
                    value.var = "V1",  # Column with values for the new wide cells
-                   fun.aggregate = sum, # Function to aggregate values (when multiple rows match a cell)
-                   na.rm = TRUE,      # Tell sum() to ignore NA values during aggregation
+                   fun.aggregate = mean, # Function to aggregate values (when multiple rows match a cell)
+                   na.rm = TRUE,      # Tell mean() to ignore NA values during aggregation
                    fill = 0)    
   setkey(wide_dt, unified_int) # Good practice
   long_dt <- melt(wide_dt,
@@ -557,12 +558,49 @@ ICGscoresHighGenes = findInteractionChangedFeats(gobject = sln.sm, selected_feat
                                                  diff_test = 'permutation', adjust_method = 'fdr',
                                                  nr_permutations = 50, do_parallel = F)
 df.icg <- ICGscoresHighGenes$ICFscores
-df.icg.fil <- df.icg[ p.adj<0.1]
+df.icg.fil <- df.icg[ p.adj<0.05]
+```
+
+
+```{r Interaction-changed-genes-byCircosPlot, fig.width=10, fig.retina=2}
 pair_counts <- df.icg[p.adj < 0.1, .N, by = .(cell_type, int_cell_type)] # .N is a special data.table symbol that gives the number of rows in each group
 pair_counts <- pair_counts[N > 1]
-circlize::chordDiagram(pair_counts[1:15], direction.type = 'arrows', directional=-1, transparency = 0) # negative direction to show direction of the effect, e.g. target is modified for x many features because of source
-title("interaction changed features")
-# df.2 has 1e5 cells at 100 permutations 
+single.space <- c(rep(1, length(unique(pair_counts$cell_type)))); names(single.space) <- unique(pair_counts$cell_type)
+grid.col = getDistinctColors(n = length(unique(pair_counts$cell_type))); names(grid.col) <- names(single.space)
+# circos.par(gap.after = single.space)
+circlize::chordDiagram(pair_counts[1:30], direction.type = c('arrows','diffHeight'), directional=-1, transparency = 0,
+                       grid.col = grid.col, diffHeight = -mm_h(2), 
+                       annotationTrack = "grid", preAllocateTracks = list(track.height = max(strwidth(unlist(dimnames(pair_counts))))),
+                       big.gap=20
+                       # link.arr.type = "big.arrow"
+                       ) # negative direction to show direction of the effect, e.g. target is modified for x many features because of source
+
+# we go back to the first track and customize sector labels
+circos.track(track.index = 1, panel.fun = function(x, y) {
+    circos.text(CELL_META$xcenter, CELL_META$ylim[1], CELL_META$sector.index, 
+        facing = "clockwise", niceFacing = TRUE, adj = c(0, 0.5))
+}, bg.border = NA) # here set bg.border to NA is important
+title("interaction changed features - first 30")
+
+```
+
+
+```{r Interaction-changed-genes-multitrackCircos}
+# what about showing a multi-track chordDiagram where the proteins changed the most are indicated 
+# would have to filter the protein list to exclude things like DAPI which aren't meaningful 
+chordDiagram(pair_counts[1:30], direction.type = c('arrows','diffHeight'), directional=-1, transparency = 0,
+                       grid.col = grid.col, diffHeight = -mm_h(2), 
+                       # link.arr.type = "big.arrow"
+                       ) # negative direction to show direction of the effect, e.g. target is modified for x many features because of source
+circos.track(track.index = 1, panel.fun = function(x, y) {
+  circos.text(CELL_META$xcenter, CELL_META$ylim[1], CELL_META$sector.index, 
+              facing = "clockwise", niceFacing = TRUE, adj = c(0, 0.5))
+  }, bg.border = NA) # here set bg.border to NA is important
+
+prots <- data.table(fDataDT(sln)$feat_ID)
+prots <- prots[ !V1 %in% c("DAPI-01", "IL21", "CXCR3", "CD45", "TBET", "MART1", "GP100", "PAN.CYTO","MAC2/GAL3","VIMENTIN") ]
+df.icg.fil <- df.icg.fil[ feats %in% prots$V1]
+
 date()
 
 ```
