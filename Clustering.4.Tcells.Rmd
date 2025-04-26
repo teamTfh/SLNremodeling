@@ -143,7 +143,7 @@ cd8.Tcells <- doLeidenClusterIgraph(gobject = cd8.Tcells, resolution = 0.7, n_it
                                 network_name = 'NN.harmony', name = 'leiden_cd8Tcells.res0.7')  # make the clusters
 
 cd8.Tcells <- runUMAPprojection(cd8.Tcells, random_subset = 1e5, n_threads = parallelly::availableCores(), 
-                                name="umap.cd8")  # project UMAP coordinates to the full dataset based on a subsampling
+                                name="umap.cd8", dimensions_to_use = 1:5)  # project UMAP coordinates to the full dataset 
 ```
 
 # save cd8 objects 
@@ -230,7 +230,7 @@ cd8.Tcells <- doLeidenClusterIgraph(gobject = cd8.Tcells, resolution = 0.5, n_it
 cd8.Tcells <- doLeidenClusterIgraph(gobject = cd8.Tcells, resolution = 1, n_iterations = 200, set_seed = T, seed_number = 43,
                                 network_name = 'NN.harmony', name = 'leiden_cd8Tcells.res1')  # make the clusters
 cd8.Tcells <- runUMAPprojection(cd8.Tcells, random_subset = 1e5, n_threads = parallelly::availableCores(), 
-                                name="umap.cd8")  # project UMAP coordinates to the full dataset based on a subsampling
+                                name="umap.cd8", dimensions_to_use = 1:5)  # project UMAP coordinates to the full dataset  
 
 md <- pDataDT(cd8.Tcells); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1e5))$cell_ID
 sln.sm <- subsetGiotto(gobject = cd8.Tcells, cell_ids = keepCells)
@@ -302,7 +302,7 @@ cd4.Tcells <- doLeidenClusterIgraph(gobject = cd4.Tcells, resolution = 0.5, n_it
 cd4.Tcells <- doLeidenClusterIgraph(gobject = cd4.Tcells, resolution = 0.7, n_iterations = 200, set_seed = T, seed_number = 43,
                                 network_name = 'NN.harmony', name = 'leiden_cd4Tcells.res0.7')  # make the clusters
 cd4.Tcells <- runUMAPprojection(cd4.Tcells, random_subset = 1e5, n_threads = parallelly::availableCores(), 
-                                name="umap.cd4")  # project UMAP coordinates to the full dataset  
+                                name="umap.cd4", dimensions_to_use = 1:5)  # project UMAP coordinates to the full dataset  
 
 
 ```
@@ -385,7 +385,7 @@ cd4.Tcells <- doLeidenClusterIgraph(gobject = cd4.Tcells, resolution = 0.5, n_it
 cd4.Tcells <- doLeidenClusterIgraph(gobject = cd4.Tcells, resolution = 1, n_iterations = 200, set_seed = T, seed_number = 43,
                                 network_name = 'NN.harmony', name = 'leiden_cd4Tcells.res1')  # make the clusters
 cd4.Tcells <- runUMAPprojection(cd4.Tcells, random_subset = 1e5, n_threads = parallelly::availableCores(), 
-                                name="umap.cd4")  # project UMAP coordinates to the full dataset  
+                                name="umap.cd4", dimensions_to_use = 1:5)  # project UMAP coordinates to the full dataset  
 
 
 md <- pDataDT(cd4.Tcells); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1e5))$cell_ID
