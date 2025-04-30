@@ -571,7 +571,7 @@ grid.col = getDistinctColors(n = length(unique(pair_counts$cell_type))); names(g
 circlize::chordDiagram(pair_counts[1:30], direction.type = c('arrows','diffHeight'), directional=-1, transparency = 0,
                        grid.col = grid.col, diffHeight = -mm_h(2), 
                        annotationTrack = "grid", preAllocateTracks = list(track.height = max(strwidth(unlist(dimnames(pair_counts))))),
-                       big.gap=20
+                       # big.gap=20
                        # link.arr.type = "big.arrow"
                        ) # negative direction to show direction of the effect, e.g. target is modified for x many features because of source
 

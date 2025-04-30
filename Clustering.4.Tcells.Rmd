@@ -148,12 +148,12 @@ cd8.Tcells <- runUMAPprojection(cd8.Tcells, random_subset = 1e5, n_threads = par
 
 # save cd8 objects 
 ```{r save-cd8Tcells-res0.5}
-filename <- paste0("sln.clustering4.cd8tcells.dim5k15.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
-saveRDS(cd8.Tcells, filename)
+filename <- paste0("sln.clustering4.cd8tcells.harm.dim5k15.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
+# saveRDS(cd8.Tcells, filename)
 md <- pDataDT(cd8.Tcells)
-saveRDS(md, paste0("md.",filename))
-saveRDS(Giotto::getExpression(cd8.Tcells, values = "scaled", output = c("matrix"),  set_defaults = TRUE ),
-        paste0("exprs.",filename))
+# saveRDS(md, paste0("md.",filename))
+# saveRDS(Giotto::getExpression(cd8.Tcells, values = "scaled", output = c("matrix"),  set_defaults = TRUE ),
+#         paste0("exprs.",filename))
 
 ```
 
@@ -202,7 +202,7 @@ print(paste("Primary object size: ", nrow(md), "cells"))
 
 ```
 
-# remove outlier cd8 cluster 
+# remove outlier cd8 cluster (PCA on CD8)
 ```{r subset-cd8T-cells-again}
 gc()
 print("remove res0.5 cluster 32")
@@ -214,21 +214,26 @@ keepCells <- subset(md, !(leiden_cd8Tcells.res0.5 == 32 ))$cell_ID
 cd8.Tcells <- subsetGiotto(gobject = cd8.Tcells, cell_ids = keepCells)
 
 print("subcluster CD8 T cells")
-clusterChannels <- c("TCF1", "TOX", "PD1", "CD45RO", "HLA.DR")
+clusterChannels <- c("TCF1", "TOX", "PD1", "CD45RO", "HLA.DR", "GZMB")
 cd8.Tcells <- runPCA(gobject = cd8.Tcells, expression_values = "normalized", scale_unit = TRUE, 
               method = "factominer", feats_to_use = clusterChannels)
 signPCA(cd8.Tcells, scale_unit = TRUE, scree_ylim = c(0,40))
-cd8.Tcells <- createNearestNetwork(gobject = cd8.Tcells, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
-                            name = 'NN.harmony', dimensions_to_use = 1:5, k = 15)  # calculate nearest neighbors, focus on global differences 
+# cd8.Tcells <- createNearestNetwork(gobject = cd8.Tcells, dim_reduction_to_use = 'pca', dim_reduction_name = 'pca',
+#                             name = 'NN.pca.CD8', dimensions_to_use = 1:5, k = 15)
+# cd8.Tcells <- doLeidenClusterIgraph(gobject = cd8.Tcells, resolution = 0.2, n_iterations = 200, set_seed = T, seed_number = 43,
+#                                 network_name = 'NN.pca.CD8', name = 'leiden_cd8Tcells.res0.2')  # make the clusters
+# cd8.Tcells <- doLeidenClusterIgraph(gobject = cd8.Tcells, resolution = 0.3, n_iterations = 200, set_seed = T, seed_number = 43,
+#                                 network_name = 'NN.pca.CD8', name = 'leiden_cd8Tcells.res0.3')  # make the clusters
 
+
+cd8.Tcells = runGiottoHarmony(cd8.Tcells, vars_use = 'list_ID',  dim_reduction_to_use = "pca", dimensions_to_use = 1:5) # ************ new step *************
+cd8.Tcells <- createNearestNetwork(gobject = cd8.Tcells, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony',
+                            name = 'NN.harm.CD8', dimensions_to_use = 1:5, k = 15)
 cd8.Tcells <- doLeidenClusterIgraph(gobject = cd8.Tcells, resolution = 0.2, n_iterations = 200, set_seed = T, seed_number = 43,
-                                network_name = 'NN.harmony', name = 'leiden_cd8Tcells.res0.2')  # make the clusters
+                                network_name = 'NN.harm.CD8', name = 'leiden_cd8Tcells.res0.2')  # make the clusters
 cd8.Tcells <- doLeidenClusterIgraph(gobject = cd8.Tcells, resolution = 0.3, n_iterations = 200, set_seed = T, seed_number = 43,
-                                network_name = 'NN.harmony', name = 'leiden_cd8Tcells.res0.3')  # make the clusters
-cd8.Tcells <- doLeidenClusterIgraph(gobject = cd8.Tcells, resolution = 0.5, n_iterations = 200, set_seed = T, seed_number = 43,
-                                network_name = 'NN.harmony', name = 'leiden_cd8Tcells.res0.5')  # make the clusters
-cd8.Tcells <- doLeidenClusterIgraph(gobject = cd8.Tcells, resolution = 1, n_iterations = 200, set_seed = T, seed_number = 43,
-                                network_name = 'NN.harmony', name = 'leiden_cd8Tcells.res1')  # make the clusters
+                                network_name = 'NN.harm.CD8', name = 'leiden_cd8Tcells.res0.3')  # make the clusters
+
 cd8.Tcells <- runUMAPprojection(cd8.Tcells, random_subset = 1e5, n_threads = parallelly::availableCores(), 
                                 name="umap.cd8", dimensions_to_use = 1:5)  # project UMAP coordinates to the full dataset  
 
@@ -254,16 +259,6 @@ plotMetaDataHeatmap(cd8.Tcells, expression_values = "normalized", plot_title = "
                     y_text_size = 8, show_values = "zscores_rescaled")
 print(table(cd8.Tcells$leiden_cd8Tcells.res0.3))
 
-plotMetaDataHeatmap(cd8.Tcells, expression_values = "normalized", plot_title = "cd8 res 0.5",
-                    metadata_cols = "leiden_cd8Tcells.res0.5", selected_feats = clusterChannels,
-                    y_text_size = 8, show_values = "zscores_rescaled")
-print(table(cd8.Tcells$leiden_cd8Tcells.res0.5))
-
-
-plotMetaDataHeatmap(cd8.Tcells, expression_values = "normalized", plot_title = "cd8 res 1",
-                    metadata_cols = "leiden_cd8Tcells.res1", selected_feats = clusterChannels,
-                    y_text_size = 8, show_values = "zscores_rescaled")
-print(table(cd8.Tcells$leiden_cd8Tcells.res1))
 
 print(paste("Primary object size: ", nrow(md), "cells"))
 
@@ -308,19 +303,19 @@ cd4.Tcells <- runUMAPprojection(cd4.Tcells, random_subset = 1e5, n_threads = par
 ```
 
 # save CD4 objects 
-```{r save-cd4Tcells}
-filename <- paste0("sln.clustering4.cd4tcells.dim5k15.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
-saveRDS(cd4.Tcells, filename)
+```{r save-cd4Tcells }
+filename <- paste0("sln.clustering4.cd4tcells.harm.dim5k15.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
+# saveRDS(cd4.Tcells, filename)
 md <- pDataDT(cd4.Tcells)
-saveRDS(md, paste0("md.",filename))
-saveRDS(Giotto::getExpression(cd4.Tcells, values = "scaled", output = c("matrix"),  set_defaults = TRUE ),
-        paste0("exprs.",filename))
+# saveRDS(md, paste0("md.",filename))
+# saveRDS(Giotto::getExpression(cd4.Tcells, values = "scaled", output = c("matrix"),  set_defaults = TRUE ),
+#         paste0("exprs.",filename))
 print(paste("Primary object size: ", nrow(md), "cells"))
 
 ```
 
 # heatmap & umap 
-```{r plot-UMAP-heatmap-cd4cells }
+```{r plot-UMAP-heatmap-cd4cells  }
 md <- pDataDT(cd4.Tcells); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1e5))$cell_ID
 sln.sm <- subsetGiotto(gobject = cd4.Tcells, cell_ids = keepCells)
 
@@ -358,7 +353,7 @@ print(table(cd4.Tcells$leiden_cd4Tcells.res0.7))
 
 
 # remove outlier cd4 cluster 
-```{r subset-cd4T-cells-again}
+```{r subset-cd4T-cells-again }
 gc()
 print("remove res0.5 cluster 26")
 md <- pDataDT(cd4.Tcells)
@@ -373,6 +368,7 @@ clusterChannels <- c("TCF1", "TOX", "FOXP3", "CD45RO", "HLA.DR")
 cd4.Tcells <- runPCA(gobject = cd4.Tcells, expression_values = "normalized", scale_unit = TRUE, 
               method = "factominer", feats_to_use = clusterChannels)
 signPCA(cd4.Tcells, scale_unit = TRUE, scree_ylim = c(0,40))
+cd4.Tcells = runGiottoHarmony(cd4.Tcells, vars_use = 'list_ID',  dim_reduction_to_use = "pca", dimensions_to_use = 1:5) # ************ new step *************
 cd4.Tcells <- createNearestNetwork(gobject = cd4.Tcells, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
                             name = 'NN.harmony', dimensions_to_use = 1:5, k = 15)  # calculate nearest neighbors, focus on global differences 
 
@@ -380,10 +376,6 @@ cd4.Tcells <- doLeidenClusterIgraph(gobject = cd4.Tcells, resolution = 0.2, n_it
                                 network_name = 'NN.harmony', name = 'leiden_cd4Tcells.res0.2')  # make the clusters
 cd4.Tcells <- doLeidenClusterIgraph(gobject = cd4.Tcells, resolution = 0.3, n_iterations = 200, set_seed = T, seed_number = 43,
                                 network_name = 'NN.harmony', name = 'leiden_cd4Tcells.res0.3')  # make the clusters
-cd4.Tcells <- doLeidenClusterIgraph(gobject = cd4.Tcells, resolution = 0.5, n_iterations = 200, set_seed = T, seed_number = 43,
-                                network_name = 'NN.harmony', name = 'leiden_cd4Tcells.res0.5')  # make the clusters
-cd4.Tcells <- doLeidenClusterIgraph(gobject = cd4.Tcells, resolution = 1, n_iterations = 200, set_seed = T, seed_number = 43,
-                                network_name = 'NN.harmony', name = 'leiden_cd4Tcells.res1')  # make the clusters
 cd4.Tcells <- runUMAPprojection(cd4.Tcells, random_subset = 1e5, n_threads = parallelly::availableCores(), 
                                 name="umap.cd4", dimensions_to_use = 1:5)  # project UMAP coordinates to the full dataset  
 
@@ -412,25 +404,12 @@ plotMetaDataHeatmap(cd4.Tcells, expression_values = "normalized", plot_title = "
 print(table(cd4.Tcells$leiden_cd4Tcells.res0.3))
 
 
-plotMetaDataHeatmap(cd4.Tcells, expression_values = "normalized", plot_title = "cd4 res 0.5",
-                    metadata_cols = "leiden_cd4Tcells.res0.5", selected_feats = clusterChannels,
-                    y_text_size = 8, show_values = "zscores_rescaled")
-print(table(cd4.Tcells$leiden_cd4Tcells.res0.5))
-
-
-plotMetaDataHeatmap(cd4.Tcells, expression_values = "normalized", plot_title = "cd4 res 1",
-                    metadata_cols = "leiden_cd4Tcells.res1", selected_feats = clusterChannels,
-                    y_text_size = 8, show_values = "zscores_rescaled")
-print(table(cd4.Tcells$leiden_cd4Tcells.res1))
-
-
-
 print(paste("Primary object size: ", nrow(md), "cells"))
 
 ```
 
 # save cd4 objects 
-```{r save-cd4Tcells-revised}
+```{r save-cd4Tcells-revised }
 # use prior filename so will overwrite with new object
 # filename <- paste0("clustering4.cd4tcells.dim5k15.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
 saveRDS(cd4.Tcells, filename)
@@ -443,7 +422,7 @@ saveRDS(Giotto::getExpression(cd4.Tcells, values = "scaled", output = c("matrix"
 
 
 # cd4 violin plot
-```{r show-violin-cd4Tcells, fig.show="hold", fig.width=10, fig.height=15, warning=F}
+```{r show-violin-cd4Tcells, fig.show="hold", fig.width=10, fig.height=15, warning=F }
 md <- pDataDT(cd4.Tcells); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 5e4))$cell_ID
 sln.sm <- subsetGiotto(gobject = cd4.Tcells, cell_ids = keepCells)
 violinPlot(sln.sm, feats = clusterChannels, cluster_column = "leiden_cd4Tcells.res0.5")
