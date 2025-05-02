@@ -153,10 +153,13 @@ clusterChannels <- c("CD20", "CD19", "PAX5", "HLA.DR", "CD38", "IGD", "KI67", "C
 TBmixcells <- runPCA(gobject = TBmixcells, expression_values = "normalized", scale_unit = TRUE, 
               method = "factominer", feats_to_use = clusterChannels)
 signPCA(TBmixcells, scale_unit = TRUE, scree_ylim = c(0,40))
+TBmixcells = runGiottoHarmony(TBmixcells, vars_use = 'list_ID',  dim_reduction_to_use = "pca", dimensions_to_use = 1:5) # ************ new step *************
 TBmixcells <- createNearestNetwork(gobject = TBmixcells, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
-                            name = 'NN.harmony', dimensions_to_use = 1:5, k = 15)  # calculate nearest neighbors, focus on global differences 
-TBmixcells <- doLeidenClusterIgraph(gobject = TBmixcells, resolution = 0.5, n_iterations = 200, set_seed = T, seed_number = 43,
-                                network_name = 'NN.harmony', name = 'leiden_TBmixed')  # make the clusters
+                            name = 'TB.harm', dimensions_to_use = 1:5, k = 15)  # calculate nearest neighbors, focus on global differences 
+TBmixcells <- doLeidenClusterIgraph(gobject = TBmixcells, resolution = 0.1, n_iterations = 200, set_seed = T, seed_number = 43,
+                                network_name = 'TB.harm', name = 'leiden_TBmixed.res0.1')   
+TBmixcells <- doLeidenClusterIgraph(gobject = TBmixcells, resolution = 0.3, n_iterations = 200, set_seed = T, seed_number = 43,
+                                network_name = 'TB.harm', name = 'leiden_TBmixed.res0.3')  
 TBmixcells <- runUMAPprojection(TBmixcells, random_subset = 1e5, n_threads = parallelly::availableCores(), 
                                 name="umap.TBmixed")  # project UMAP coordinates to the full dataset based on a subsampling
 print(table(TBmixcells$leiden_TBmixed))
@@ -165,7 +168,7 @@ print(table(TBmixcells$leiden_TBmixed))
 
 # save object 
 ```{r save-TBmixed-res0.5}
-filename <- paste0("sln.clustering4.tbmixed.dim5k15.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
+filename <- paste0("sln.clustering4.tbmixed.harm.dim5k15.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
 saveRDS(TBmixcells, filename)
 md <- pDataDT(TBmixcells)
 saveRDS(md, paste0("md.",filename))
@@ -179,24 +182,36 @@ saveRDS(Giotto::getExpression(TBmixcells, values = "scaled", output = c("matrix"
 ```{r plot-UMAP-heatmap-TBmixed, fig.show="hold"}
 md <- pDataDT(TBmixcells); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1e5))$cell_ID
 sln.sm <- subsetGiotto(gobject = TBmixcells, cell_ids = keepCells)
-leiden_colors <- getDistinctColors(length(unique(md$leiden_TBmixed)))
-names(leiden_colors) <- unique(md$leiden_TBmixed)
-plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.TBmixed', cell_color = 'leiden_TBmixed',
+leiden_colors <- getDistinctColors(length(unique(md$leiden_TBmixed.res0.1)))
+names(leiden_colors) <- unique(md$leiden_TBmixed.res0.1)
+plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.TBmixed', cell_color = 'leiden_TBmixed.res0.1',
          cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.75, point_shape="no_border",
          point_alpha=0.5)
+
+
+dimFeatPlot2D(sln.sm, dim_reduction_name = 'umap.TBmixed', expression_values = "scaled", 
+              feats = clusterChannels[1:8], 
+              point_alpha = 0.2, point_shape = "no_border", cow_n_col = 2)
 
 clusterChannels <- c("CD20", "CD19", "PAX5", "HLA.DR", "CD38", "IGD", "KI67", "CXCR5", "CD21", "CD11C", "CD3E", 
                      "CD4", "CD8", "TCF1", "GZMB", "CD39", "PD1", "TOX", "FOXP3", "ICOS", "CD45RO")
 plotMetaDataHeatmap(TBmixcells, expression_values = "normalized",
-                    metadata_cols = "leiden_TBmixed", selected_feats = clusterChannels,
+                    metadata_cols = "leiden_TBmixed.res0.1", selected_feats = clusterChannels,
                     y_text_size = 8, show_values = "zscores_rescaled")
+print(table(Bcells$leiden_TBmixed.res0.1))
+
+plotMetaDataHeatmap(TBmixcells, expression_values = "normalized",
+                    metadata_cols = "leiden_TBmixed.res0.3", selected_feats = clusterChannels,
+                    y_text_size = 8, show_values = "zscores_rescaled")
+print(table(Bcells$leiden_TBmixed.res0.3))
+
 ```
 
 # violin plot TBmixed
 ```{r show-violin-TBmixed, fig.show="hold", fig.width=10, fig.height=15, warning=F}
 md <- pDataDT(TBmixcells); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 5e4))$cell_ID
 sln.sm <- subsetGiotto(gobject = TBmixcells, cell_ids = keepCells)
-violinPlot(sln.sm, feats = clusterChannels, cluster_column = "leiden_TBmixed")
+violinPlot(sln.sm, feats = clusterChannels, cluster_column = "leiden_TBmixed.res0.1")
 
 print(paste("Primary object size: ", nrow(md), "cells"))
 ```
