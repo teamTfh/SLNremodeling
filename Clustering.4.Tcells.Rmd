@@ -220,16 +220,17 @@ subclusterCD8 <- function(cd8.Tcells, title, clusterName, filename)
           paste0("exprs.",filename))
 
 }
-
+md <- pDataDT(cd8.Tcells)
 keepCells <- md$cell_ID[which(md$TOX.Positive.Classification == 1)]
-cd8.Tcells <- subsetGiotto(cd8.Tcells, cell_ids = keepCells )
-subclusterCD8(cd8.Tcells, title="Tox hi CD8", clusterName = "leiden_tox.hi.cd8",
+subclusterCD8(subsetGiotto(cd8.Tcells, cell_ids = keepCells ), 
+              title="Tox hi CD8", clusterName = "leiden_tox.hi.cd8",
               filename = paste0("sln.clustering4.cd8tcells.toxhi.dim5k15.", timeStamp, ".RDS") 
               )
 
+
 keepCells <- md$cell_ID[which(md$TOX.Positive.Classification == 0)]
-cd8.Tcells <- subsetGiotto(cd8.Tcells, cell_ids = keepCells )
-subclusterCD8(cd8.Tcells, title="Tox lo CD8", clusterName = "leiden_tox.lo.cd8",
+subclusterCD8(subsetGiotto(cd8.Tcells, cell_ids = keepCells ), 
+              title="Tox lo CD8", clusterName = "leiden_tox.lo.cd8",
               filename = paste0("sln.clustering4.cd8tcells.toxlo.dim5k15.", timeStamp, ".RDS") 
               )
 
@@ -335,16 +336,17 @@ subclusterCD4 <- function(cd4.Tcells, title, clusterName, filename)
           paste0("exprs.",filename))
 
 }
+md <- pDataDT(cd4.Tcells)
 
 keepCells <- md$cell_ID[which(md$FOXP3.Positive.Classification == 1)]
-cd4.Tcells <- subsetGiotto(cd4.Tcells, cell_ids = keepCells )
-subclusterCD4(cd4.Tcells, title="FoxP3 hi CD4", clusterName = "leiden_foxp3.hi.cd4",
+subclusterCD4(subsetGiotto(cd4.Tcells, cell_ids = keepCells ), 
+              title="FoxP3 hi CD4", clusterName = "leiden_foxp3.hi.cd4",
               filename = paste0("sln.clustering4.cd4tcells.foxp3hi.dim5k15.", timeStamp, ".RDS") 
               )
 
 keepCells <- md$cell_ID[which(md$FOXP3.Positive.Classification == 0)]
-cd4.Tcells <- subsetGiotto(cd4.Tcells, cell_ids = keepCells )
-subclusterCD4(cd4.Tcells, title="FoxP3 lo CD4", clusterName = "leiden_foxp3.lo.cd4",
+subclusterCD4(subsetGiotto(cd4.Tcells, cell_ids = keepCells ), 
+              title="FoxP3 lo CD4", clusterName = "leiden_foxp3.lo.cd4",
               filename = paste0("sln.clustering4.cd4tcells.foxp3lo.dim5k15.", timeStamp, ".RDS") 
               )
 
