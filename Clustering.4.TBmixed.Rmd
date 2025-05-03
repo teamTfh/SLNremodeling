@@ -182,9 +182,9 @@ saveRDS(Giotto::getExpression(TBmixcells, values = "scaled", output = c("matrix"
 ```{r plot-UMAP-heatmap-TBmixed, fig.show="hold", fig.width=10, fig.height=15}
 md <- pDataDT(TBmixcells); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1e5))$cell_ID
 sln.sm <- subsetGiotto(gobject = TBmixcells, cell_ids = keepCells)
-leiden_colors <- getDistinctColors(length(unique(md$leiden_TBmixed)))
-names(leiden_colors) <- unique(md$leiden_TBmixed)
-plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.TBmixed', cell_color = 'leiden_TBmixed',
+leiden_colors <- getDistinctColors(length(unique(md$leiden_TBmixed.res0.1)))
+names(leiden_colors) <- unique(md$leiden_TBmixed.res0.1)
+plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.TBmixed', cell_color = 'leiden_TBmixed.res0.1',
          cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.75, point_shape="no_border",
          point_alpha=0.5)
 
@@ -196,9 +196,9 @@ dimFeatPlot2D(sln.sm, dim_reduction_name = 'umap.TBmixed', expression_values = "
 clusterChannels <- c("CD20", "CD19", "PAX5", "HLA.DR", "CD38", "IGD", "KI67", "CXCR5", "CD21", "CD11C", "CD3E", 
                      "CD4", "CD8", "TCF1", "GZMB", "CD39", "PD1", "TOX", "FOXP3", "ICOS", "CD45RO")
 plotMetaDataHeatmap(TBmixcells, expression_values = "normalized", title = "TBmixed res 0.1",
-                    metadata_cols = "leiden_TBmixed", selected_feats = clusterChannels,
+                    metadata_cols = "leiden_TBmixed.res0.1", selected_feats = clusterChannels,
                     y_text_size = 8, show_values = "zscores_rescaled")
-print(table(TBmixcells$leiden_TBmixed))
+print(table(TBmixcells$leiden_TBmixed.res0.1))
 
 plotMetaDataHeatmap(TBmixcells, expression_values = "normalized", title = "TBmixed res 0.3",
                     metadata_cols = "leiden_TBmixed.res0.3", selected_feats = clusterChannels,
@@ -211,7 +211,7 @@ print(table(TBmixcells$leiden_TBmixed.res0.3))
 ```{r show-violin-TBmixed, fig.show="hold", fig.width=10, fig.height=15, warning=F}
 md <- pDataDT(TBmixcells); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 5e4))$cell_ID
 sln.sm <- subsetGiotto(gobject = TBmixcells, cell_ids = keepCells)
-violinPlot(sln.sm, feats = clusterChannels, cluster_column = "leiden_TBmixed")
+violinPlot(sln.sm, feats = clusterChannels, cluster_column = "leiden_TBmixed.res0.1")
 
 print(paste("Primary object size: ", nrow(md), "cells"))
 ```
