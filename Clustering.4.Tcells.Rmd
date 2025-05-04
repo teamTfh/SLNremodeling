@@ -168,7 +168,7 @@ print(table(cd8.Tcells$leiden_cd8Tcells.res0.5))
 ```
 
 # remove outlier cd8 cluster 
-```{r subset-cd8T-cells-again, fig.width=10, fig.height=15, warning=F}
+```{r subset-cd8T-cells-again}
 gc()
 print("remove res0.5 cluster 32")
 md <- pDataDT(cd8.Tcells)
