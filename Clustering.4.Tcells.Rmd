@@ -206,9 +206,9 @@ makeGiottoVis <- function(gobject, title, clusterName)
   md <- pDataDT(gobject); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1e5))$cell_ID
   sln.sm <- subsetGiotto(gobject = gobject, cell_ids = keepCells)
   
-  leiden_colors <- getDistinctColors(length(unique(md[, ..clusterName])))
-  names(leiden_colors) <- unique(md[, ..clusterName])
-  plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.cd8', cell_color = clusterName,
+  leiden_colors <- getDistinctColors(nrow(unique(md[, ..clusterName])))
+  names(leiden_colors) <- unlist(unique(md[, ..clusterName]))
+  plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.cd8', cell_color =  clusterName,
            cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.75, point_shape="no_border",
            point_alpha=0.5)
   
@@ -237,7 +237,7 @@ tox.lo <- subclusterCD8(subsetGiotto(cd8.Tcells, cell_ids = keepCells ),
               title="Tox lo CD8", clusterName = "leiden_tox.lo.cd8",
               filename = paste0("sln.clustering4.cd8tcells.toxlo.dim5k15.", timeStamp, ".RDS") 
               )
-makeGiottoVis(gobject = tox.lo, title="Tox lo CD8", clusterName = "leiden_tox.lo.cd8",)
+makeGiottoVis(gobject = tox.lo, title="Tox lo CD8", clusterName = "leiden_tox.lo.cd8")
 
 ```
 
