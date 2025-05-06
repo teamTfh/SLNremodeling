@@ -130,7 +130,7 @@ print(paste("Primary object size: ", nrow(md), "cells"))
 ```
 
 
-```{r subset-cd8T-cells}
+```{r subset-cd8T-cells, eval=FALSE}
 keepCells <- md$cell_ID[which(md$CD8.Positive.Classification == 1)]
 cd8.Tcells <- subsetGiotto(Tcells, cell_ids = keepCells )
 print("subcluster CD8 T cells")
@@ -147,7 +147,7 @@ cd8.Tcells <- runUMAPprojection(cd8.Tcells, random_subset = 1e5, n_threads = par
 ```
 
 # cd8 heatmap & umap 
-```{r plot-UMAP-heatmap-cd8cells}
+```{r plot-UMAP-heatmap-cd8cells , eval=FALSE}
 md <- pDataDT(cd8.Tcells); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1e5))$cell_ID
 sln.sm <- subsetGiotto(gobject = cd8.Tcells, cell_ids = keepCells)
 
@@ -168,7 +168,7 @@ print(table(cd8.Tcells$leiden_cd8Tcells.res0.5))
 ```
 
 # remove outlier cd8 cluster 
-```{r subset-cd8T-cells-again}
+```{r subset-cd8T-cells-again, eval=FALSE}
 gc()
 print("remove res0.5 cluster 32")
 md <- pDataDT(cd8.Tcells)
@@ -299,9 +299,8 @@ cd4.Tcells <- subsetGiotto(gobject = cd4.Tcells, cell_ids = keepCells)
 
 print("subcluster CD4 T cells")
 
-subclusterCD4 <- function(gobject = cd4.Tcells, title, clusterName, filename)
+subclusterCD4 <- function(gobject = cd4.Tcells, title, clusterName, filename, clusterChannels)
 {
-  clusterChannels <- c("FOXP3", "CD39", "ICOS")
   cd4.Tcells <- runPCA(gobject = cd4.Tcells, expression_values = "normalized", scale_unit = TRUE, 
                 method = "factominer", feats_to_use = clusterChannels)
   signPCA(cd4.Tcells, scale_unit = TRUE, scree_ylim = c(0,40), show_plot = T)
@@ -352,14 +351,16 @@ md <- pDataDT(cd4.Tcells)
 keepCells <- md$cell_ID[which(md$FOXP3.Positive.Classification == 1)]
 fox.hi <- subclusterCD4(subsetGiotto(cd4.Tcells, cell_ids = keepCells ), 
               title="FoxP3 hi CD4", clusterName = "leiden_foxp3.hi.cd4",
-              filename = paste0("sln.clustering4.cd4tcells.foxp3hi.dim5k15.", timeStamp, ".RDS") 
+              filename = paste0("sln.clustering4.cd4tcells.foxp3hi.dim5k15.", timeStamp, ".RDS"),
+              clusterChannels = c("FOXP3", "CD39", "ICOS")
               )
 makeGiottoVisCD4(gobject = fox.hi, title="FoxP3 hi CD4", clusterName = "leiden_foxp3.hi.cd4")
 
 keepCells <- md$cell_ID[which(md$FOXP3.Positive.Classification == 0)]
-fox.lo <-subclusterCD4(subsetGiotto(cd4.Tcells, cell_ids = keepCells ), 
+fox.lo <- subclusterCD4(subsetGiotto(cd4.Tcells, cell_ids = keepCells ), 
               title="FoxP3 lo CD4", clusterName = "leiden_foxp3.lo.cd4",
-              filename = paste0("sln.clustering4.cd4tcells.foxp3lo.dim5k15.", timeStamp, ".RDS") 
+              filename = paste0("sln.clustering4.cd4tcells.foxp3lo.dim5k15.", timeStamp, ".RDS") ,
+              clusterChannels = c("TCF1", "PD1", "CD45RO", "HLA.DR")
               )
 makeGiottoVisCD4(gobject = fox.lo, title="FoxP3 lo CD4", clusterName = "leiden_foxp3.lo.cd4")
 
