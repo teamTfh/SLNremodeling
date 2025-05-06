@@ -130,7 +130,7 @@ print(paste("Primary object size: ", nrow(md), "cells"))
 ```
 
 
-```{r subset-cd8T-cells, eval=FALSE}
+```{r subset-cd8T-cells}
 keepCells <- md$cell_ID[which(md$CD8.Positive.Classification == 1)]
 cd8.Tcells <- subsetGiotto(Tcells, cell_ids = keepCells )
 print("subcluster CD8 T cells")
@@ -147,7 +147,7 @@ cd8.Tcells <- runUMAPprojection(cd8.Tcells, random_subset = 1e5, n_threads = par
 ```
 
 # cd8 heatmap & umap 
-```{r plot-UMAP-heatmap-cd8cells , eval=FALSE}
+```{r plot-UMAP-heatmap-cd8cells}
 md <- pDataDT(cd8.Tcells); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 1e5))$cell_ID
 sln.sm <- subsetGiotto(gobject = cd8.Tcells, cell_ids = keepCells)
 
@@ -168,7 +168,7 @@ print(table(cd8.Tcells$leiden_cd8Tcells.res0.5))
 ```
 
 # remove outlier cd8 cluster 
-```{r subset-cd8T-cells-again, eval=FALSE}
+```{r subset-cd8T-cells-again}
 gc()
 print("remove res0.5 cluster 32")
 md <- pDataDT(cd8.Tcells)
@@ -319,7 +319,7 @@ subclusterCD4 <- function(gobject = cd4.Tcells, title, clusterName, filename, cl
   saveRDS(md, paste0("md.",filename))
   saveRDS(Giotto::getExpression(cd4.Tcells, values = "scaled", output = c("matrix"),  set_defaults = TRUE ),
           paste0("exprs.",filename))
-  return(cd4.Tells)
+  return(cd4.Tcells)
 }
 
 
