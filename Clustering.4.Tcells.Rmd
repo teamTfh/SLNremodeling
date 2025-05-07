@@ -119,7 +119,7 @@ rm(df)
 
 select all cells in this object that have a CD8.Positive.Classification = 1 and cluster into CD8 T Cell Object, all other T Cells left will make up the CD4 Object.
 
-# subcluster cd8 T cells
+# subcluster T cells
 ```{r subset-TcellObject-cells}
 gc()
 md <- pDataDT(sln); keepCells <- md$cell_ID[grep(pattern = "TCells", md$L2_annotations)]
@@ -299,27 +299,27 @@ cd4.Tcells <- subsetGiotto(gobject = cd4.Tcells, cell_ids = keepCells)
 
 print("subcluster CD4 T cells")
 
-subclusterCD4 <- function(gobject = cd4.Tcells, title, clusterName, filename, clusterChannels)
+subclusterCD4 <- function(gobject, title, clusterName, filename, clusterChannels)
 {
-  cd4.Tcells <- runPCA(gobject = cd4.Tcells, expression_values = "normalized", scale_unit = TRUE, 
+  gobject <- runPCA(gobject = gobject, expression_values = "normalized", scale_unit = TRUE, 
                 method = "factominer", feats_to_use = clusterChannels)
-  signPCA(cd4.Tcells, scale_unit = TRUE, scree_ylim = c(0,40), show_plot = T)
-  cd4.Tcells = runGiottoHarmony(cd4.Tcells, vars_use = 'list_ID',  dim_reduction_to_use = "pca", dimensions_to_use = 1:3)  
-  cd4.Tcells <- createNearestNetwork(gobject = cd4.Tcells, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
+  signPCA(gobject, scale_unit = TRUE, scree_ylim = c(0,40), show_plot = T)
+  gobject = runGiottoHarmony(gobject, vars_use = 'list_ID',  dim_reduction_to_use = "pca", dimensions_to_use = 1:3)  
+  gobject <- createNearestNetwork(gobject = gobject, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
                               name = 'NN.CD4.foxp3', dimensions_to_use = 1:3, k = 15)  # calculate nearest neighbors 
-  cd4.Tcells <- doLeidenClusterIgraph(gobject = cd4.Tcells, resolution = 0.1, n_iterations = 200, set_seed = T, seed_number = 43,
+  gobject <- doLeidenClusterIgraph(gobject = gobject, resolution = 0.1, n_iterations = 200, set_seed = T, seed_number = 43,
                                   network_name = 'NN.CD4.foxp3', name = clusterName)  # make the clusters
-  cd4.Tcells <- runUMAPprojection(cd4.Tcells, random_subset = 1e5, n_threads = parallelly::availableCores(), 
+  gobject <- runUMAPprojection(gobject, random_subset = 1e5, n_threads = parallelly::availableCores(), 
                                   name="umap.cd4", dimensions_to_use = 1:3)  # project UMAP coordinates   
 
-  md <- pDataDT(cd4.Tcells); 
+  md <- pDataDT(gobject); 
   
-  saveRDS(cd4.Tcells, filename)
-  md <- pDataDT(cd4.Tcells)
+  saveRDS(gobject, filename)
+  md <- pDataDT(gobject)
   saveRDS(md, paste0("md.",filename))
-  saveRDS(Giotto::getExpression(cd4.Tcells, values = "scaled", output = c("matrix"),  set_defaults = TRUE ),
+  saveRDS(Giotto::getExpression(gobject, values = "scaled", output = c("matrix"),  set_defaults = TRUE ),
           paste0("exprs.",filename))
-  return(cd4.Tcells)
+  return(gobject)
 }
 
 
