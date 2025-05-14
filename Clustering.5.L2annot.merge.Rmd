@@ -1,0 +1,260 @@
+---
+title: "Clustering part 4"
+output:
+  html_document:
+    df_print: paged    
+    toc: TRUE
+    toc_float: true
+    toc_collapsed: true
+    toc_depth: 3
+    number_sections: true
+---
+
+```{css, echo=FALSE}
+img {
+  max-width:150%;
+  height: auto;
+}
+```
+
+
+```{r call-libraries} 
+date(); timeStamp <- strftime(Sys.time() , "%Y%m%d.%H%M%S")
+library(Giotto)
+library(future); if(parallelly::availableCores() > 2 & .Platform$OS.type == "windows")  
+  {plan('multisession', workers = parallelly::availableCores()-2)}
+options(future.globals.maxSize= 1e12)
+library(scran); library(MAST); library(leiden);    
+library(data.table)
+library(gplots); library(ggplot2); library(viridis)
+library(dbscan)
+library(dplyr); library(leidenAlg)
+set.seed(43)
+knitr::opts_chunk$set(fig.retina = 2)
+sessionInfo()
+
+```
+
+# read in CD8.Toxhi and CD8.Toxlo
+```{r readRDS}
+cd8.toxhi <- readRDS("sln.clustering4.cd8tcells.toxhi.dim5k15.20250507.104052.RDS")
+cd8.toxlo <- readRDS("sln.clustering4.cd8tcells.toxlo.dim5k15.20250507.104052.RDS")
+cd4.foxp3hi <- readRDS("sln.clustering4.cd4tcells.foxp3hi.dim5k15.20250507.104052.RDS")
+cd4.foxp3lo <- readRDS("sln.clustering4.cd4tcells.foxp3lo.dim5k15.20250507.104052.RDS")
+bcells <- readRDS("sln.clustering4.bcells.harm.dim5k15.20250502.112218.RDS")
+tbmixed <- readRDS("sln.clustering4.tbmixed.harm.20250503.150210.RDS")
+```
+
+
+```{r makeList-of-annotations}
+L2.annot <- list()
+L2.annot[["CD8.toxhi"]] <- pDataDT(cd8.toxhi)[, .(cell_ID, L2_annotations, leiden_tox.hi.cd8)]
+names(L2.annot[["CD8.toxhi"]]) <- c("cell_ID","L2_annotations", "L2.num")
+L2.annot[["CD8.toxhi"]]$L2.char <- paste0("cd8.toxhi_", L2.annot[["CD8.toxhi"]]$L2.num)
+
+L2.annot[["CD8.toxlo"]] <- pDataDT(cd8.toxlo)[, .(cell_ID, L2_annotations, leiden_tox.lo.cd8)]
+names(L2.annot[["CD8.toxlo"]]) <- c("cell_ID","L2_annotations", "L2.num")
+L2.annot[["CD8.toxlo"]]$L2.char <- paste0("cd8.toxlo_", L2.annot[["CD8.toxlo"]]$L2.num)
+
+L2.annot[["cd4.foxp3hi"]] <- pDataDT(cd4.foxp3hi)[, .(cell_ID, L2_annotations, leiden_foxp3.hi.cd4)]
+names(L2.annot[["cd4.foxp3hi"]]) <- c("cell_ID","L2_annotations", "L2.num")
+L2.annot[["cd4.foxp3hi"]]$L2.char <- paste0("cd4.foxp3hi_", L2.annot[["cd4.foxp3hi"]]$L2.num)
+
+L2.annot[["cd4.foxp3lo"]] <- pDataDT(cd4.foxp3lo)[, .(cell_ID, L2_annotations, leiden_foxp3.lo.cd4)]
+names(L2.annot[["cd4.foxp3lo"]]) <- c("cell_ID","L2_annotations", "L2.num")
+L2.annot[["cd4.foxp3lo"]]$L2.char <- paste0("cd4.foxp3lo_", L2.annot[["cd4.foxp3lo"]]$L2.num)
+
+L2.annot[["bcells"]] <- pDataDT(bcells)[, .(cell_ID, L2_annotations, leiden_Bcells.res0.1)]
+names(L2.annot[["bcells"]]) <- c("cell_ID","L2_annotations", "L2.num")
+L2.annot[["bcells"]]$L2.char <- paste0("bcells_", L2.annot[["bcells"]]$L2.num)
+
+
+L2.annot[["tbmixed"]] <- pDataDT(tbmixed)[, .(cell_ID, L2_annotations, leiden_TBmixed.res0.3)]
+names(L2.annot[["tbmixed"]]) <- c("cell_ID","L2_annotations", "L2.num")
+L2.annot[["tbmixed"]]$L2.char <- paste0("tbmixed_", L2.annot[["tbmixed"]]$L2.num)
+
+L2.annot[["cd4outlier"]] <- readRDS("finalAnnotation.cd4outlier.RDS")
+names(L2.annot[["cd4outlier"]]) <- c("cell_ID","L2_annotations")
+L2.annot[["cd4outlier"]]$L2.num <- 42; L2.annot[["cd4outlier"]]$L2.char <- "CD4_OUTLIER_1"
+
+L2.annot[["cd8outlier"]] <- readRDS("finalAnnotation.cd8outlier.RDS") 
+names(L2.annot[["cd8outlier"]]) <- c("cell_ID","L2_annotations")
+L2.annot[["cd8outlier"]]$L2.num <- 42; L2.annot[["cd8outlier"]]$L2.char <- "CD8_OUTLIER_1"
+
+
+```
+
+
+# assign L2 annotations
+```{r assign_newLabels}
+# start with CD8.toxhi
+L2.annot[["CD8.toxhi"]]$L2_annotations <- paste0("Clust.", L2.annot[["CD8.toxhi"]]$L2_annotations)  # unknown clusters:
+L2.annot[["CD8.toxhi"]][L2.num  == 1, 'L2_annotations':= "CD8TOXHI_TCF1_MIXED_TOX_HI_CD8_1"]
+L2.annot[["CD8.toxhi"]][L2.num  == 2, 'L2_annotations':= "CD8TOXHI_TCF1_MIXED_TOX_HI_CD8_2"]
+L2.annot[["CD8.toxhi"]][L2.num  == 3, 'L2_annotations':= "CD8TOXHI_TCF1_HI_TOX_HI_CD8_1"]
+L2.annot[["CD8.toxhi"]][L2.num  == 4, 'L2_annotations':= "CD8TOXHI_TCF1_LO_TOX_HI_CD8_1"]
+L2.annot[["CD8.toxhi"]][L2.num  == 5, 'L2_annotations':= "CD8TOXHI_TCF1_LO_TOX_HI_CD8_2"]
+L2.annot[["CD8.toxhi"]][L2.num  == 6, 'L2_annotations':= "CD8TOXHI_TCF1_HI_TOX_HI_CD8_2"]
+L2.annot[["CD8.toxhi"]][L2.num  == 7, 'L2_annotations':= "CD8TOXHI_TCF1_HI_TOX_HI_CD8_3"]
+L2.annot[["CD8.toxhi"]][L2.num  == 8, 'L2_annotations':= "CD8TOXHI_TCF1_HI_TOX_HI_CD8_4"]
+L2.annot[["CD8.toxhi"]][L2.num  == 9, 'L2_annotations':= "CD8TOXHI_TCF1_HI_TOX_HI_CD8_5"]
+L2.annot[["CD8.toxhi"]][L2.num  == 10, 'L2_annotations':= "CD8TOXHI_TCF1_HI_TOX_HI_CD8_6"]
+
+L2.annot[["CD8.toxlo"]]$L2_annotations <- paste0("Clust.", L2.annot[["CD8.toxlo"]]$L2_annotations)  # unknown clusters:
+L2.annot[["CD8.toxlo"]][L2.num  == 1, 'L2_annotations':= "CD8TOXLO_ACTIVATED_CD8_1"]
+L2.annot[["CD8.toxlo"]][L2.num  == 2, 'L2_annotations':= "CD8TOXLO_MEMORY_CD8_1"]
+L2.annot[["CD8.toxlo"]][L2.num  == 3, 'L2_annotations':= "CD8TOXLO_MEMORY_CD8_2"]
+L2.annot[["CD8.toxlo"]][L2.num  == 4, 'L2_annotations':= "CD8TOXLO_MEMORY_CD8_3"]
+L2.annot[["CD8.toxlo"]][L2.num  == 5, 'L2_annotations':= "CD8TOXLO_GZMB_CD8_1"]
+L2.annot[["CD8.toxlo"]][L2.num  == 6, 'L2_annotations':= "CD8TOXLO_MIXED_TOX_LO_CD8_1"]
+L2.annot[["CD8.toxlo"]][L2.num  == 7, 'L2_annotations':= "CD8TOXLO_MIXED_TOX_LO_CD8_2"]
+L2.annot[["CD8.toxlo"]][L2.num  == 8, 'L2_annotations':= "CD8TOXLO_MIXED_TOX_LO_CD8_3"]
+L2.annot[["CD8.toxlo"]][L2.num  == 9, 'L2_annotations':= "CD8TOXLO_MIXED_TOX_LO_CD8_4"]
+L2.annot[["CD8.toxlo"]][L2.num  == 10, 'L2_annotations':= "CD8TOXLO_GZMB_CD8_2"]
+L2.annot[["CD8.toxlo"]][L2.num  == 11, 'L2_annotations':= "CD8TOXLO_NAIVE_CD8_1"]
+L2.annot[["CD8.toxlo"]][L2.num  == 12, 'L2_annotations':= "CD8TOXLO_TERMINAL_EFFECTOR_CD8_1"]
+L2.annot[["CD8.toxlo"]][L2.num  == 13, 'L2_annotations':= "CD8TOXLO_GZMB_CD8_3"]
+L2.annot[["CD8.toxlo"]][L2.num  == 14, 'L2_annotations':= "CD8TOXLO_ACTIVATED_MEMORY_CD8_1"]
+L2.annot[["CD8.toxlo"]][L2.num  == 15, 'L2_annotations':= "CD8TOXLO_ACTIVATED_CD8_2"]
+L2.annot[["CD8.toxlo"]][L2.num  == 16, 'L2_annotations':= "CD8TOXLO_TERMINAL_EFFECTOR_CD8_2"]
+
+
+L2.annot[["cd4.foxp3hi"]]$L2_annotations <- paste0("Clust.", L2.annot[["cd4.foxp3hi"]]$L2_annotations)  # unknown clusters:
+L2.annot[["cd4.foxp3hi"]][L2.num  == 1, 'L2_annotations':= "CD4FOXP3HI_ICOS_LO_TREG_1"]
+L2.annot[["cd4.foxp3hi"]][L2.num  == 2, 'L2_annotations':= "CD4FOXP3HI_ICOS_LO_TREG_2"]
+L2.annot[["cd4.foxp3hi"]][L2.num  == 3, 'L2_annotations':= "CD4FOXP3HI_MIXED_TREG_1"]
+L2.annot[["cd4.foxp3hi"]][L2.num  == 4, 'L2_annotations':= "CD4FOXP3HI_MIXED_TREG_2"]
+L2.annot[["cd4.foxp3hi"]][L2.num  == 5, 'L2_annotations':= "CD4FOXP3HI_MIXED_TREG_3"]
+L2.annot[["cd4.foxp3hi"]][L2.num  == 6, 'L2_annotations':= "CD4FOXP3HI_MIXED_TREG_4"]
+L2.annot[["cd4.foxp3hi"]][L2.num  == 7, 'L2_annotations':= "CD4FOXP3HI_ACTIVATED_TREG_1"]
+L2.annot[["cd4.foxp3hi"]][L2.num  == 8, 'L2_annotations':= "CD4FOXP3HI_MIXED_TREG_5"]
+L2.annot[["cd4.foxp3hi"]][L2.num  == 9, 'L2_annotations':= "CD4FOXP3HI_ACTIVATED_TREG_2"]
+
+
+L2.annot[["cd4.foxp3lo"]]$L2_annotations <- paste0("Clust.", L2.annot[["cd4.foxp3lo"]]$L2_annotations)  # unknown clusters:
+L2.annot[["cd4.foxp3lo"]][L2.num  == 1, 'L2_annotations':= "CD4FOXP3LO_ACTIVATED_CD4_1"]
+L2.annot[["cd4.foxp3lo"]][L2.num  == 2, 'L2_annotations':= "CD4FOXP3LO_ACTIVATED_CD4_2"]
+L2.annot[["cd4.foxp3lo"]][L2.num  == 3, 'L2_annotations':= "CD4FOXP3LO_ACTIVATED_MEMORY_CD4_1"]
+L2.annot[["cd4.foxp3lo"]][L2.num  == 4, 'L2_annotations':= "CD4FOXP3LO_ACTIVATED_CD4_4"]
+L2.annot[["cd4.foxp3lo"]][L2.num  == 5, 'L2_annotations':= "CD4FOXP3LO_MEMORY_CD4_1"]
+L2.annot[["cd4.foxp3lo"]][L2.num  == 6, 'L2_annotations':= "CD4FOXP3LO_ACTIVATED_MEMORY_CD4_2"]
+L2.annot[["cd4.foxp3lo"]][L2.num  == 7, 'L2_annotations':= "CD4FOXP3LO_MEMORY_CD4_2"]
+L2.annot[["cd4.foxp3lo"]][L2.num  == 8, 'L2_annotations':= "CD4FOXP3LO_MEMORY_CD4_3"]
+L2.annot[["cd4.foxp3lo"]][L2.num  == 9, 'L2_annotations':= "CD4FOXP3LO_MEMORY_CD4_4"]
+L2.annot[["cd4.foxp3lo"]][L2.num  == 10, 'L2_annotations':= "CD4FOXP3LO_CD4_MYELOID_STRUCTURE_MIXED_1"]
+L2.annot[["cd4.foxp3lo"]][L2.num  == 10, 'L2_annotations':= "CD4FOXP3LO_MEMORY_CD4_5"]
+L2.annot[["cd4.foxp3lo"]][L2.num  == 10, 'L2_annotations':= "CD4FOXP3LO_CD4_MYELOID_STRUCTURE_MIXED_2"]
+L2.annot[["cd4.foxp3lo"]][L2.num  == 10, 'L2_annotations':= "CD4FOXP3LO_CD4_MYELOID_STRUCTURE_MIXED_3"]
+L2.annot[["cd4.foxp3lo"]][L2.num  == 10, 'L2_annotations':= "CD4FOXP3LO_CD4_MYELOID_STRUCTURE_MIXED_4"]
+L2.annot[["cd4.foxp3lo"]][L2.num  == 10, 'L2_annotations':= "CD4FOXP3LO_CD4_MYELOID_STRUCTURE_MIXED_5"]
+L2.annot[["cd4.foxp3lo"]][L2.num  == 10, 'L2_annotations':= "CD4FOXP3LO_MEMORY_CD4_6"]
+
+
+L2.annot[["bcells"]]$L2_annotations <- paste0("Clust.", L2.annot[["bcells"]]$L2_annotations)  # unknown clusters:
+L2.annot[["bcells"]][L2.num  == 1, 'L2_annotations':= "BCELLS_BCELL_MYELOID_STRUCTURE_MIXED_1"]
+L2.annot[["bcells"]][L2.num  == 2, 'L2_annotations':= "BCELLS_PC_1"]
+L2.annot[["bcells"]][L2.num  == 3, 'L2_annotations':= "BCELLS_MIXED_FOLLICULAR_BCELL_1"]
+L2.annot[["bcells"]][L2.num  == 4, 'L2_annotations':= "BCELLS_MIXED_FOLLICULAR_AND_NONFOLLICULAR_BCELL_1"]
+L2.annot[["bcells"]][L2.num  == 5, 'L2_annotations':= "BCELLS_STRUCTURE_CELL_1"]
+L2.annot[["bcells"]][L2.num  == 6, 'L2_annotations':= "BCELLS_KI67_HI_BCELL_1"]
+L2.annot[["bcells"]][L2.num  == 7, 'L2_annotations':= "BCELLS_MIXED_FOLLICULAR_BCELL_2"]
+L2.annot[["bcells"]][L2.num  == 8, 'L2_annotations':= "BCELLS_MIXED_FOLLICULAR_BCELL_3"]
+L2.annot[["bcells"]][L2.num  == 9, 'L2_annotations':= "BCELLS_MANTLE_ZONE_BCELL_1"]
+L2.annot[["bcells"]][L2.num  == 10, 'L2_annotations':= "BCELLS_BCELL_MYELOID_STRUCTURE_MIXED_2"]
+L2.annot[["bcells"]][L2.num  == 11, 'L2_annotations':= "BCELLS_STRUCTURE_CELL_2"]
+L2.annot[["bcells"]][L2.num  == 12, 'L2_annotations':= "BCELLS_STRUCTURE_CELL_3"]
+L2.annot[["bcells"]][L2.num  == 13, 'L2_annotations':= "BCELLS_BCELL_MYELOID_STRUCTURE_MIXED_3"]
+L2.annot[["bcells"]][L2.num  == 14, 'L2_annotations':= "BCELLS_MIXED_FOLLICULAR_AND_NONFOLLICULAR_BCELL_2"]
+L2.annot[["bcells"]][L2.num  == 15, 'L2_annotations':= "BCELLS_MIXED_FOLLICULAR_AND_NONFOLLICULAR_BCELL_3"]
+L2.annot[["bcells"]][L2.num  == 16, 'L2_annotations':= "BCELLS_MIXED_FOLLICULAR_BCELL_4"]
+L2.annot[["bcells"]][L2.num  == 17, 'L2_annotations':= "BCELLS_MIXED_FOLLICULAR_AND_NONFOLLICULAR_BCELL_4"]
+
+L2.annot[["tbmixed"]]$L2_annotations <- paste0("Clust.", L2.annot[["tbmixed"]]$L2_annotations)  # unknown clusters:
+L2.annot[["tbmixed"]][L2.num  == 1, 'L2_annotations':= "TBMIXED_CD4_CD20_MIXED_1"]
+L2.annot[["tbmixed"]][L2.num  == 2, 'L2_annotations':= "TBMIXED_PC_1"]
+L2.annot[["tbmixed"]][L2.num  == 3, 'L2_annotations':= "TBMIXED_CD4_CD8_CD20_MIXED_1"]
+L2.annot[["tbmixed"]][L2.num  == 4, 'L2_annotations':= "TBMIXED_CD8_PC_MIXED_1"]
+L2.annot[["tbmixed"]][L2.num  == 5, 'L2_annotations':= "TBMIXED_CD8_CD20_MIXED_1"]
+L2.annot[["tbmixed"]][L2.num  == 6, 'L2_annotations':= "TBMIXED_TCELL_BCELL_MYELOID_MIXED_1"]
+L2.annot[["tbmixed"]][L2.num  == 7, 'L2_annotations':= "TBMIXED_CD4_CD20_MIXED_2"]
+L2.annot[["tbmixed"]][L2.num  == 8, 'L2_annotations':= "TBMIXED_BCELL_MYELOID_MIXED_1"]
+L2.annot[["tbmixed"]][L2.num  == 9, 'L2_annotations':= "TBMIXED_CD4_CD20_MIXED_3"]
+L2.annot[["tbmixed"]][L2.num  == 10, 'L2_annotations':= "TBMIXED_CD4_CD20_MIXED_4"]
+L2.annot[["tbmixed"]][L2.num  == 11, 'L2_annotations':= "TBMIXED_CD8_CD20_MIXED_2"]
+L2.annot[["tbmixed"]][L2.num  == 12, 'L2_annotations':= "TBMIXED_PC_2"]
+L2.annot[["tbmixed"]][L2.num  == 13, 'L2_annotations':= "TBMIXED_CD4_CD20_MIXED_5"]
+L2.annot[["tbmixed"]][L2.num  == 14, 'L2_annotations':= "TBMIXED_PC_3"]
+L2.annot[["tbmixed"]][L2.num  == 15, 'L2_annotations':= "TBMIXED_CD4_CD20_MIXED_6"]
+L2.annot[["tbmixed"]][L2.num  == 16, 'L2_annotations':= "TBMIXED_CD8_CD20_MIXED_3"]
+L2.annot[["tbmixed"]][L2.num  == 17, 'L2_annotations':= "TBMIXED_BCELL_MYELOID_MIXED_2"]
+L2.annot[["tbmixed"]][L2.num  == 18, 'L2_annotations':= "TBMIXED_LZ_BCELL_1"]
+L2.annot[["tbmixed"]][L2.num  == 19, 'L2_annotations':= "TBMIXED_CD4_CD20_MIXED_7"]
+L2.annot[["tbmixed"]][L2.num  == 20, 'L2_annotations':= "TBMIXED_CD4_CD20_MIXED_8"]
+L2.annot[["tbmixed"]][L2.num  == 21, 'L2_annotations':= "TBMIXED_MIXED_GC_TCELL_1"]
+L2.annot[["tbmixed"]][L2.num  == 22, 'L2_annotations':= "TBMIXED_BCELL_MYELOID_MIXED_3"]
+L2.annot[["tbmixed"]][L2.num  == 23, 'L2_annotations':= "TBMIXED_CD4_CD8_CD20_MIXED_2"]
+L2.annot[["tbmixed"]][L2.num  == 24, 'L2_annotations':= "TBMIXED_CD4_CD20_MIXED_9"]
+L2.annot[["tbmixed"]][L2.num  == 25, 'L2_annotations':= "TBMIXED_ARTIFACT_1"]
+L2.annot[["tbmixed"]][L2.num  == 26, 'L2_annotations':= "TBMIXED_ARTIFACT_2"]
+
+17	
+
+L2.annot <- rbindlist(L2.annot)
+
+md <- pDataDT(sln)
+missing <- setdiff(md$cell_ID, L2.annot$cell_ID)  # what have we left out  
+md[cell_ID %in% missing, 'L1_annotations'] %>% table  # group them by prior annotation
+```
+
+
+```{r add-cellMetadata}
+sln. <- sln
+sln. <- addCellMetadata(gobject = sln., new_metadata = L2.annot, by_column=T, column_cell_ID = 'cell_ID')
+# rm(df)
+
+md <- pDataDT(sln.)
+md[L2_annotations == 'Clust.TBMixed.1']
+```
+
+# read in SLN 
+```{r readRDS-fullsln-clustering3}
+sln <- readRDS("sln.clustering3.dim5k15.res0.7.20250420.092625.RDS")
+md <- pDataDT(sln) 
+print(paste("Primary object size: ", nrow(md), "cells"))
+print("cluster membership")
+print(table(md$leiden_harmony))
+print(table(md$L1_annotations))
+```
+
+
+
+# assign L3 annotations
+```{r assign_newLabels}
+df <- data.frame(leiden.clust3.r0.7 = md$leiden.clust3.r0.7, L3_annotations = "Unknown")
+df$cell_ID <- md$cell_ID
+df$L2_annotations <- paste0("Clust.", df$leiden.clust3.r0.7)  # unknown clusters:
+df[which(df$leiden.clust3.r0.7  == "1" ), 'L2_annotations'] <-  "TBMixed.1"
+
+
+sln <- addCellMetadata(gobject = sln, new_metadata = df, by_column=T, column_cell_ID = 'cell_ID')
+rm(df)
+
+```
+
+
+
+```{r call-date}
+date()
+```
+
+
+
+
+
+
+
+
+
+
+
+
