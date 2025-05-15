@@ -141,29 +141,29 @@ L2.annot[["cd4.foxp3lo"]][L2.num  == 6, 'L2_annotations':= "CD4FOXP3LO_ACTIVATED
 L2.annot[["cd4.foxp3lo"]][L2.num  == 7, 'L2_annotations':= "CD4FOXP3LO_MEMORY_CD4_2"]
 L2.annot[["cd4.foxp3lo"]][L2.num  == 8, 'L2_annotations':= "CD4FOXP3LO_MEMORY_CD4_3"]
 L2.annot[["cd4.foxp3lo"]][L2.num  == 9, 'L2_annotations':= "CD4FOXP3LO_MEMORY_CD4_4"]
-L2.annot[["cd4.foxp3lo"]][L2.num  == 10, 'L2_annotations':= "CD4FOXP3LO_CD4_MYELOID_STRUCTURE_MIXED_1"]
+L2.annot[["cd4.foxp3lo"]][L2.num  == 10, 'L2_annotations':= "CD4FOXP3LO_CD4_MYELOID_NONIMMUNE_MIXED_1"]
 L2.annot[["cd4.foxp3lo"]][L2.num  == 11, 'L2_annotations':= "CD4FOXP3LO_MEMORY_CD4_5"]
-L2.annot[["cd4.foxp3lo"]][L2.num  == 12, 'L2_annotations':= "CD4FOXP3LO_CD4_MYELOID_STRUCTURE_MIXED_2"]
-L2.annot[["cd4.foxp3lo"]][L2.num  == 13, 'L2_annotations':= "CD4FOXP3LO_CD4_MYELOID_STRUCTURE_MIXED_3"]
-L2.annot[["cd4.foxp3lo"]][L2.num  == 14, 'L2_annotations':= "CD4FOXP3LO_CD4_MYELOID_STRUCTURE_MIXED_4"]
-L2.annot[["cd4.foxp3lo"]][L2.num  == 15, 'L2_annotations':= "CD4FOXP3LO_CD4_MYELOID_STRUCTURE_MIXED_5"]
+L2.annot[["cd4.foxp3lo"]][L2.num  == 12, 'L2_annotations':= "CD4FOXP3LO_CD4_MYELOID_NONIMMUNE_MIXED_2"]
+L2.annot[["cd4.foxp3lo"]][L2.num  == 13, 'L2_annotations':= "CD4FOXP3LO_CD4_MYELOID_NONIMMUNE_MIXED_3"]
+L2.annot[["cd4.foxp3lo"]][L2.num  == 14, 'L2_annotations':= "CD4FOXP3LO_CD4_MYELOID_NONIMMUNE_MIXED_4"]
+L2.annot[["cd4.foxp3lo"]][L2.num  == 15, 'L2_annotations':= "CD4FOXP3LO_CD4_MYELOID_NONIMMUNE_MIXED_5"]
 L2.annot[["cd4.foxp3lo"]][L2.num  == 16, 'L2_annotations':= "CD4FOXP3LO_MEMORY_CD4_6"]
 
 
 L2.annot[["bcells"]]$L2_annotations <- paste0("Clust.", L2.annot[["bcells"]]$L2_annotations)  # unknown clusters:
-L2.annot[["bcells"]][L2.num  == 1, 'L2_annotations':= "BCELLS_BCELL_MYELOID_STRUCTURE_MIXED_1"]
+L2.annot[["bcells"]][L2.num  == 1, 'L2_annotations':= "BCELLS_BCELL_MYELOID_NONIMMUNE_MIXED_1"]
 L2.annot[["bcells"]][L2.num  == 2, 'L2_annotations':= "BCELLS_PC_1"]
 L2.annot[["bcells"]][L2.num  == 3, 'L2_annotations':= "BCELLS_MIXED_FOLLICULAR_BCELL_1"]
 L2.annot[["bcells"]][L2.num  == 4, 'L2_annotations':= "BCELLS_MIXED_FOLLICULAR_AND_NONFOLLICULAR_BCELL_1"]
-L2.annot[["bcells"]][L2.num  == 5, 'L2_annotations':= "BCELLS_STRUCTURE_CELL_1"]
+L2.annot[["bcells"]][L2.num  == 5, 'L2_annotations':= "BCELLS_NONIMMUNE_CELL_1"]
 L2.annot[["bcells"]][L2.num  == 6, 'L2_annotations':= "BCELLS_KI67_HI_BCELL_1"]
 L2.annot[["bcells"]][L2.num  == 7, 'L2_annotations':= "BCELLS_MIXED_FOLLICULAR_BCELL_2"]
 L2.annot[["bcells"]][L2.num  == 8, 'L2_annotations':= "BCELLS_MIXED_FOLLICULAR_BCELL_3"]
 L2.annot[["bcells"]][L2.num  == 9, 'L2_annotations':= "BCELLS_MANTLE_ZONE_BCELL_1"]
-L2.annot[["bcells"]][L2.num  == 10, 'L2_annotations':= "BCELLS_BCELL_MYELOID_STRUCTURE_MIXED_2"]
-L2.annot[["bcells"]][L2.num  == 11, 'L2_annotations':= "BCELLS_STRUCTURE_CELL_2"]
-L2.annot[["bcells"]][L2.num  == 12, 'L2_annotations':= "BCELLS_STRUCTURE_CELL_3"]
-L2.annot[["bcells"]][L2.num  == 13, 'L2_annotations':= "BCELLS_BCELL_MYELOID_STRUCTURE_MIXED_3"]
+L2.annot[["bcells"]][L2.num  == 10, 'L2_annotations':= "BCELLS_BCELL_MYELOID_NONIMMUNE_MIXED_2"]
+L2.annot[["bcells"]][L2.num  == 11, 'L2_annotations':= "BCELLS_NONIMMUNE_CELL_2"]
+L2.annot[["bcells"]][L2.num  == 12, 'L2_annotations':= "BCELLS_NONIMMUNE_CELL_3"]
+L2.annot[["bcells"]][L2.num  == 13, 'L2_annotations':= "BCELLS_BCELL_MYELOID_NONIMMUNE_MIXED_3"]
 L2.annot[["bcells"]][L2.num  == 14, 'L2_annotations':= "BCELLS_MIXED_FOLLICULAR_AND_NONFOLLICULAR_BCELL_2"]
 L2.annot[["bcells"]][L2.num  == 15, 'L2_annotations':= "BCELLS_MIXED_FOLLICULAR_AND_NONFOLLICULAR_BCELL_3"]
 L2.annot[["bcells"]][L2.num  == 16, 'L2_annotations':= "BCELLS_MIXED_FOLLICULAR_BCELL_4"]
@@ -204,12 +204,90 @@ L2.annot <- rbindlist(L2.annot)
 ```
 
 # read in SLN 
-```{r readRDS-fullsln-clustering3}
-sln <- readRDS("sln.clustering3.dim5k15.res0.7.20250420.092625.RDS")
+```{r readRDS-full-sln-from-clustering2}
+sln <- readRDS("sln.clustering2.res0.5.20250411.1611.RDS")
 md <- pDataDT(sln) 
 print(paste("Primary object size: ", nrow(md), "cells"))
 print("cluster membership")
 print(table(md$leiden_harmony))
+
+df <- data.frame(leiden_harmony = md$leiden_harmony, L1_annotations = "Unknown")   # consider re-implementing as data.table
+df$cell_ID <- md$cell_ID
+df$L1_annotations <- paste0("Clust.", df$leiden_harmony)  # unknown clusters
+df[which(df$leiden_harmony == "1" ), 'L1_annotations'] <-  "BCells.1"
+df[which(df$leiden_harmony == "2" ), 'L1_annotations'] <-  "BCells.2"
+df[which(df$leiden_harmony == "3" ), 'L1_annotations'] <-  "BCells.3"
+df[which(df$leiden_harmony == "4" ), 'L1_annotations'] <-  "BCells.4"
+df[which(df$leiden_harmony == "5" ), 'L1_annotations'] <-  "BCells.5"
+df[which(df$leiden_harmony == "6" ), 'L1_annotations'] <-  "BCells.6"
+df[which(df$leiden_harmony == "7" ), 'L1_annotations'] <-  "TBMixed.1"
+df[which(df$leiden_harmony == "8" ), 'L1_annotations'] <-  "TBMixed.2"
+df[which(df$leiden_harmony == "9" ), 'L1_annotations'] <-  "TBMixed.3"
+df[which(df$leiden_harmony == "10" ), 'L1_annotations'] <-  "TBMixed.4"
+df[which(df$leiden_harmony == "11" ), 'L1_annotations'] <-  "TBMixed.5"
+df[which(df$leiden_harmony == "12" ), 'L1_annotations'] <-  "TBMixed.6"
+df[which(df$leiden_harmony == "13" ), 'L1_annotations'] <-  "TBMixed.7"
+df[which(df$leiden_harmony == "14" ), 'L1_annotations'] <-  "BCells.7"
+df[which(df$leiden_harmony == "15" ), 'L1_annotations'] <-  "TBMixed.8"
+df[which(df$leiden_harmony == "16" ), 'L1_annotations'] <-  "TBMixed.9"
+df[which(df$leiden_harmony == "17" ), 'L1_annotations'] <-  "TBMixed.10"
+df[which(df$leiden_harmony == "18" ), 'L1_annotations'] <-  "TBMixed.11"
+df[which(df$leiden_harmony == "19" ), 'L1_annotations'] <-  "TBMixed.12"
+df[which(df$leiden_harmony == "20" ), 'L1_annotations'] <-  "TBMixed.13"
+df[which(df$leiden_harmony == "21" ), 'L1_annotations'] <-  "BCells.8"
+df[which(df$leiden_harmony == "22" ), 'L1_annotations'] <-  "BCells.9"
+df[which(df$leiden_harmony == "23" ), 'L1_annotations'] <-  "BCells.10"
+df[which(df$leiden_harmony == "24" ), 'L1_annotations'] <-  "BCells.11"
+df[which(df$leiden_harmony == "25" ), 'L1_annotations'] <-  "TBMixed.14"
+df[which(df$leiden_harmony == "26" ), 'L1_annotations'] <-  "TBMixed.15"
+df[which(df$leiden_harmony == "27" ), 'L1_annotations'] <-  "TBMixed.16"
+df[which(df$leiden_harmony == "28" ), 'L1_annotations'] <-  "BCells.12"
+df[which(df$leiden_harmony == "29" ), 'L1_annotations'] <-  "BCells.13"
+df[which(df$leiden_harmony == "30" ), 'L1_annotations'] <-  "TBMixed.17"
+df[which(df$leiden_harmony == "31" ), 'L1_annotations'] <-  "TBMixed.18"
+df[which(df$leiden_harmony == "32" ), 'L1_annotations'] <-  "TBMixed.19"
+df[which(df$leiden_harmony == "33" ), 'L1_annotations'] <-  "TBMixed.20"
+df[which(df$leiden_harmony == "34" ), 'L1_annotations'] <-  "BCells.14"
+df[which(df$leiden_harmony == "35" ), 'L1_annotations'] <-  "TBMixed.21"
+df[which(df$leiden_harmony == "36" ), 'L1_annotations'] <-  "Tumor.1"
+df[which(df$leiden_harmony == "37" ), 'L1_annotations'] <-  "Tumor.2"
+df[which(df$leiden_harmony == "38" ), 'L1_annotations'] <-  "BCells.15"
+df[which(df$leiden_harmony == "39" ), 'L1_annotations'] <-  "Tumor.3"
+df[which(df$leiden_harmony == "40" ), 'L1_annotations'] <-  "Tumor.4"
+df[which(df$leiden_harmony == "41" ), 'L1_annotations'] <-  "BCells.16"
+df[which(df$leiden_harmony == "42" ), 'L1_annotations'] <-  "TBMixed.22"
+df[which(df$leiden_harmony == "43" ), 'L1_annotations'] <-  "BCells.17"
+df[which(df$leiden_harmony == "44" ), 'L1_annotations'] <-  "TBMixed.23"
+df[which(df$leiden_harmony == "45" ), 'L1_annotations'] <-  "BCells.18"
+df[which(df$leiden_harmony == "46" ), 'L1_annotations'] <-  "TBMixed.24"
+df[which(df$leiden_harmony == "47" ), 'L1_annotations'] <-  "TBMixed.25"
+df[which(df$leiden_harmony == "48" ), 'L1_annotations'] <-  "TBMixed.26"
+df[which(df$leiden_harmony == "49" ), 'L1_annotations'] <-  "TCells.1"
+df[which(df$leiden_harmony == "50" ), 'L1_annotations'] <-  "BCells.19"
+df[which(df$leiden_harmony == "51" ), 'L1_annotations'] <-  "TBMixed.27"
+df[which(df$leiden_harmony == "52" ), 'L1_annotations'] <-  "Artifact.1"
+df[which(df$leiden_harmony == "53" ), 'L1_annotations'] <-  "TBMixed.28"
+df[which(df$leiden_harmony == "54" ), 'L1_annotations'] <-  "Artifact.2"
+df[which(df$leiden_harmony == "55" ), 'L1_annotations'] <-  "TCells.2"
+df[which(df$leiden_harmony == "56" ), 'L1_annotations'] <-  "TBMixed.29"
+df[which(df$leiden_harmony == "57" ), 'L1_annotations'] <-  "TBMixed.30"
+df[which(df$leiden_harmony == "58" ), 'L1_annotations'] <-  "BCells.20"
+df[which(df$leiden_harmony == "59" ), 'L1_annotations'] <-  "Tumor.5"
+df[which(df$leiden_harmony == "60" ), 'L1_annotations'] <-  "BCells.21"
+df[which(df$leiden_harmony == "61" ), 'L1_annotations'] <-  "Artifact.3"
+df[which(df$leiden_harmony == "62" ), 'L1_annotations'] <-  "TBMixed.31"
+      
+sln <- addCellMetadata(sln, new_metadata = df, by_column = T, column_cell_ID="cell_ID")  # add in the annotations to the main object
+
+
+md <- pDataDT(sln) 
+print(table(md$L1_annotations))
+
+toEliminate <- c("Artifact.1","Artifact.2", "Artifact.3")  # only take away Artifact clusters now, leave Tumor
+keepCells <- subset(md, !(L1_annotations %in% c(toEliminate)))$cell_ID
+sln <- subsetGiotto(gobject = sln, cell_ids = keepCells) 
+
+md <- pDataDT(sln) 
 print(table(md$L1_annotations))
 
 missing <- setdiff(md$cell_ID, L2.annot$cell_ID)  # what have we left out  
@@ -217,12 +295,11 @@ md[cell_ID %in% missing, 'L1_annotations'] %>% table  # group them by prior anno
 
 ```
 
-
+# Format the metadata
 ```{r format-cellMetadata}
-# sln. <- sln
 md <- pDataDT(sln)
 df.new <- md[, .(cell_ID, L1_annotations)]
-df.new$L2_annotations <- df.new$L3_annotations <- df.new$L1_annotations
+df.new$L2_annotations <- df.new$L3_annotations <- df.new$L1_annotations  # save the L1 annotations 
 names(L2.annot) <- c("cell_ID","L3_annotations","L3.num","L3.char")  # changed my mind, let's call these L3_annotations
 df.new <- merge(x = df.new, y=L2.annot, by='cell_ID', all.x = T)
 df.new[!is.na(L3_annotations.y), L2_annotations := L3_annotations.y]  # replace L2_annot if L3_annot is not NA 
@@ -231,14 +308,19 @@ df.new[, L1_annotations := sub("_.*", "", L1_annotations)]
 df.new$L3_annotations.x <- NULL
 names(df.new)[4] <- 'L3_annotations'
 df.new$L2_annotations <- substr(df.new$L2_annotations, 1, nchar(df.new$L2_annotations) - 2)  # eliminate the last underscore & number
+df.new[L2_annotations == 'CD4.outli', L2_annotations := 'CD4.outlier']
+df.new[L2_annotations == 'CD8.outli', L2_annotations := 'CD8.outlier']
+df.new[L1_annotations == 'CD4', L1_annotations := 'cd4.foxp3lo']
+df.new[L1_annotations == 'CD8', L1_annotations := 'cd8.toxlo']
+df.new %>% head
 ```
 
-
+# addCellMetadata and check output
 ```{r add-CellMetadata}
 sln <- addCellMetadata(gobject = sln, new_metadata = df.new, by_column=T, column_cell_ID = 'cell_ID')
 # rm(df)
 
-md <- pDataDT(sln.)
+md <- pDataDT(sln)
 md$L1_annotations %>% table
 print(md$L1_annotations %>% table %>% length)
 
@@ -250,14 +332,74 @@ print(md$L3_annotations %>% table %>% length)
 
 ```
 
+# calculate spatialKNN for later InteractionChangedFeats
 ```{r add-spatialKNN}
-sln <- createSpatialKNNnetwork(sln, k=5, method = "dbscan",  name = "spatialknn.k5", verbose = T)
-sln <- createSpatialKNNnetwork(sln, k=10, method = "dbscan",  name = "spatialknn.k10", verbose = T)
+sln <- createSpatialKNNnetwork(sln, k=5, method = "dbscan",  name = "spatialknn.k5", verbose = T) 
+```
+
+# UMAP visualizations
+```{r plotUMAP-by-annotations, fig.width=10}
+md <- pDataDT(sln); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 2e5))$cell_ID
+sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
+
+print("L1 annotations")
+leiden_colors <- getDistinctColors(length(unique(md$L1_annotations)))
+names(leiden_colors) <- unique(md$L1_annotations)
+plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.clust3.d8', cell_color = 'L1_annotations',
+         cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.75, point_shape="no_border",
+         point_alpha=0.5)
+
+
+print("L2 annotations")
+leiden_colors <- getDistinctColors(length(unique(md$L2_annotations)))
+names(leiden_colors) <- unique(md$L2_annotations)
+plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.clust3.d8', cell_color = 'L2_annotations',
+         cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.75, point_shape="no_border",
+         point_alpha=0.5)
+
+# print("L3 annotations")    # *********** this block fails with "Viewport has zero dimensions" --> not clear why
+# leiden_colors <- getDistinctColors(length(unique(md$L3_annotations)))
+# names(leiden_colors) <- unique(md$L3_annotations)
+# plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.clust3.d8', cell_color = 'L3_annotations',
+#          cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.75, point_shape="no_border",
+#          point_alpha=0.5)
+
+md <- pDataDT(sln); keepCells <- subset(md, !(L2_annotations %in% c('CD4.outli','CD8.outli')))$cell_ID
+sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
+
+clusterChannels <- c("CD3E", "CD4", "CD8", "TCF1", "TOX", "CD45RO", "CD19", "CD20","HLA.DR", "CD38", "IGD", "CXCR5", 
+                     "KI67", "CD45", "PAN.CYTO", "CD21", "MAC2/GAL3", "IFNG", "MART1", "GP100", "S100B")
+plotMetaDataHeatmap(sln.sm, expression_values = "normalized", title = "L1 annotations", 
+                    metadata_cols = "L1_annotations", selected_feats = clusterChannels,
+                    y_text_size = 8, show_values = "zscores_rescaled")
+plotMetaDataHeatmap(sln.sm, expression_values = "normalized", title = "L2 annotations",
+                    metadata_cols = "L2_annotations", selected_feats = clusterChannels,
+                    y_text_size = 8, show_values = "zscores_rescaled")
+plotMetaDataHeatmap(sln.sm, expression_values = "normalized", title = "L3 annotations",
+                    metadata_cols = "L3_annotations", selected_feats = clusterChannels,
+                    y_text_size = 8, show_values = "zscores_rescaled")
+```
+
+# tissue projection for SLN 5
+```{r tissue-projection}
+md <- pDataDT(sln); keepCells <- subset(md, list_ID == "tumor.5" & y %in% c(10000:20000) )$cell_ID
+sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
+leiden_colors <- getDistinctColors(length(unique(md$L1_annotations)))
+names(leiden_colors) <- unique(md$L1_annotations)
+spatPlot2D(sln.sm, cell_color = 'L1_annotations', cell_color_code = leiden_colors, 
+                         point_size = 1, point_shape="no_border", point_alpha=0.3, axis_text=14, 
+                         legend_text = 14)
 ```
 
 
+
 ```{r save-SLN-object}
+filename = 
 saveRDS(object = sln,  file = paste0("sln.clustering5.annot.spatnet.", timeStamp, ".RDS"))
+md <- pDataDT(gobject)
+saveRDS(object = md, file = paste0("md.sln.clustering5.annot.spatnet.", timeStamp, ".RDS"))
+saveRDS(object = Giotto::getExpression(sln, values = "scaled", output = c("matrix"),  set_defaults = TRUE ),
+        file = paste0("exprs.sln.clustering5.annot.spatnet.", timeStamp, ".RDS"))
 ```
 
 
