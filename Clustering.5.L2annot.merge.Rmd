@@ -1,5 +1,5 @@
 ---
-title: "Clustering part 4"
+title: "Clustering part 5 - Annotations"
 output:
   html_document:
     df_print: paged    
@@ -250,9 +250,13 @@ print(md$L3_annotations %>% table %>% length)
 
 ```
 
-```{r save-SLN-object}
+```{r add-spatialKNN}
 sln <- createSpatialKNNnetwork(sln, k=5, method = "dbscan",  name = "spatialknn.k5", verbose = T)
-sln <- createSpatialKNNnetwork(sln, k=7, method = "dbscan",  name = "spatialknn.k7", verbose = T)
+sln <- createSpatialKNNnetwork(sln, k=10, method = "dbscan",  name = "spatialknn.k10", verbose = T)
+```
+
+
+```{r save-SLN-object}
 saveRDS(object = sln,  file = paste0("sln.clustering5.annot.spatnet.", timeStamp, ".RDS"))
 ```
 
