@@ -338,14 +338,14 @@ sln <- createSpatialKNNnetwork(sln, k=5, method = "dbscan",  name = "spatialknn.
 ```
 
 # UMAP visualizations
-```{r plotUMAP-by-annotations, fig.width=10}
+```{r plotUMAP-by-annotations, fig.width=15}
 md <- pDataDT(sln); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 2e5))$cell_ID
 sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
 
 print("L1 annotations")
 leiden_colors <- getDistinctColors(length(unique(md$L1_annotations)))
 names(leiden_colors) <- unique(md$L1_annotations)
-plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.clust3.d8', cell_color = 'L1_annotations',
+plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.projection', cell_color = 'L1_annotations',
          cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.75, point_shape="no_border",
          point_alpha=0.5)
 
@@ -353,9 +353,9 @@ plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.clust3.d8', cell_color = '
 print("L2 annotations")
 leiden_colors <- getDistinctColors(length(unique(md$L2_annotations)))
 names(leiden_colors) <- unique(md$L2_annotations)
-plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.clust3.d8', cell_color = 'L2_annotations',
+plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.projection', cell_color = 'L2_annotations',
          cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.75, point_shape="no_border",
-         point_alpha=0.5)
+         point_alpha=0.5, legend_text=5)
 
 # print("L3 annotations")    # *********** this block fails with "Viewport has zero dimensions" --> not clear why
 # leiden_colors <- getDistinctColors(length(unique(md$L3_annotations)))
@@ -375,36 +375,29 @@ plotMetaDataHeatmap(sln.sm, expression_values = "normalized", title = "L1 annota
 plotMetaDataHeatmap(sln.sm, expression_values = "normalized", title = "L2 annotations",
                     metadata_cols = "L2_annotations", selected_feats = clusterChannels,
                     y_text_size = 8, show_values = "zscores_rescaled")
-plotMetaDataHeatmap(sln.sm, expression_values = "normalized", title = "L3 annotations",
-                    metadata_cols = "L3_annotations", selected_feats = clusterChannels,
-                    y_text_size = 8, show_values = "zscores_rescaled")
 ```
 
 # tissue projection for SLN 5
-```{r tissue-projection}
+```{r tissue-projection, fig.height=10}
 md <- pDataDT(sln); keepCells <- subset(md, list_ID == "tumor.5" & y %in% c(10000:20000) )$cell_ID
 sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
 leiden_colors <- getDistinctColors(length(unique(md$L1_annotations)))
 names(leiden_colors) <- unique(md$L1_annotations)
 spatPlot2D(sln.sm, cell_color = 'L1_annotations', cell_color_code = leiden_colors, 
-                         point_size = 1, point_shape="no_border", point_alpha=0.3, axis_text=14, 
+                         point_size = 0.75, point_shape="no_border", point_alpha=0.3, axis_text=14, 
                          legend_text = 14)
 ```
 
 
-
+# final save object 
 ```{r save-SLN-object}
 filename = 
 saveRDS(object = sln,  file = paste0("sln.clustering5.annot.spatnet.", timeStamp, ".RDS"))
-md <- pDataDT(gobject)
+md <- pDataDT(sln)
 saveRDS(object = md, file = paste0("md.sln.clustering5.annot.spatnet.", timeStamp, ".RDS"))
 saveRDS(object = Giotto::getExpression(sln, values = "scaled", output = c("matrix"),  set_defaults = TRUE ),
         file = paste0("exprs.sln.clustering5.annot.spatnet.", timeStamp, ".RDS"))
 ```
-
-
-
-
 
 
 ```{r call-date}
@@ -412,7 +405,17 @@ date()
 ```
 
 
-
+Job ID: 63754742
+Cluster: slurm_cluster
+User/Group: heratr01/heratr01
+State: COMPLETED (exit code 0)
+Nodes: 1
+Cores per node: 10
+CPU Utilized: 01:02:14
+CPU Efficiency: 15.52% of 06:41:00 core-walltime
+Job Wall-clock time: 00:40:06
+Memory Utilized: 157.56 GB
+Memory Efficiency: 78.78% of 200.00 GB
 
 
 
