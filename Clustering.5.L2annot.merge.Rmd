@@ -201,11 +201,6 @@ L2.annot[["tbmixed"]][L2.num  == 26, 'L2_annotations':= "TBMIXED_ARTIFACT_2"]
 
 ```{r assign_newLabels2}
 L2.annot <- rbindlist(L2.annot)
-
-md <- pDataDT(sln)
-missing <- setdiff(md$cell_ID, L2.annot$cell_ID)  # what have we left out  
-md[cell_ID %in% missing, 'L1_annotations'] %>% table  # group them by prior annotation
-
 ```
 
 # read in SLN 
@@ -216,12 +211,16 @@ print(paste("Primary object size: ", nrow(md), "cells"))
 print("cluster membership")
 print(table(md$leiden_harmony))
 print(table(md$L1_annotations))
+
+missing <- setdiff(md$cell_ID, L2.annot$cell_ID)  # what have we left out  
+md[cell_ID %in% missing, 'L1_annotations'] %>% table  # group them by prior annotation
+
 ```
 
 
-```{r add-cellMetadata}
-sln. <- sln
-md <- pDataDT(sln.)
+```{r format-cellMetadata}
+# sln. <- sln
+md <- pDataDT(sln)
 df.new <- md[, .(cell_ID, L1_annotations)]
 df.new$L2_annotations <- df.new$L3_annotations <- df.new$L1_annotations
 names(L2.annot) <- c("cell_ID","L3_annotations","L3.num","L3.char")  # changed my mind, let's call these L3_annotations
@@ -235,16 +234,27 @@ df.new$L2_annotations <- substr(df.new$L2_annotations, 1, nchar(df.new$L2_annota
 ```
 
 
-```{r add-cellMetadata}
-sln. <- addCellMetadata(gobject = sln., new_metadata = df.new, by_column=T, column_cell_ID = 'cell_ID')
+```{r add-CellMetadata}
+sln <- addCellMetadata(gobject = sln, new_metadata = df.new, by_column=T, column_cell_ID = 'cell_ID')
 # rm(df)
 
 md <- pDataDT(sln.)
-md$L2_annotations %>% table
+md$L1_annotations %>% table
+print(md$L1_annotations %>% table %>% length)
 
+md$L2_annotations %>% table
+print(md$L2_annotations %>% table %>% length)
+
+md$L3_annotations %>% table
+print(md$L3_annotations %>% table %>% length)
 
 ```
 
+```{r save-SLN-object}
+sln <- createSpatialKNNnetwork(sln, k=5, method = "dbscan",  name = "spatialknn.k5", verbose = T)
+sln <- createSpatialKNNnetwork(sln, k=7, method = "dbscan",  name = "spatialknn.k7", verbose = T)
+saveRDS(object = sln,  file = paste0("sln.clustering5.annot.spatnet.", timeStamp, ".RDS"))
+```
 
 
 
