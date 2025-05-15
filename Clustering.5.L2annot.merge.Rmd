@@ -142,12 +142,12 @@ L2.annot[["cd4.foxp3lo"]][L2.num  == 7, 'L2_annotations':= "CD4FOXP3LO_MEMORY_CD
 L2.annot[["cd4.foxp3lo"]][L2.num  == 8, 'L2_annotations':= "CD4FOXP3LO_MEMORY_CD4_3"]
 L2.annot[["cd4.foxp3lo"]][L2.num  == 9, 'L2_annotations':= "CD4FOXP3LO_MEMORY_CD4_4"]
 L2.annot[["cd4.foxp3lo"]][L2.num  == 10, 'L2_annotations':= "CD4FOXP3LO_CD4_MYELOID_STRUCTURE_MIXED_1"]
-L2.annot[["cd4.foxp3lo"]][L2.num  == 10, 'L2_annotations':= "CD4FOXP3LO_MEMORY_CD4_5"]
-L2.annot[["cd4.foxp3lo"]][L2.num  == 10, 'L2_annotations':= "CD4FOXP3LO_CD4_MYELOID_STRUCTURE_MIXED_2"]
-L2.annot[["cd4.foxp3lo"]][L2.num  == 10, 'L2_annotations':= "CD4FOXP3LO_CD4_MYELOID_STRUCTURE_MIXED_3"]
-L2.annot[["cd4.foxp3lo"]][L2.num  == 10, 'L2_annotations':= "CD4FOXP3LO_CD4_MYELOID_STRUCTURE_MIXED_4"]
-L2.annot[["cd4.foxp3lo"]][L2.num  == 10, 'L2_annotations':= "CD4FOXP3LO_CD4_MYELOID_STRUCTURE_MIXED_5"]
-L2.annot[["cd4.foxp3lo"]][L2.num  == 10, 'L2_annotations':= "CD4FOXP3LO_MEMORY_CD4_6"]
+L2.annot[["cd4.foxp3lo"]][L2.num  == 11, 'L2_annotations':= "CD4FOXP3LO_MEMORY_CD4_5"]
+L2.annot[["cd4.foxp3lo"]][L2.num  == 12, 'L2_annotations':= "CD4FOXP3LO_CD4_MYELOID_STRUCTURE_MIXED_2"]
+L2.annot[["cd4.foxp3lo"]][L2.num  == 13, 'L2_annotations':= "CD4FOXP3LO_CD4_MYELOID_STRUCTURE_MIXED_3"]
+L2.annot[["cd4.foxp3lo"]][L2.num  == 14, 'L2_annotations':= "CD4FOXP3LO_CD4_MYELOID_STRUCTURE_MIXED_4"]
+L2.annot[["cd4.foxp3lo"]][L2.num  == 15, 'L2_annotations':= "CD4FOXP3LO_CD4_MYELOID_STRUCTURE_MIXED_5"]
+L2.annot[["cd4.foxp3lo"]][L2.num  == 16, 'L2_annotations':= "CD4FOXP3LO_MEMORY_CD4_6"]
 
 
 L2.annot[["bcells"]]$L2_annotations <- paste0("Clust.", L2.annot[["bcells"]]$L2_annotations)  # unknown clusters:
@@ -196,24 +196,16 @@ L2.annot[["tbmixed"]][L2.num  == 23, 'L2_annotations':= "TBMIXED_CD4_CD8_CD20_MI
 L2.annot[["tbmixed"]][L2.num  == 24, 'L2_annotations':= "TBMIXED_CD4_CD20_MIXED_9"]
 L2.annot[["tbmixed"]][L2.num  == 25, 'L2_annotations':= "TBMIXED_ARTIFACT_1"]
 L2.annot[["tbmixed"]][L2.num  == 26, 'L2_annotations':= "TBMIXED_ARTIFACT_2"]
+```
 
-17	
 
+```{r assign_newLabels2}
 L2.annot <- rbindlist(L2.annot)
 
 md <- pDataDT(sln)
 missing <- setdiff(md$cell_ID, L2.annot$cell_ID)  # what have we left out  
 md[cell_ID %in% missing, 'L1_annotations'] %>% table  # group them by prior annotation
-```
 
-
-```{r add-cellMetadata}
-sln. <- sln
-sln. <- addCellMetadata(gobject = sln., new_metadata = L2.annot, by_column=T, column_cell_ID = 'cell_ID')
-# rm(df)
-
-md <- pDataDT(sln.)
-md[L2_annotations == 'Clust.TBMixed.1']
 ```
 
 # read in SLN 
@@ -227,19 +219,35 @@ print(table(md$L1_annotations))
 ```
 
 
+```{r add-cellMetadata}
+sln. <- sln
+md <- pDataDT(sln.)
+df.new <- md[, .(cell_ID, L1_annotations)]
+df.new$L2_annotations <- df.new$L3_annotations <- df.new$L1_annotations
+names(L2.annot) <- c("cell_ID","L3_annotations","L3.num","L3.char")  # changed my mind, let's call these L3_annotations
+df.new <- merge(x = df.new, y=L2.annot, by='cell_ID', all.x = T)
+df.new[!is.na(L3_annotations.y), L2_annotations := L3_annotations.y]  # replace L2_annot if L3_annot is not NA 
+df.new[!is.na(L3.char), L1_annotations := L3.char]  # replace L2_annot if L3_annot is not NA 
+df.new[, L1_annotations := sub("_.*", "", L1_annotations)]
+df.new$L3_annotations.x <- NULL
+names(df.new)[4] <- 'L3_annotations'
+df.new$L2_annotations <- substr(df.new$L2_annotations, 1, nchar(df.new$L2_annotations) - 2)  # eliminate the last underscore & number
+```
 
-# assign L3 annotations
-```{r assign_newLabels}
-df <- data.frame(leiden.clust3.r0.7 = md$leiden.clust3.r0.7, L3_annotations = "Unknown")
-df$cell_ID <- md$cell_ID
-df$L2_annotations <- paste0("Clust.", df$leiden.clust3.r0.7)  # unknown clusters:
-df[which(df$leiden.clust3.r0.7  == "1" ), 'L2_annotations'] <-  "TBMixed.1"
 
+```{r add-cellMetadata}
+sln. <- addCellMetadata(gobject = sln., new_metadata = df.new, by_column=T, column_cell_ID = 'cell_ID')
+# rm(df)
 
-sln <- addCellMetadata(gobject = sln, new_metadata = df, by_column=T, column_cell_ID = 'cell_ID')
-rm(df)
+md <- pDataDT(sln.)
+md$L2_annotations %>% table
+
 
 ```
+
+
+
+
 
 
 
