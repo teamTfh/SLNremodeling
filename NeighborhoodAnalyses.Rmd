@@ -41,13 +41,15 @@ sessionInfo()
 ```{r read-annot-sln-spatnet}
 
 sln <- readRDS("sln.clustering5.annot.spatnet.20250515.121453.RDS")
-
+md <- pDataDT(sln)
+stableColorsL2 <- getDistinctColors(length(unique(md$L2_annotations)));  names(stableColorsL2) <- unique(md$L2_annotations)
 ```
 
 
-# try a customized version of cellProxEnrich
-```{r custom-cellproxEnrich-function}
-cellProx.sim <- function(gobject, spat_unit = NULL, feat_type = NULL, spatial_network_name = "Delaunay_network",
+# calculate proximity enrichment per sample for k=5
+```{r custom-cellproxEnrich-function-k5}
+cellProx.sim <- function(gobject, spat_unit = NULL, feat_type = NULL, spatial_network_name="spatialknn.k5", 
+                         #spatial_network_name = "Delaunay_network",
     cluster_column, number_of_simulations = 1000, 
     adjust_method = c("none", "fdr", "bonferroni", "BH", "holm", "hochberg", "hommel", "BY"), 
     set_seed = TRUE, seed_number = 1234) 
@@ -281,26 +283,46 @@ cellProx.calcP <- function(table_results, number_of_simulations = 1000,
     ))
 }
 
-md <- pDataDT(sln)
 list_ID <- unique(md$list_ID)
 gc()
 
-tableResults <- list()
-
+tableResults.k5 <- list()
 for (i in list_ID)
 {
   print(i)
   keepCells <- subset(md, list_ID %in% i )$cell_ID
   sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
   sln.sm <- createSpatialKNNnetwork(sln.sm, k=5, verbose=T, name = "spatialknn.k5.persample") 
-  
-  tableResults[[i]] <- cellProx.sim(sln.sm, cluster_column = 'L2_annotations', adjust_method = "fdr",
+  tableResults.k5[[i]] <- cellProx.sim(sln.sm, cluster_column = 'L2_annotations', adjust_method = "fdr",
                                        number_of_simulations = 200, spatial_network_name = "spatialknn.k5.persample")
 }
-dt <- purrr::list_rbind(tableResults, names_to = "id")
-saveRDS(dt, file="neighborhood.tableResults.sln.clustering2.res0.5.20250411.1611.RDS")  # all data merged 
-dt <- readRDS(file="neighborhood.tableResults.sln.clustering2.res0.5.20250411.1611.RDS")  # all data merged 
+dt <- purrr::list_rbind(tableResults.k5, names_to = "id")
+saveRDS(dt, file="neighborhood.tableResults.k5.sln.RDS")  # all data merged
+```
 
+# calculate proximity enrichment per sample for k=9
+```{r custom-cellproxEnrich-function-k10}
+tableResults.k9 <- list()
+for (i in list_ID)
+{
+  print(i)
+  keepCells <- subset(md, list_ID %in% i )$cell_ID
+  sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
+  sln.sm <- createSpatialKNNnetwork(sln.sm, k=9, verbose=T, name = "spatialknn.k9.persample") 
+  tableResults.k9[[i]] <- cellProx.sim(sln.sm, cluster_column = 'L2_annotations', adjust_method = "fdr",
+                                       number_of_simulations = 200, spatial_network_name = "spatialknn.k9.persample")
+}
+dt <- purrr::list_rbind(tableResults.k9, names_to = "id")
+saveRDS(dt, file="neighborhood.tableResults.k9.sln.RDS")  # all data merged 
+
+dt <- readRDS(file="neighborhood.tableResults.k9.sln.RDS")  # all data merged
+```
+
+Fails on k=10 on tumor.6  (2 million rows) with long vectors error 
+Works for k=9 for all samples 
+
+# subgroup by specified metadata  
+```{r custom-cellproxEnrich-function-subgroup}
 # subset dt based on groupings of interest 
 cellProx.subgroup <- function(dt)
 {
@@ -327,24 +349,59 @@ cellProx.subgroup <- function(dt)
   out <- cellProx.calcP(long_dt, number_of_simulations = 200 )  # needs to match what was used to calculate sims
   return(out)
 }
+stage3.subgroup <- c("tumor.1","tumor.2","tumor.3","tumor.4","tumor.5","tumor.6","tumor.7", "tumor.8",
+                                                 "tumor.9","tumor.10")
+stage1.subgroup <- c("ctrl.1","ctrl.2","ctrl.3","ctrl.4","ctrl.5")
+stage3 <- cellProx.subgroup(subset(dt, id %in% stage3.subgroup))
+stage1 <- cellProx.subgroup(subset(dt, id %in% stage1.subgroup ))
 
-stage3 <- cellProx.subgroup(subset(dt, id %in% c("tumor.1","tumor.2","tumor.3","tumor.4","tumor.5","tumor.6","tumor.7", "tumor.8",
-                                                 "tumor.9","tumor.10")))
-stage1 <- cellProx.subgroup(subset(dt, id %in% c("ctrl.1","ctrl.2","ctrl.3","ctrl.4","ctrl.5") ))
 x <- list(stage1 = stage1, stage3=stage3)
-saveRDS(x, file="neighborhood.x.sln.clustering2.res0.5.20250411.1611.RDS")  # all data merged 
+saveRDS(x, file="neighborhood.x.sln.RDS")  # all data merged 
 
 recur <- cellProx.subgroup(subset(dt, id %in% c("tumor.3","tumor.4","tumor.5","tumor.7","tumor.8","tumor.10")))
 no.recur <- cellProx.subgroup(subset(dt, id %in% c("tumor.1","tumor.2", "tumor.6") ))
 
+sampleList <- unique(md$list_ID)
+perSampleInteraction <- list()
+for (i in seq_along(sampleList))
+{
+  print( paste("Interactions for sample", sampleList[i]) )
+  perSampleInteraction[[i]] <- cellProx.subgroup(subset(dt, id %in% sampleList[i]))  # format in a per-sample fashion 
+  perSampleInteraction[[i]]$name <- subset(dt, id %in% sampleList[i])$id[1]   # carry forward the sample name 
+  # perSampleInteraction[[i]]$enrichm_res[, proportion := original/sum(original, na.rm=T) ]  
+  names(perSampleInteraction)[i] <-  subset(dt, id %in% sampleList[i])$id[1]
+}
+saveRDS(perSampleInteraction, file="neighborhood.perSampleInteraction.RDS")  # all data merged 
+perSampleInteraction <- readRDS(file="neighborhood.perSampleInteraction.RDS")
 
+perSampleInteraction.enrichm_res <- list()
+for (i in seq_along(perSampleInteraction))
+{
+  perSampleInteraction.enrichm_res[[i]] <- perSampleInteraction[[i]]$enrichm_res  # save the enrichm results table 
+  names(perSampleInteraction.enrichm_res)[i] <- names(perSampleInteraction)[i]
+}
+
+
+perSampleInteraction.enrichm_res.s3 <- perSampleInteraction.enrichm_res[stage3.subgroup]
+for (i in seq_along(perSampleInteraction.enrichm_res.s3))
+{   perSampleInteraction.enrichm_res.s3[[i]][, list_ID := names(perSampleInteraction.enrichm_res.s3)[i]]   }
+perSampleInteraction.enrichm_res.s3 <- rbindlist(perSampleInteraction.enrichm_res.s3)
+perSampleInteraction.enrichm_res.s3$stage <- "stage3"
+
+perSampleInteraction.enrichm_res.s1 <- perSampleInteraction.enrichm_res[stage1.subgroup]
+for (i in seq_along(perSampleInteraction.enrichm_res.s1))
+{   perSampleInteraction.enrichm_res.s1[[i]][, list_ID := names(perSampleInteraction.enrichm_res.s1)[i]]   }
+perSampleInteraction.enrichm_res.s1 <- rbindlist(perSampleInteraction.enrichm_res.s1)
+perSampleInteraction.enrichm_res.s1$stage <- "stage1"
+
+interaction.byStage <- rbind(perSampleInteraction.enrichm_res.s1, perSampleInteraction.enrichm_res.s3)
 
 
 ```
 
-# subgroup by Stage 1 vs Stage 3
+# finish processing of subgroups  
 ```{r interact-with-pairwise-enrichment}
-x <- readRDS(file="neighborhood.x.sln.clustering2.res0.5.20250411.1611.RDS")  # all data merged 
+x <- readRDS(file="neighborhood.x.sln.RDS")  # all data merged 
 stage1 <- x$stage1; stage3 <- x$stage3
 md <- pDataDT(sln)
 # x <- cellProximityBarplot(sln.sm, CPscore = out,  min_orig_ints = 3, min_sim_ints = 3, return_plot = T)
@@ -385,39 +442,198 @@ sub.no.recur <- no.recur$enrichm_res
 sub.no.recur$subgroup <- "no.recur"
 df <- rbind(sub.recur, sub.no.recur)
 df$unified_int <- factor(df$unified_int, levels = sub.no.recur$unified_int[order(sub.no.recur$PI_value, decreasing = T)])
-saveRDS(df, file="neighborhood.recur.sln.clustering2.res0.5.20250411.1611.RDS")
-df <- readRDS(file = "neighborhood.recur.sln.clustering2.res0.5.20250411.1611.RDS")
+saveRDS(df, file="neighborhood.recur.RDS")
+df <- readRDS(file = "neighborhood.recur.RDS")
 ```
 
 
 # plots of pairwise enrichment
 ```{r plot-pairwise-enrichment, fig.width=10}
-ggplot(x, aes(x=unified_int, y=PI_value, color=subgroup, label = unified_int)) + geom_point() + theme_classic() + 
-  theme(axis.text.x = element_text(angle=45, hjust=1,vjust=1))
+ggplot(x, aes(x=unified_int, y=enrichm, color=subgroup, label = unified_int)) + geom_point() + theme_classic() + 
+  theme(axis.text.x = element_text(angle=45, hjust=1,vjust=1, size=3)) + ggrepel::geom_label_repel(max.overlaps = 30, size=2)
 
-  y <- merge(x=sub.stage1, y=sub.stage3, by='unified_int', suffixes = c(".stage1",".stage3"), all=T)
-  y$diff.PI_value <- y$PI_value.stage3 - y$PI_value.stage1
-  y <- y[!is.na(y$diff.PI_value),]  # remove NA values, which imply interactions not present in both settings
-  y$unified_int <- factor(y$unified_int, levels = y$unified_int[order(y$diff.PI_value, decreasing = T)])
-  y$unified_char <- paste0(y$left.stage1,"--",y$right.stage1)
+y <- merge(x=sub.stage1, y=sub.stage3, by='unified_int', suffixes = c(".stage1",".stage3"), all=T)
+y$diff.PI_value <- y$PI_value.stage3 - y$PI_value.stage1
+y$diff.enrich <- y$enrichm.stage3 - y$enrichm.stage1
+y <- y[!is.na(y$diff.enrich),]  # remove NA values, which imply interactions not present in both settings
+y$unified_int <- factor(y$unified_int, levels = y$unified_int[order(y$diff.enrich, decreasing = T)])
+y$unified_char <- paste0(y$left.stage1,"--",y$right.stage1)
+
+# y <- y[which(y$original.stage1 > 20),]
+
+y[order(-diff.enrich)]
+
+saveRDS(y, file="neighborhood.y.RDS")
+y <- readRDS(file="neighborhood.y.RDS")
+
+```
+
+# average neighborhood representation - single entity for GC populations
+```{r show-average-neighborhood}
+# Filter for interactions involving the index cell type as type_1
+intxn.index.s1 <- y[ , .(left.stage1, right.stage1, original.stage1) ]
+
+# filter to the Toxhi CD8
+filterIntxn <- function(simpleIntxnTable, title, filterprefix='on')
+{
+  simpleIntxnTable[, proportion := .SD[[1]]/sum(.SD[[1]], na.rm=T), .SDcols = 3 ] # .SD[[1]] is the first and only column selected by .SDcols
+  simpleIntxnTable = simpleIntxnTable[order(-proportion)]
+  target_col_name_for_lhs_sd <- names(simpleIntxnTable)[1]
+  simpleIntxnTable[, (target_col_name_for_lhs_sd) := gsub(pattern = "CD8TOXHI_", replacement = "", x = .SD[[1]]), .SDcols = 1] 
+  target_col_name_for_lhs_sd <- names(simpleIntxnTable)[2]
+  if(filterprefix == 'on')
+  {  
+    simpleIntxnTable[, (target_col_name_for_lhs_sd) := gsub(pattern = "CD8TOXHI_", replacement = "", x = .SD[[1]]), .SDcols = 2] 
+    simpleIntxnTable[, (target_col_name_for_lhs_sd) := gsub(pattern = "CD8TOXLO_", replacement = "", x = .SD[[1]]), .SDcols = 2] 
+    simpleIntxnTable[, (target_col_name_for_lhs_sd) := gsub(pattern = "TBMIXED_", replacement = "", x = .SD[[1]]), .SDcols = 2] 
+    }
+  simpleIntxnTable[,  (target_col_name_for_lhs_sd) := factor(get(target_col_name_for_lhs_sd), levels= get(target_col_name_for_lhs_sd) )]
+
+  print( 
+    ggplot(data = simpleIntxnTable, aes(y = .data[[names(simpleIntxnTable)[2]]], x = proportion, fill=.data[[names(simpleIntxnTable)[2]]],
+           color = .data[[names(simpleIntxnTable)[2]]])) + 
+    geom_bar(stat='identity', width=0.01) + 
+    geom_point(size=5) + 
+    theme_classic() + ggtitle(paste("Neighbors of ", title)) +  scale_fill_manual(values = stableColorsL2) + 
+    theme(axis.text.x = element_text(angle=45, hjust=1,vjust=1), legend.position = 'none')
+  )
+  print(
+    ggplot(data = simpleIntxnTable, aes(x = .data[[names(simpleIntxnTable)[1]]], y =  .data[[names(simpleIntxnTable)[3]]],  
+                                          fill=.data[[names(simpleIntxnTable)[2]]])) + 
+    geom_bar(stat='identity', width=1, position="fill") + 
+    theme_classic() + ggtitle(paste("Neighbors of ", title)) + scale_fill_manual(values = stableColorsL2) + 
+    theme(axis.text.x = element_text(angle=45, hjust=1,vjust=1))
+  )
+
+  return(simpleIntxnTable)
+}
+filterIntxn(simpleIntxnTable = intxn.index.s1[left.stage1 == 'TBMIXED_LZ_BCELL'], title='TBMIXED_LZ_BCELL', filterprefix='off')
+filterIntxn(simpleIntxnTable = intxn.index.s1[left.stage1 == 'TBMIXED_MIXED_GC_TCELL'], title='TBMIXED_MIXED_GC_TCELL', filterprefix='off')
+```
+
+
+```{r show-average-neighborhood-radialPlot}
+grep("TOXHI", unique(y$left.stage1), value = T)
+tcfhiCD8.s1 <- filterIntxn(simpleIntxnTable = intxn.index.s1[left.stage1 == 'CD8TOXHI_TCF1_HI_TOX_HI_CD8'], title='CD8+Tox+Tcf+')
+tcfloCD8.s1 <- filterIntxn(simpleIntxnTable = intxn.index.s1[left.stage1 == 'CD8TOXHI_TCF1_LO_TOX_HI_CD8'], title='CD8+Tox+Tcf-')
+tcfhiCD8.s1$left.stage1 <- paste0(tcfhiCD8.s1$left.stage1, ".s1")
+tcfloCD8.s1$left.stage1 <- paste0(tcfloCD8.s1$left.stage1, ".s1")
+comb <- rbind(tcfhiCD8.s1, tcfloCD8.s1)
+ggplot(comb, aes(y = right.stage1, x = proportion, group=left.stage1, fill=left.stage1)) + 
+  geom_bar( stat='identity', width=0.5, position=position_dodge(preserve='single')) + 
+  # coord_radial("y", start = 0, direction = 1, rotate.angle=T , r_axis_inside = TRUE)+
+  ggtitle(paste("Neighbors of CD8 T cells - Stage 1"))  +  
+  scale_fill_manual(values= ( RColorBrewer::brewer.pal(n = 4, name = "Accent")) )  + 
+  theme(   axis.title = element_blank(),axis.ticks = element_blank(), axis.text.y = element_text(color = "grey"),
+           axis.text.x = element_text(color = "black", size = 4), legend.position = "bottom", legend.title = element_blank(), 
+           plot.title = element_text(face = "bold", size = 18, hjust = 1), 
+           panel.background = element_rect(fill = "white", color = "white"), panel.grid = element_blank(),  
+           panel.grid.major.x = element_line(color="grey90", size=0.5))
+
+ggplot(comb, aes(y = right.stage1, x = proportion, group=left.stage1, fill=left.stage1)) + 
+  geom_bar( stat='identity', width=0.5, position=position_dodge(preserve='single')) + 
+  coord_radial("y", start = 0, direction = 1, rotate.angle=T , r_axis_inside = TRUE)+
+  ggtitle(paste("Neighbors of CD8 T cells - Stage 1"))  +  
+  scale_fill_manual(values= ( RColorBrewer::brewer.pal(n = 4, name = "Accent")) )  + 
+  theme(   axis.title = element_blank(),axis.ticks = element_blank(), axis.text.y = element_text(color = "grey"),
+           axis.text.x = element_text(color = "black", size = 4), legend.position = "bottom", legend.title = element_blank(), 
+           plot.title = element_text(face = "bold", size = 18, hjust = 1), 
+           panel.background = element_rect(fill = "white", color = "white"), panel.grid = element_blank(),  
+           panel.grid.major.x = element_line(color="grey90", size=0.5))
+```
+
+# average neighborhood representation - contrast stage 3 vs stage 1 
+```{r show-average-neighborhood-contrast}
+intxn.index.s3 <- y[ , .(left.stage3, right.stage3, original.stage3) ]
+tcfhiCD8.s3 <- filterIntxn(simpleIntxnTable = intxn.index.s3[left.stage3 == 'CD8TOXHI_TCF1_HI_TOX_HI_CD8'], title='CD8+Tox+Tcf+')
+tcfhiCD8.s3$left.stage3 <- paste0(tcfhiCD8.s3$left.stage3, ".s3")
+names(tcfhiCD8.s1) <- names(tcfhiCD8.s3)
+
+comb <- rbind(tcfhiCD8.s1, tcfhiCD8.s3)
+
+ggplot(comb, aes(y = right.stage3, x = proportion, group=left.stage3, fill=left.stage3)) + 
+  geom_bar( stat='identity', width=0.5, position=position_dodge(preserve='single')) + 
+  coord_radial("y", start = 0, direction = 1, rotate.angle=T, r_axis_inside = TRUE)+
+  ggtitle(paste("Tcfhi CD8 T cells - Stage 3 vs 1"))  +  
+  scale_fill_manual(values= ( RColorBrewer::brewer.pal(n = 4, name = "Paired")) )  + 
+  theme(   axis.title = element_blank(),axis.ticks = element_blank() , axis.text.y = element_text(color = "grey"),
+           axis.text.x = element_text(color = "black", size = 4), legend.position = "bottom", legend.title = element_blank(), 
+           plot.title = element_text(face = "bold", size = 18, hjust = 1), 
+           panel.background = element_rect(fill = "white", color = "white"), panel.grid = element_blank(),  
+           panel.grid.major.x = element_line(color="grey90", size=0.5))
+```
+
+# plot as individual biological replicates 
+```{r show-average-neighborhood-contrast-biolReplicates}
+significant.Neighbors.acrossStage <- function( data, interacting.partner)
+{
+  data <- as.data.table(tidyr::separate(data, col = unified_int, into = c("left", "right"), sep = "--"))
+  data <- data[left == interacting.partner] 
+  data[, proportion := original/sum(original), by=stage]
   
-  y <- y[which(y$original.stage1 > 20),]
+  print( 
+    ggplot(data, aes(y = right, x = proportion, group = stage, fill=stage, label=list_ID)) +
+      geom_point(size=3, position=position_dodge(width=1), pch=21, stroke=0.1, color='white') +
+      theme_classic() + ggtitle(paste("Neighbors of ", interacting.partner)) + ggrepel::geom_label_repel() + 
+      scale_fill_manual(values= ( RColorBrewer::brewer.pal(n = 4, name = "Paired")) )  + 
+      theme(axis.text.x = element_text(angle=45, hjust=1,vjust=1))
+  )
+  aggregated_DT <- data[, .(proportion), by = .(right, list_ID, stage)]
+  interacting.subsets <- unique(aggregated_DT$right)
+  res <- list()
+  for (i in seq_along(interacting.subsets))
+  {
+    data = aggregated_DT[ right %in% interacting.subsets[i], ]
+    res[[i]] <- wilcox.test(proportion ~ stage, data = data)
+    names(res)[i] <- data$right[1]
+  }
+  
+  print(paste("Unadjusted pvalues:")); 
+  print( round(sapply(res, function(x) { x$p.value }), digits = 2) )
+  print(paste("FDR-adjusted pvalues"));  
+  print( round(p.adjust( sapply(res, function(x) { x$p.value }), method="fdr"), digits = 2)) 
+}
+
+significant.Neighbors.acrossStage(data = interaction.byStage, interacting.partner = 'CD8TOXHI_TCF1_HI_TOX_HI_CD8')
+
+```
 
 
-ggplot(y, aes(x=unified_int, y=diff.PI_value, label=unified_int)) + geom_point() + theme_classic() + 
+# show a radial plot of contrast of neighborhoods 
+```{r show-average-neighborhood-contrast-stage3vs1}
+intxn.index.s3 <- y[ , .(left.stage3, right.stage3, original.stage3) ]
+tcfloCD8.s3 <- filterIntxn(simpleIntxnTable = intxn.index.s3[left.stage3 == 'CD8TOXHI_TCF1_LO_TOX_HI_CD8'], title='CD8+Tox+Tcf-')
+tcfloCD8.s3$left.stage3 <- paste0(tcfloCD8.s3$left.stage3, ".s3")
+names(tcfloCD8.s1) <- names(tcfloCD8.s3)
+
+comb <- rbind(tcfloCD8.s1, tcfloCD8.s3)
+
+ggplot(comb, aes(y = right.stage3, x = proportion, group=left.stage3, fill=left.stage3)) + 
+  geom_bar( stat='identity', width=0.5, position=position_dodge(preserve='single')) + 
+  coord_radial("y", start = 0, direction = 1, rotate.angle=T, r_axis_inside = TRUE)+
+  ggtitle(paste("Tcflo CD8 T cells - Stage 3 vs 1"))  +  
+  scale_fill_manual(values= ( RColorBrewer::brewer.pal(n = 4, name = "Paired")) )  + 
+  theme(   axis.title = element_blank(),axis.ticks = element_blank() , axis.text.y = element_text(color = "grey"),
+           axis.text.x = element_text(color = "black", size = 4), legend.position = "bottom", legend.title = element_blank(), 
+           plot.title = element_text(face = "bold", size = 18, hjust = 1), 
+           panel.background = element_rect(fill = "white", color = "white"), panel.grid = element_blank(),  
+           panel.grid.major.x = element_line(color="grey90", size=0.5)) 
+
+
+```
+
+# 
+```{r plot-interacting-pair}
+ggplot(y, aes(x=unified_int, y=diff.enrich, label=unified_int, size=original.stage3)) + 
+  geom_point(pch=21, color='white', fill='black') + 
   ggrepel::geom_label_repel(max.overlaps = 20) + ggtitle("PI_value:  Stage3 - Stage1") + 
-  geom_hline(yintercept = 0, color="grey50") + 
+  geom_hline(yintercept = 0, color="grey50") + theme_classic() + 
   theme(axis.text.x = element_blank())  
 
-ggplot(y, aes(x=unified_int, y=diff.PI_value, label=unified_char)) + geom_point() + theme_classic() + 
-  ggrepel::geom_label_repel(max.overlaps = 20) + ggtitle("PI_value:  Stage3 - Stage1") + 
-  geom_hline(yintercept = 0, color="grey50") + 
-  theme(axis.text.x = element_blank())  
-
-saveRDS(y, file="neighborhood.y.sln.clustering2.res0.5.20250411.1611.RDS")
-y <- readRDS(file="neighborhood.y.sln.clustering2.res0.5.20250411.1611.RDS")
+```
 
 
+```{r plot-pairwise-enrichment-recurrence, fig.width=10}
 y <- merge(x=df[which(df$subgroup=='no.recur'),], y=df[which(df$subgroup == 'recur'),] , by='unified_int', suffixes = c(".no.recur",".recur"), all=T)
 y$diff.PI_value <- y$PI_value.recur - y$PI_value.no.recur
 y <- y[!is.na(y$diff.PI_value),]  # remove NA values, which imply interactions not present in both settings
@@ -515,7 +731,7 @@ cellProximityHeatmap.retMatrix <- function(gobject, CPscore, scale = TRUE, order
 
 # show stage 3 interactions 
 ```{r proximity-heatmap-stage3, fig.width=10}
-# Giotto::cellProximityHeatmap( sln, CPscore = stage3, scale = F, order_cell_types = TRUE, return_plot = T)
+Giotto::cellProximityHeatmap( sln, CPscore = stage3, scale = F, order_cell_types = TRUE, return_plot = T)
 final_matrix <- cellProximityHeatmap.retMatrix( sln, CPscore = stage3, scale = TRUE, order_cell_types = T)$final_matrix
 clus <- cellProximityHeatmap.retMatrix( sln, CPscore = stage3, scale = TRUE, order_cell_types = T)$clus
 plot(clus)
@@ -540,28 +756,51 @@ gd = fDataDT(sln)
 # ## visualize
 # plotCellProximityGenes(sln, cpgObject = ICGscoresHighGenes, method = 'dotplot')
 
-
-md <- pDataDT(sln); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 3e5))$cell_ID
+md <- pDataDT(sln); 
+keepCells <- subset(md, list_ID %in% c("tumor.1","tumor.2","tumor.3","tumor.4","tumor.5","tumor.6","tumor.7", "tumor.8",
+                                                 "tumor.9","tumor.10"))
+keepCells <- subset(keepCells, cell_ID %in% sample(keepCells$cell_ID, 3e5))$cell_ID
 sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
 gd = fDataDT(sln.sm)
-
+date()
 ## identify genes that are associated with proximity to other cell types
 ICGscores.L1 = findInteractionChangedFeats(gobject = sln.sm, selected_feats = gd$feat_ID,
                                                  spatial_network_name = "spatialknn.k5", cluster_column = 'L1_annotations',
                                                  diff_test = 'permutation', adjust_method = 'fdr',
-                                                 nr_permutations = 300, do_parallel = F)
+                                                 nr_permutations = 200, do_parallel = F)
 ICGscores.L2 = findInteractionChangedFeats(gobject = sln.sm, selected_feats = gd$feat_ID,
                                                  spatial_network_name = "spatialknn.k5", cluster_column = 'L2_annotations',
                                                  diff_test = 'permutation', adjust_method = 'fdr',
-                                                 nr_permutations = 300, do_parallel = F)
+                                                 nr_permutations = 200, do_parallel = F)
 saveRDS(object = list(ICGscores.L1 = ICGscores.L1, ICGscores.L2 = ICGscores.L2), 
-        file = "neighborhood.ICGlist.sln.clustering5.annot.spatnet.RDS")
-df.icg <- ICGscores.L1
-df.icg.fil <- df.icg[ p.adj<0.05]
+        file = "neighborhood.ICGlist.s3.sln.clustering5.annot.spatnet.RDS"); date()  # took 6 hours at 300 permutations each 
+
+
+md <- pDataDT(sln); 
+keepCells <- subset(md, list_ID %in% c("ctrl.1","ctrl.2","ctrl.3","ctrl.4","ctrl.5"))
+keepCells <- subset(keepCells, cell_ID %in% sample(keepCells$cell_ID, 3e5))$cell_ID
+sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
+gd = fDataDT(sln.sm)
+date()
+## identify genes that are associated with proximity to other cell types
+ICGscores.L1 = findInteractionChangedFeats(gobject = sln.sm, selected_feats = gd$feat_ID,
+                                                 spatial_network_name = "spatialknn.k5", cluster_column = 'L1_annotations',
+                                                 diff_test = 'permutation', adjust_method = 'fdr',
+                                                 nr_permutations = 200, do_parallel = F)
+ICGscores.L2 = findInteractionChangedFeats(gobject = sln.sm, selected_feats = gd$feat_ID,
+                                                 spatial_network_name = "spatialknn.k5", cluster_column = 'L2_annotations',
+                                                 diff_test = 'permutation', adjust_method = 'fdr',
+                                                 nr_permutations = 200, do_parallel = F)
+saveRDS(object = list(ICGscores.L1 = ICGscores.L1, ICGscores.L2 = ICGscores.L2), 
+        file = "neighborhood.ICGlist.s1.sln.clustering5.annot.spatnet.RDS"); date()
+
+
+df.icg <- readRDS("neighborhood.ICGlist.s3.sln.clustering5.annot.spatnet.RDS")[[2]][['ICFscores']] # ICGscores.L2
+df.icg.fil <- df.icg[ p.adj<0.01 & cell_type == 'CD8TOXHI_TCF1_HI_TOX_HI_CD8']
 ```
 
 
-```{r Interaction-changed-genes-byCircosPlot, fig.width=10, fig.retina=2}
+```{r Interaction-changed-genes-byCircosPlot, fig.width=10, fig.retina=2, eval=FALSE}
 pair_counts <- df.icg[p.adj < 0.1, .N, by = .(cell_type, int_cell_type)] # .N is a special data.table symbol that gives the number of rows in each group
 pair_counts <- pair_counts[N > 1]
 single.space <- c(rep(1, length(unique(pair_counts$cell_type)))); names(single.space) <- unique(pair_counts$cell_type)
@@ -624,20 +863,17 @@ adjac
 ```
 
 
-
-Job ID: 63754813
+Job ID: 63949935
 Cluster: slurm_cluster
 User/Group: heratr01/heratr01
-State: OUT_OF_MEMORY (exit code 0)
+State: COMPLETED (exit code 0)
 Nodes: 1
 Cores per node: 10
-CPU Utilized: 00:41:43
-CPU Efficiency: 16.19% of 04:17:40 core-walltime
-Job Wall-clock time: 00:25:46
-Memory Utilized: 195.19 GB
-Memory Efficiency: 97.60% of 200.00 GB
-
-
+CPU Utilized: 02:56:58
+CPU Efficiency: 12.36% of 23:51:20 core-walltime
+Job Wall-clock time: 02:23:08
+Memory Utilized: 329.74 GB
+Memory Efficiency: 65.95% of 500.00 GB
 
 
 
