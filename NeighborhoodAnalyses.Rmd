@@ -547,7 +547,7 @@ gridExtra::grid.arrange(a,b, nrow=1)
 
 
 
-# show the average neighborhood for aggregated sln 
+# show the average neighborhood for all sln 
 ```{r show-niche-multipleSample}
 showNiche.multiSample <- function(annot.table, indexCluster, title, filterPrefix='on', plots=T)
 {
@@ -758,19 +758,100 @@ niche.contrastStage( annot.k9, indexCluster = 'CD8TOXHI_TCF1_LO_TOX_HI_CD8', com
 
 ```
 
-```{r}
+```{r contrast-stage-using-cellProxEnrich}
 
 working.dt <- copy(interaction.byStage)
 
-a <- working.dt %>% group_by(unified_int, stage) %>% summarise(mean = mean(enrichm, na.rm = TRUE), sd = sd(enrichm, na.rm = TRUE), 
+delta.pairwise.enrichment<- working.dt %>% group_by(unified_int, stage) %>% summarise(mean = mean(enrichm, na.rm = TRUE), sd = sd(enrichm, na.rm = TRUE), 
                                                    n_replicates = n()) %>%  ungroup()
-range_of_means <- a %>%
+range_of_means <- delta.pairwise.enrichment %>%
   group_by(unified_int) %>% summarise( range_mean = max(mean, na.rm = TRUE) - min(mean, na.rm = TRUE), n_stages = n_distinct(stage)) 
-a <- range_of_means[order(range_of_means$range_mean, decreasing = T),]
+delta.pairwise.enrichment <- range_of_means[order(range_of_means$range_mean, decreasing = T),]
+delta.pairwise.enrichment$unified_int <- with(delta.pairwise.enrichment, reorder(unified_int, range_mean))
+delta.pairwise.enrichment$rownum <- seq(1:nrow(delta.pairwise.enrichment))
+delta.pairwise.enrichment <- as.data.table(delta.pairwise.enrichment)
+delta.pairwise.enrichment[ !unified_int %like% "Tumor"][1:100]
+ggplot(delta.pairwise.enrichment, aes(x = rownum, y=range_mean, label=unified_int)) + 
+  geom_point(size=2, pch=21, color="white", size=0.25, alpha=0.5, fill="black") + 
+  ggrepel::geom_text_repel(size=2.5, max.overlaps = 10, segment.color = 'gray60', force=5) + 
+  ggtitle("Changed enrichm between stage 1 and 3 - all results") + theme_classic() + 
+  theme(axis.text.x = element_blank()) 
+ggplot(delta.pairwise.enrichment[1:100,], aes(x = rownum, y=range_mean, label=unified_int)) + 
+  geom_point(size=2, pch=21, color="white", size=0.25, alpha=0.5, fill="black") + 
+  ggrepel::geom_text_repel(size=2.5, max.overlaps = 7, segment.color = 'gray60', force=20 ) + 
+  ggtitle("Changed enrichm between stage 1 and 3 - first 100") + theme_classic() + 
+  theme(axis.text.x = element_blank()) 
+ggplot(delta.pairwise.enrichment[ !unified_int %like% "Tumor"][1:100], aes(x = rownum, y=range_mean, label=unified_int)) + 
+  geom_point(size=2, pch=21, color="white", size=0.25, alpha=0.5, fill="black") + 
+  ggrepel::geom_text_repel(size=2.5, max.overlaps = 7, segment.color = 'gray60', force=20 ) + 
+  ggtitle("Changed enrichm between stage 1 and 3 - exclude tumor") + theme_classic() + 
+  theme(axis.text.x = element_blank()) 
 
 
 ```
  
+# activated cd4 t cells 
+```{r explore-activated-cd4, fig.width=10, fig.height=6}
+niche.contrastStage( annot.k9, indexCluster = 'CD4FOXP3LO_ACTIVATED_MEMORY_CD4', common.title='CD4FOXP3LO_ACTIVATED_MEMORY_CD4')
+delta.pairwise.enrichment[unified_int %like% "CD4FOXP3LO_ACTIVATED_MEMORY_CD4"]
+
+a <- plot.Average.Niche(annot.table = annot.k9[stage1.subgroup], indexCluster = 'CD4FOXP3LO_ACTIVATED_MEMORY_CD4',
+                      title='CD4FOXP3LO_ACTIVATED_MEMORY_CD4 stage 1')
+b <- plot.Average.Niche(annot.table = annot.k9[stage3.subgroup], indexCluster = 'CD4FOXP3LO_ACTIVATED_MEMORY_CD4',
+                      title='CD4FOXP3LO_ACTIVATED_MEMORY_CD4 stage 3')
+gridExtra::grid.arrange(a,b, nrow=1) 
+
+
+```
+
+# activated cd8 t cells
+```{r explore-activated-cd8, fig.width=10, fig.height=6}
+niche.contrastStage( annot.k9, indexCluster = 'CD8TOXLO_ACTIVATED_MEMORY_CD8', common.title='CD8TOXLO_ACTIVATED_MEMORY_CD8')
+delta.pairwise.enrichment[unified_int %like% "CD8TOXLO_ACTIVATED_MEMORY_CD8"]
+
+a <- plot.Average.Niche(annot.table = annot.k9[stage1.subgroup], indexCluster = 'CD8TOXLO_ACTIVATED_MEMORY_CD8',
+                      title='CD8TOXLO_ACTIVATED_MEMORY_CD8 stage 1')
+b <- plot.Average.Niche(annot.table = annot.k9[stage3.subgroup], indexCluster = 'CD8TOXLO_ACTIVATED_MEMORY_CD8',
+                      title='CD8TOXLO_ACTIVATED_MEMORY_CD8 stage 3')
+gridExtra::grid.arrange(a,b, nrow=1) 
+
+
+```
+
+# Treg-ICOSlo  
+```{r explore-treg, fig.width=10, fig.height=6}
+niche.contrastStage( annot.k9, indexCluster = 'CD4FOXP3HI_ICOS_LO_TREG', common.title='CD4FOXP3HI_ICOS_LO_TREG')
+delta.pairwise.enrichment[unified_int %like% "CD4FOXP3HI_ICOS_LO_TREG"]
+
+a <- plot.Average.Niche(annot.table = annot.k9[stage1.subgroup], indexCluster = 'CD4FOXP3HI_ICOS_LO_TREG',
+                      title='CD4FOXP3HI_ICOS_LO_TREG stage 1')
+b <- plot.Average.Niche(annot.table = annot.k9[stage3.subgroup], indexCluster = 'CD4FOXP3HI_ICOS_LO_TREG',
+                      title='CD4FOXP3HI_ICOS_LO_TREG stage 3')
+gridExtra::grid.arrange(a,b, nrow=1) 
+
+```
+
+# Treg-Activated  
+```{r explore-treg, fig.width=10, fig.height=6}
+niche.contrastStage( annot.k9, indexCluster = 'CD4FOXP3HI_ACTIVATED_TREG', common.title='CD4FOXP3HI_ACTIVATED_TREG')
+delta.pairwise.enrichment[unified_int %like% "CD4FOXP3HI_ACTIVATED_TREG"]
+
+a <- plot.Average.Niche(annot.table = annot.k9[stage1.subgroup], indexCluster = 'CD4FOXP3HI_ACTIVATED_TREG',
+                      title='CD4FOXP3HI_ACTIVATED_TREG stage 1')
+b <- plot.Average.Niche(annot.table = annot.k9[stage3.subgroup], indexCluster = 'CD4FOXP3HI_ACTIVATED_TREG',
+                      title='CD4FOXP3HI_ACTIVATED_TREG stage 3')
+gridExtra::grid.arrange(a,b, nrow=1) 
+
+```
+
+```{r contrast-Treg-populations}
+
+```
+
+
+
+
+
 
 # plot as individual biological replicates 
 ```{r show-average-neighborhood-contrast-biolReplicates, eval=FALSE}
@@ -1047,21 +1128,6 @@ date()
 ```
 
 
-```{r, eval=FALSE}
-set.seed(999)
-mat = matrix(sample(18, 18), 3, 6) 
-rownames(mat) = paste0("S", 1:3)
-colnames(mat) = paste0("E", 1:6)
-mat
-
-adjac = data.frame(from = rep(rownames(mat), times = ncol(mat)),
-    to = rep(colnames(mat), each = nrow(mat)),
-    value = as.vector(mat),
-    stringsAsFactors = FALSE)
-adjac
-
-
-```
 
 
 Job ID: 63949935
