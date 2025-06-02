@@ -43,6 +43,9 @@ sessionInfo()
 sln <- readRDS("sln.clustering5.annot.spatnet.20250515.121453.RDS")
 md <- pDataDT(sln)
 stableColorsL2 <- getDistinctColors(length(unique(md$L2_annotations)));  names(stableColorsL2) <- unique(md$L2_annotations)
+stage3.subgroup <- c("tumor.1","tumor.2","tumor.3","tumor.4","tumor.5","tumor.6","tumor.7", "tumor.8",
+                                                 "tumor.9","tumor.10")
+stage1.subgroup <- c("ctrl.1","ctrl.2","ctrl.3","ctrl.4","ctrl.5")
 ```
 
 
@@ -352,9 +355,7 @@ cellProx.subgroup <- function(dt)
   out <- cellProx.calcP(long_dt, number_of_simulations = 200 )  # needs to match what was used to calculate sims
   return(out)
 }
-stage3.subgroup <- c("tumor.1","tumor.2","tumor.3","tumor.4","tumor.5","tumor.6","tumor.7", "tumor.8",
-                                                 "tumor.9","tumor.10")
-stage1.subgroup <- c("ctrl.1","ctrl.2","ctrl.3","ctrl.4","ctrl.5")
+
 stage3 <- cellProx.subgroup(subset(dt, id %in% stage3.subgroup))
 stage1 <- cellProx.subgroup(subset(dt, id %in% stage1.subgroup ))
 
@@ -676,7 +677,7 @@ gridExtra::grid.arrange(a,b, nrow=1)
 ```
 
 # contrast stage 1 vs stage 3 for niche  
-```{r contrast-niche-by-stage}
+```{r contrast-niche-by-stage, plot.height=10}
 
 rgb_to_hex <- function(rgb) {
   sprintf("#%02X%02X%02X", rgb[1], rgb[2], rgb[3])
@@ -753,115 +754,26 @@ niche.contrastStage <- function( annot.table, indexCluster, common.title, filter
 niche.contrastStage( annot.k9, indexCluster = 'TBMIXED_LZ_BCELL', common.title='TBMIXED_LZ_BCELL')
 niche.contrastStage( annot.k9, indexCluster = 'TBMIXED_MIXED_GC_TCELL', common.title='TBMIXED_MIXEDGC_TCELL')
 niche.contrastStage( annot.k9, indexCluster = 'CD8TOXHI_TCF1_HI_TOX_HI_CD8', common.title='CD8TOXHI_TCF1_HI_TOX_HI_CD8')
-
+niche.contrastStage( annot.k9, indexCluster = 'CD8TOXHI_TCF1_LO_TOX_HI_CD8', common.title='CD8TOXHI_TCF1_LO_TOX_HI_CD8')
 
 ```
-
 
 ```{r}
 
+working.dt <- copy(interaction.byStage)
+
+a <- working.dt %>% group_by(unified_int, stage) %>% summarise(mean = mean(enrichm, na.rm = TRUE), sd = sd(enrichm, na.rm = TRUE), 
+                                                   n_replicates = n()) %>%  ungroup()
+range_of_means <- a %>%
+  group_by(unified_int) %>% summarise( range_mean = max(mean, na.rm = TRUE) - min(mean, na.rm = TRUE), n_stages = n_distinct(stage)) 
+a <- range_of_means[order(range_of_means$range_mean, decreasing = T),]
+
+
 ```
-
-
-# average neighborhood representation - single entity for GC populations
-```{r show-average-neighborhood}
-# Filter for interactions involving the index cell type
-intxn.index.s1 <- y[ , .(left.stage1, right.stage1, original.stage1) ]
-
-# filter to the Toxhi CD8
-filterIntxn <- function(simpleIntxnTable, title, filterprefix='on')
-{
-  simpleIntxnTable[, proportion := .SD[[1]]/sum(.SD[[1]], na.rm=T), .SDcols = 3 ] # .SD[[1]] is the first and only column selected by .SDcols
-  simpleIntxnTable = simpleIntxnTable[order(-proportion)]
-  target_col_name_for_lhs_sd <- names(simpleIntxnTable)[1]
-  simpleIntxnTable[, (target_col_name_for_lhs_sd) := gsub(pattern = "CD8TOXHI_", replacement = "", x = .SD[[1]]), .SDcols = 1] 
-  target_col_name_for_lhs_sd <- names(simpleIntxnTable)[2]
-  if(filterprefix == 'on')
-  {  
-    simpleIntxnTable[, (target_col_name_for_lhs_sd) := gsub(pattern = "CD8TOXHI_", replacement = "", x = .SD[[1]]), .SDcols = 2] 
-    simpleIntxnTable[, (target_col_name_for_lhs_sd) := gsub(pattern = "CD8TOXLO_", replacement = "", x = .SD[[1]]), .SDcols = 2] 
-    simpleIntxnTable[, (target_col_name_for_lhs_sd) := gsub(pattern = "TBMIXED_", replacement = "", x = .SD[[1]]), .SDcols = 2] 
-    }
-  simpleIntxnTable[,  (target_col_name_for_lhs_sd) := factor(get(target_col_name_for_lhs_sd), levels= get(target_col_name_for_lhs_sd) )]
-
-  print( 
-    ggplot(data = simpleIntxnTable, aes(y = .data[[names(simpleIntxnTable)[2]]], x = proportion, fill=.data[[names(simpleIntxnTable)[2]]],
-           color = .data[[names(simpleIntxnTable)[2]]])) + 
-    geom_bar(stat='identity', width=0.01) + 
-    geom_point(size=5) + 
-    theme_classic() + ggtitle(paste("Neighbors of ", title)) +  scale_fill_manual(values = stableColorsL2) + 
-    theme(axis.text.x = element_text(angle=45, hjust=1,vjust=1), legend.position = 'none')
-  )
-  print(
-    ggplot(data = simpleIntxnTable, aes(x = .data[[names(simpleIntxnTable)[1]]], y =  .data[[names(simpleIntxnTable)[3]]],  
-                                          fill=.data[[names(simpleIntxnTable)[2]]])) + 
-    geom_bar(stat='identity', width=1, position="fill") + 
-    theme_classic() + ggtitle(paste("Neighbors of ", title)) + scale_fill_manual(values = stableColorsL2) + 
-    theme(axis.text.x = element_text(angle=45, hjust=1,vjust=1))
-  )
-
-  return(simpleIntxnTable)
-}
-filterIntxn(simpleIntxnTable = intxn.index.s1[left.stage1 == 'TBMIXED_LZ_BCELL'], title='TBMIXED_LZ_BCELL', filterprefix='off')
-filterIntxn(simpleIntxnTable = intxn.index.s1[left.stage1 == 'TBMIXED_MIXED_GC_TCELL'], title='TBMIXED_MIXED_GC_TCELL', filterprefix='off')
-```
-
-
-```{r show-average-neighborhood-radialPlot}
-grep("TOXHI", unique(y$left.stage1), value = T)
-tcfhiCD8.s1 <- filterIntxn(simpleIntxnTable = intxn.index.s1[left.stage1 == 'CD8TOXHI_TCF1_HI_TOX_HI_CD8'], title='CD8+Tox+Tcf+')
-tcfloCD8.s1 <- filterIntxn(simpleIntxnTable = intxn.index.s1[left.stage1 == 'CD8TOXHI_TCF1_LO_TOX_HI_CD8'], title='CD8+Tox+Tcf-')
-tcfhiCD8.s1$left.stage1 <- paste0(tcfhiCD8.s1$left.stage1, ".s1")
-tcfloCD8.s1$left.stage1 <- paste0(tcfloCD8.s1$left.stage1, ".s1")
-comb <- rbind(tcfhiCD8.s1, tcfloCD8.s1)
-ggplot(comb, aes(y = right.stage1, x = proportion, group=left.stage1, fill=left.stage1)) + 
-  geom_bar( stat='identity', width=0.5, position=position_dodge(preserve='single')) + 
-  # coord_radial("y", start = 0, direction = 1, rotate.angle=T , r_axis_inside = TRUE)+
-  ggtitle(paste("Neighbors of CD8 T cells - Stage 1"))  +  
-  scale_fill_manual(values= ( RColorBrewer::brewer.pal(n = 4, name = "Accent")) )  + 
-  theme(   axis.title = element_blank(),axis.ticks = element_blank(), axis.text.y = element_text(color = "grey"),
-           axis.text.x = element_text(color = "black", size = 4), legend.position = "bottom", legend.title = element_blank(), 
-           plot.title = element_text(face = "bold", size = 18, hjust = 1), 
-           panel.background = element_rect(fill = "white", color = "white"), panel.grid = element_blank(),  
-           panel.grid.major.x = element_line(color="grey90", size=0.5))
-
-ggplot(comb, aes(y = right.stage1, x = proportion, group=left.stage1, fill=left.stage1)) + 
-  geom_bar( stat='identity', width=0.5, position=position_dodge(preserve='single')) + 
-  coord_radial("y", start = 0, direction = 1, rotate.angle=T , r_axis_inside = TRUE)+
-  ggtitle(paste("Neighbors of CD8 T cells - Stage 1"))  +  
-  scale_fill_manual(values= ( RColorBrewer::brewer.pal(n = 4, name = "Accent")) )  + 
-  theme(   axis.title = element_blank(),axis.ticks = element_blank(), axis.text.y = element_text(color = "grey"),
-           axis.text.x = element_text(color = "black", size = 4), legend.position = "bottom", legend.title = element_blank(), 
-           plot.title = element_text(face = "bold", size = 18, hjust = 1), 
-           panel.background = element_rect(fill = "white", color = "white"), panel.grid = element_blank(),  
-           panel.grid.major.x = element_line(color="grey90", size=0.5))
-```
-
-# average neighborhood representation - contrast stage 3 vs stage 1 
-```{r show-average-neighborhood-contrast}
-intxn.index.s3 <- y[ , .(left.stage3, right.stage3, original.stage3) ]
-tcfhiCD8.s3 <- filterIntxn(simpleIntxnTable = intxn.index.s3[left.stage3 == 'CD8TOXHI_TCF1_HI_TOX_HI_CD8'], title='CD8+Tox+Tcf+')
-tcfhiCD8.s3$left.stage3 <- paste0(tcfhiCD8.s3$left.stage3, ".s3")
-names(tcfhiCD8.s1) <- names(tcfhiCD8.s3)
-
-comb <- rbind(tcfhiCD8.s1, tcfhiCD8.s3)
-
-ggplot(comb, aes(y = right.stage3, x = proportion, group=left.stage3, fill=left.stage3)) + 
-  geom_bar( stat='identity', width=0.5, position=position_dodge(preserve='single')) + 
-  coord_radial("y", start = 0, direction = 1, rotate.angle=T, r_axis_inside = TRUE)+
-  ggtitle(paste("Tcfhi CD8 T cells - Stage 3 vs 1"))  +  
-  scale_fill_manual(values= ( RColorBrewer::brewer.pal(n = 4, name = "Paired")) )  + 
-  theme(   axis.title = element_blank(),axis.ticks = element_blank() , axis.text.y = element_text(color = "grey"),
-           axis.text.x = element_text(color = "black", size = 4), legend.position = "bottom", legend.title = element_blank(), 
-           plot.title = element_text(face = "bold", size = 18, hjust = 1), 
-           panel.background = element_rect(fill = "white", color = "white"), panel.grid = element_blank(),  
-           panel.grid.major.x = element_line(color="grey90", size=0.5))
-```
-
-
+ 
 
 # plot as individual biological replicates 
-```{r show-average-neighborhood-contrast-biolReplicates}
+```{r show-average-neighborhood-contrast-biolReplicates, eval=FALSE}
 significant.Neighbors.acrossStage <- function( data, interacting.partner)
 {
   data <- as.data.table(tidyr::separate(data, col = unified_int, into = c("left", "right"), sep = "--"))
@@ -899,7 +811,7 @@ significant.Neighbors.acrossStage(data = interaction.byStage, interacting.partne
 
 
 # show a radial plot of contrast of neighborhoods 
-```{r show-average-neighborhood-contrast-stage3vs1}
+```{r show-average-neighborhood-contrast-stage3vs1, eval = FALSE}
 intxn.index.s3 <- y[ , .(left.stage3, right.stage3, original.stage3) ]
 tcfloCD8.s3 <- filterIntxn(simpleIntxnTable = intxn.index.s3[left.stage3 == 'CD8TOXHI_TCF1_LO_TOX_HI_CD8'], title='CD8+Tox+Tcf-')
 tcfloCD8.s3$left.stage3 <- paste0(tcfloCD8.s3$left.stage3, ".s3")
@@ -918,16 +830,6 @@ ggplot(comb, aes(y = right.stage3, x = proportion, group=left.stage3, fill=left.
            panel.background = element_rect(fill = "white", color = "white"), panel.grid = element_blank(),  
            panel.grid.major.x = element_line(color="grey90", size=0.5)) 
 
-
-```
-
-# 
-```{r plot-interacting-pair}
-ggplot(y, aes(x=unified_int, y=diff.enrich, label=unified_int, size=original.stage3)) + 
-  geom_point(pch=21, color='white', fill='black') + 
-  ggrepel::geom_label_repel(max.overlaps = 20) + ggtitle("PI_value:  Stage3 - Stage1") + 
-  geom_hline(yintercept = 0, color="grey50") + theme_classic() + 
-  theme(axis.text.x = element_blank())  
 
 ```
 
