@@ -22,10 +22,10 @@ img {
 ```{r call-libraries} 
 date()
 library(Giotto)
-library(future); if(parallelly::availableCores() > 2 & .Platform$OS.type == "windows")  
+library(future); if(parallelly::availableCores() > 2 )  # & .Platform$OS.type == "windows")  
   {plan('multisession', workers = parallelly::availableCores()-2)}
 options(future.globals.maxSize= 1e12)
-library(scran); library(MAST); library(leiden);   # library(multinet);  
+library(scran); library(MAST); # library(leiden);   # library(multinet);  
 library(data.table)
 library(gplots); library(ggplot2); library(viridis)
 library(dbscan)
@@ -35,17 +35,66 @@ library(circlize)
 set.seed(43)
 knitr::opts_chunk$set(fig.retina = 2)
 sessionInfo()
+
+#  ****** libraries to install 
+library(factoextra)
+
 ```
 
 # read in data object 
 ```{r read-annot-sln-spatnet}
 
-sln <- readRDS("sln.clustering5.annot.spatnet.20250515.121453.RDS")
+sln <- readRDS("sln.clustering5.annot.spatnet.20250617.160512.RDS")
 md <- pDataDT(sln)
 stableColorsL2 <- getDistinctColors(length(unique(md$L2_annotations)));  names(stableColorsL2) <- unique(md$L2_annotations)
 stage3.subgroup <- c("tumor.1","tumor.2","tumor.3","tumor.4","tumor.5","tumor.6","tumor.7", "tumor.8",
                                                  "tumor.9","tumor.10")
 stage1.subgroup <- c("ctrl.1","ctrl.2","ctrl.3","ctrl.4","ctrl.5")
+recur.subgroup <- c("tumor.3","tumor.4","tumor.5","tumor.7","tumor.8","tumor.10")
+norecur.subgroup <- c("tumor.1","tumor.2", "tumor.6")
+```
+
+
+# interaction changed genes
+```{r Interaction-changed-genes}
+# md <- pDataDT(sln)
+keepCells <- subset(md, list_ID %in% c("tumor.1","tumor.2","tumor.3","tumor.4","tumor.5","tumor.6","tumor.7", "tumor.8",
+                                                 "tumor.9","tumor.10"))
+keepCells <- subset(keepCells, cell_ID %in% sample(keepCells$cell_ID, 3e5))$cell_ID
+sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
+gd = fDataDT(sln.sm)
+date()
+## identify genes that are associated with proximity to other cell types
+ICGscores.L1 = findInteractionChangedFeats(gobject = sln.sm, selected_feats = gd$feat_ID,
+                                                 spatial_network_name = "spatialknn.k5", cluster_column = 'L1_annotations',
+                                                 diff_test = 'permutation', adjust_method = 'fdr',
+                                                 nr_permutations = 200, do_parallel = F)
+ICGscores.L2 = findInteractionChangedFeats(gobject = sln.sm, selected_feats = gd$feat_ID,
+                                                 spatial_network_name = "spatialknn.k5", cluster_column = 'L2_annotations',
+                                                 diff_test = 'permutation', adjust_method = 'fdr',
+                                                 nr_permutations = 200, do_parallel = F)
+saveRDS(object = list(ICGscores.L1 = ICGscores.L1, ICGscores.L2 = ICGscores.L2), 
+        file = "neighborhood.ICGlist.s3.sln.clustering5.annot.spatnet.RDS"); date()  # took 6 hours at 300 permutations each 
+
+
+# md <- pDataDT(sln); 
+keepCells <- subset(md, list_ID %in% c("ctrl.1","ctrl.2","ctrl.3","ctrl.4","ctrl.5"))
+keepCells <- subset(keepCells, cell_ID %in% sample(keepCells$cell_ID, 3e5))$cell_ID
+sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
+gd = fDataDT(sln.sm)
+date()
+## identify genes that are associated with proximity to other cell types
+ICGscores.L1 = findInteractionChangedFeats(gobject = sln.sm, selected_feats = gd$feat_ID,
+                                                 spatial_network_name = "spatialknn.k5", cluster_column = 'L1_annotations',
+                                                 diff_test = 'permutation', adjust_method = 'fdr',
+                                                 nr_permutations = 200, do_parallel = F)
+ICGscores.L2 = findInteractionChangedFeats(gobject = sln.sm, selected_feats = gd$feat_ID,
+                                                 spatial_network_name = "spatialknn.k5", cluster_column = 'L2_annotations',
+                                                 diff_test = 'permutation', adjust_method = 'fdr',
+                                                 nr_permutations = 200, do_parallel = F)
+saveRDS(object = list(ICGscores.L1 = ICGscores.L1, ICGscores.L2 = ICGscores.L2), 
+        file = "neighborhood.ICGlist.s1.sln.clustering5.annot.spatnet.RDS"); date()
+
 ```
 
 
@@ -290,21 +339,24 @@ list_ID <- unique(md$list_ID)
 gc()
 
 tableResults.k5 <- list()
+annot.k5 <- list()
 for (i in list_ID)
 {
   print(i)
   keepCells <- subset(md, list_ID %in% i )$cell_ID
   sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
-  sln.sm <- createSpatialKNNnetwork(sln.sm, k=5, verbose=T, name = "spatialknn.k5.persample") 
+  sln.sm <- createSpatialKNNnetwork(sln.sm, k=5, verbose=T, name = "spatialknn.k5.persample")
+  annot.k5[[i]] <- annotateSpatialNetwork(sln.sm, cluster_column = "L2_annotations", spatial_network_name = 'spatialknn.k5.persample')
   tableResults.k5[[i]] <- cellProx.sim(sln.sm, cluster_column = 'L2_annotations', adjust_method = "fdr",
                                        number_of_simulations = 200, spatial_network_name = "spatialknn.k5.persample")
 }
-dt <- purrr::list_rbind(tableResults.k5, names_to = "id")
-saveRDS(dt, file="neighborhood.tableResults.k5.sln.RDS")  # all data merged
+saveRDS(list(annot.k5=annot.k5, tableResults.k5 = tableResults.k5), file="neighborhood.annot.k5.sln.RDS")  # all data merged
+# annot.k5 <- readRDS(file="neighborhood.annot.k5.sln.RDS")[["annot.k5"]]  # all data merged
 ```
 
+
+```{r cellproxEnrich-function-k9}
 # calculate proximity enrichment per sample for k=9
-```{r custom-cellproxEnrich-function-k10}
 tableResults.k9 <- list()
 annot.k9 <- list()
 for (i in list_ID)
@@ -318,10 +370,27 @@ for (i in list_ID)
   tableResults.k9[[i]] <- cellProx.sim(sln.sm, cluster_column = 'L2_annotations', adjust_method = "fdr",
                                        number_of_simulations = 200, spatial_network_name = "spatialknn.k9.persample")
 }
-dt <- purrr::list_rbind(tableResults.k9, names_to = "id")
-saveRDS(dt, file="neighborhood.tableResults.k9.sln.RDS")  # all data merged
 
-dt <- readRDS(file="neighborhood.tableResults.k9.sln.RDS")  # all data merged
+saveRDS(list(annot.k9 = annot.k9, tableResults.k9 = tableResults.k9), file="neighborhood.annot.k9.sln.RDS")  # all data merged
+
+tableResults.k9 <- list()
+annot.k9 <- list()
+for (i in list_ID)
+{
+  print(i)
+  keepCells <- subset(md, list_ID %in% i )$cell_ID
+  sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
+  sln.sm <- createSpatialKNNnetwork(sln.sm, k=9, verbose=T, name = "spatialknn.k9.persample") 
+  print("made spatialKNN")
+  annot.k9[[i]] <- annotateSpatialNetwork(sln.sm, cluster_column = "L3_annotations", spatial_network_name = 'spatialknn.k9.persample')
+  tableResults.k9[[i]] <- cellProx.sim(sln.sm, cluster_column = 'L3_annotations', adjust_method = "fdr",
+                                       number_of_simulations = 200, spatial_network_name = "spatialknn.k9.persample")
+}
+
+saveRDS(list(annot.k9 = annot.k9, tableResults.k9 = tableResults.k9), file="neighborhood.annot.k9.l3.sln.RDS")  # all data merged
+
+annot.k9 <- readRDS(file="neighborhood.annot.k9.sln.RDS")[['annot.k9']]  #  read in L2 annotations 
+
 ```
 
 Fails on k=10 on tumor.6  (2 million rows) with long vectors error 
@@ -360,7 +429,7 @@ stage3 <- cellProx.subgroup(subset(dt, id %in% stage3.subgroup))
 stage1 <- cellProx.subgroup(subset(dt, id %in% stage1.subgroup ))
 
 x <- list(stage1 = stage1, stage3=stage3)
-saveRDS(x, file="neighborhood.x.sln.RDS")  # all data merged 
+# saveRDS(x, file="neighborhood.x.sln.RDS")  # all data merged 
 
 recur <- cellProx.subgroup(subset(dt, id %in% c("tumor.3","tumor.4","tumor.5","tumor.7","tumor.8","tumor.10")))
 no.recur <- cellProx.subgroup(subset(dt, id %in% c("tumor.1","tumor.2", "tumor.6") ))
@@ -376,6 +445,7 @@ for (i in seq_along(sampleList))
   names(perSampleInteraction)[i] <-  subset(dt, id %in% sampleList[i])$id[1]
 }
 saveRDS(perSampleInteraction, file="neighborhood.perSampleInteraction.RDS")  # all data merged 
+
 perSampleInteraction <- readRDS(file="neighborhood.perSampleInteraction.RDS")
 
 perSampleInteraction.enrichm_res <- list()
@@ -385,26 +455,22 @@ for (i in seq_along(perSampleInteraction))
   names(perSampleInteraction.enrichm_res)[i] <- names(perSampleInteraction)[i]
 }
 
+addLabels.fxn <- function(dt, label)
+{
+  for (i in seq_along(dt))   {   dt[[i]][, list_ID := names(dt)[i]]   }  # attach the sample name to a new column
+  dt <- rbindlist(dt)  # turn the list into data table
+  dt$condition <- label  # add in a column for the stage 
+  return(dt)
+}
 
-perSampleInteraction.enrichm_res.s3 <- perSampleInteraction.enrichm_res[stage3.subgroup]
-for (i in seq_along(perSampleInteraction.enrichm_res.s3))
-{   perSampleInteraction.enrichm_res.s3[[i]][, list_ID := names(perSampleInteraction.enrichm_res.s3)[i]]   }
-perSampleInteraction.enrichm_res.s3 <- rbindlist(perSampleInteraction.enrichm_res.s3)
-perSampleInteraction.enrichm_res.s3$stage <- "stage3"
-
-perSampleInteraction.enrichm_res.s1 <- perSampleInteraction.enrichm_res[stage1.subgroup]
-for (i in seq_along(perSampleInteraction.enrichm_res.s1))
-{   perSampleInteraction.enrichm_res.s1[[i]][, list_ID := names(perSampleInteraction.enrichm_res.s1)[i]]   }
-perSampleInteraction.enrichm_res.s1 <- rbindlist(perSampleInteraction.enrichm_res.s1)
-perSampleInteraction.enrichm_res.s1$stage <- "stage1"
-
-interaction.byStage <- rbind(perSampleInteraction.enrichm_res.s1, perSampleInteraction.enrichm_res.s3)
-
-
+interaction.byStage <- rbind(addLabels.fxn(perSampleInteraction.enrichm_res[stage3.subgroup], label = "stage3"),
+             addLabels.fxn(perSampleInteraction.enrichm_res[stage1.subgroup], label = "stage1") ) 
+interaction.byRecur <- rbind(addLabels.fxn(perSampleInteraction.enrichm_res[recur.subgroup], label = "recur"),
+             addLabels.fxn(perSampleInteraction.enrichm_res[norecur.subgroup], label = "no.recur") ) 
 ```
 
 # finish processing of subgroups at a summary level
-```{r interact-with-pairwise-enrichment}
+```{r interact-with-pairwise-enrichment, eval=FALSE}
 x <- readRDS(file="neighborhood.x.sln.RDS")  # all data merged 
 stage1 <- x$stage1; stage3 <- x$stage3
 md <- pDataDT(sln)
@@ -434,66 +500,27 @@ sub.stage3$subgroup <- "stage3"
  # plot x=stage 1 PI_value, y= stage 3 PI_value
 x <- rbind(sub.stage1, sub.stage3)
 x$unified_int <- factor(x$unified_int, levels = sub.stage3$unified_int[order(sub.stage3$PI_value, decreasing = T)])
-
-# ************** slated for deletion 
-### df <- readRDS(file="neighborhood.recur.sln.clustering2.res0.5.20250411.1611.RDS")  # all data merged 
-### recur <- df$recur; no.recur <- df$no.recur   
-# **************  
-
-# md <- as.data.table(md)
-# recur$enrichm_res <- addClusterLabels(dt=recur, md=md)
-# no.recur$enrichm_res <- addClusterLabels(dt=no.recur, md=md)
-# sub.recur <- recur$enrichm_res
-# sub.recur$subgroup <- "recur"
-# sub.no.recur <- no.recur$enrichm_res
-# sub.no.recur$subgroup <- "no.recur"
-# df <- rbind(sub.recur, sub.no.recur)
-# df$unified_int <- factor(df$unified_int, levels = sub.no.recur$unified_int[order(sub.no.recur$PI_value, decreasing = T)])
-# saveRDS(df, file="neighborhood.recur.RDS")
-# df <- readRDS(file = "neighborhood.recur.RDS")
-```
-
-
-# plots of pairwise enrichment
-```{r plot-pairwise-enrichment, fig.width=10}
-ggplot(x, aes(x=unified_int, y=enrichm, color=subgroup, label = unified_int)) + geom_point() + theme_classic() + 
-  theme(axis.text.x = element_text(angle=45, hjust=1,vjust=1, size=3)) + ggrepel::geom_label_repel(max.overlaps = 30, size=2)
-
-y <- merge(x=sub.stage1, y=sub.stage3, by='unified_int', suffixes = c(".stage1",".stage3"), all=T)
-y$diff.PI_value <- y$PI_value.stage3 - y$PI_value.stage1
-y$diff.enrich <- y$enrichm.stage3 - y$enrichm.stage1
-y <- y[!is.na(y$diff.enrich),]  # remove NA values, which imply interactions not present in both settings
-y$unified_int <- factor(y$unified_int, levels = y$unified_int[order(y$diff.enrich, decreasing = T)])
-y$unified_char <- paste0(y$left.stage1,"--",y$right.stage1)
-
-# y <- y[which(y$original.stage1 > 20),]
-
-y[order(-diff.enrich)]
-
-saveRDS(y, file="neighborhood.y.RDS")
-y <- readRDS(file="neighborhood.y.RDS")
-
 ```
 
 
 # show the average neighborhood for sln 5 
 ```{r show-niche-singleSample, fig.height=6}
 
-showNiche.singleSample <- function(annot.table, indexCluster, title, filterPrefix='on', plots=TRUE)
+removeArtifacts <- function(dt)
 {
-  res <- annot.table[from_cell_type == indexCluster, to_cell_type] %>% table %>% prop.table  # calculate proportions 
+  dt <- dt[!unified_int %like% "ARTIFACT"]
+  dt <- dt[!unified_int %like% "outlier"]
+  return(dt)
+}
+
+showNiche.singleSample <- function(annot.table, indexCluster, title, plots=TRUE)
+{
+  res <- removeArtifacts(annot.table)
+  res <- res[from_cell_type == indexCluster, to_cell_type] %>% table %>% prop.table  # calculate proportions 
   res <- as.data.table(res); colnames(res) <- c('subset','proportion')
   res <- res[order(res$proportion, decreasing=T)]
   stableColorsL2.fxn <- stableColorsL2
-   if(filterPrefix == 'on')
-  {  
-    res[, subset := gsub(pattern = "CD8TOXHI_", replacement = "", x = .SD[[1]]), .SDcols = 1] 
-    res[, subset := gsub(pattern = "CD8TOXLO_", replacement = "", x = .SD[[1]]), .SDcols = 1] 
-    res[, subset := gsub(pattern = "TBMIXED_", replacement = "", x = .SD[[1]]), .SDcols = 1] 
-    names(stableColorsL2.fxn) <- gsub(pattern = "CD8TOXHI_", replacement = "", x = names(stableColorsL2.fxn ))
-    names(stableColorsL2.fxn) <- gsub(pattern = "CD8TOXLO_", replacement = "", x = names(stableColorsL2.fxn ))
-    names(stableColorsL2.fxn) <- gsub(pattern = "TBMIXED_", replacement = "", x = names(stableColorsL2.fxn ))
-    }
+
   res$subset <- factor(res$subset, levels = res$subset)   
   
   if(plots == T)
@@ -531,16 +558,16 @@ showNiche.singleSample <- function(annot.table, indexCluster, title, filterPrefi
   else return(res)
 }
 
-a <- showNiche.singleSample(annot.table = annot.k9[['tumor.5']], indexCluster = 'TBMIXED_LZ_BCELL', title='TBMIXED_LZ_BCELL',
-                            filterPrefix='on', plots=T)
-b <- showNiche.singleSample(annot.table = annot.k9[['tumor.5']], indexCluster = 'TBMIXED_MIXED_GC_TCELL', title='TBMIXED_MIXED_GC_TCELL',
-                            filterPrefix='on', plots=T)
+a <- showNiche.singleSample(annot.table = annot.k9[['tumor.5']], indexCluster = 'LZ_BCELL', title='LZ_BCELL',
+                            plots=T)
+b <- showNiche.singleSample(annot.table = annot.k9[['tumor.5']], indexCluster = 'MIXED_GC_TCELL', title='MIXED_GC_TCELL',
+                            plots=T)
 gridExtra::grid.arrange(a,b, nrow=1)
 
-a <- showNiche.singleSample(annot.table = annot.k9[['tumor.5']], indexCluster = 'CD8TOXHI_TCF1_HI_TOX_HI_CD8',
-                            title='CD8TOXHI_TCF1_HI_TOX_HI_CD8', filterPrefix='on', plots=T)
-b <- showNiche.singleSample(annot.table = annot.k9[['tumor.5']], indexCluster = 'CD8TOXHI_TCF1_LO_TOX_HI_CD8',
-                            title='CD8TOXHI_TCF1_LO_TOX_HI_CD8', filterPrefix='on', plots=T)
+a <- showNiche.singleSample(annot.table = annot.k9[['tumor.5']], indexCluster = 'TCF1_HI_TOX_HI_CD8',
+                            title='TCF1_HI_TOX_HI_CD8', plots=T)
+b <- showNiche.singleSample(annot.table = annot.k9[['tumor.5']], indexCluster = 'TCF1_LO_TOX_HI_CD8',
+                            title='TCF1_LO_TOX_HI_CD8', plots=T)
 gridExtra::grid.arrange(a,b, nrow=1) 
   
 ```
@@ -549,28 +576,35 @@ gridExtra::grid.arrange(a,b, nrow=1)
 
 # show the average neighborhood for all sln 
 ```{r show-niche-multipleSample}
-showNiche.multiSample <- function(annot.table, indexCluster, title, filterPrefix='on', plots=T)
+showNiche.multiSample <- function(annot.table, indexCluster, title,  plots=T, parallel=F)
 {
   res <- list()
   IDlist <- names(annot.table)
-  for (i in IDlist)  
-  {   
-    res[[i]] <- showNiche.singleSample(annot.table = annot.k9[[i]], indexCluster = indexCluster,
-                                       title=title, filterPrefix = filterPrefix, plots=F )  # return per-sample proportions
-    res[[i]]$list_ID <- i  # name by list_ID
-  }   
+  if(parallel == T)
+  {  
+    library(future.apply)
+    res_list <- future_lapply(IDlist, function(i) {
+      single_res <- showNiche.singleSample( annot.table = annot.k9[[i]], indexCluster = indexCluster, title = title, plots = F )
+      single_res$list_ID <- i    # name by list_ID
+      return(single_res)
+    }, future.seed = TRUE) # future.seed = TRUE is crucial for reproducible results!
+  }  
+  
+  if (parallel == F)
+  {  
+    for (i in IDlist)
+    {
+      res[[i]] <- showNiche.singleSample(annot.table = annot.k9[[i]], indexCluster = indexCluster,
+                                         title=title, plots=F )  # return per-sample proportions
+      res[[i]]$list_ID <- i  # name by list_ID
+    }
+  }
   res <- rbindlist(res)  # merge into one data table 
   ave <-  res %>% group_by(subset) %>% summarise(mean_proportion = mean(proportion, na.rm = TRUE))  # calculate mean over grouping
   ave <- ave[order(ave$mean_proportion, decreasing = T),]  # order by decreasing value 
   res$subset <- factor(res$subset, levels = ave$subset)  # set the res$subset factors based on the decreasing average
   stableColorsL2.fxn <- stableColorsL2
-  if(filterPrefix == 'on')  # trim color names accordingly 
-  {  
-    names(stableColorsL2.fxn) <- gsub(pattern = "CD8TOXHI_", replacement = "", x = names(stableColorsL2.fxn ))
-    names(stableColorsL2.fxn) <- gsub(pattern = "CD8TOXLO_", replacement = "", x = names(stableColorsL2.fxn ))
-    names(stableColorsL2.fxn) <- gsub(pattern = "TBMIXED_", replacement = "", x = names(stableColorsL2.fxn ))
-  }
-  
+
   if(plots == T)
   { 
     # scatter plot of biological replicates
@@ -578,7 +612,7 @@ showNiche.multiSample <- function(annot.table, indexCluster, title, filterPrefix
       ggplot(res, aes(y = subset, x = proportion, fill=subset, label=list_ID)) +
       geom_point(size=2, position=position_dodge(width=1), pch=21, stroke=0.1, color='grey70') +
       stat_summary( fun.min = "mean", fun.max = "mean", geom = "errorbar",
-        width = 0.75, color = "black", linewidth = 0.5 ) +
+        width = 0.75, color = "black", linewidth = 0.5 ) + # geom_path(aes(group = list_ID), alpha=0.2, color='grey80') + 
       theme_bw() + ggtitle(title) + 
       # ggrepel::geom_label_repel(size=2, box.padding = unit(0.1,"lines"), alpha=0.2) + 
       scale_fill_manual(values= stableColorsL2.fxn)  + 
@@ -588,20 +622,16 @@ showNiche.multiSample <- function(annot.table, indexCluster, title, filterPrefix
   }
   return(res)
 }  
-showNiche.multiSample(annot.table = annot.k9, indexCluster = 'TBMIXED_LZ_BCELL', title='TBMIXED_LZ_BCELL')
-showNiche.multiSample(annot.table = annot.k9, indexCluster = 'TBMIXED_MIXED_GC_TCELL', title='TBMIXED_MIXED_GC_TCELL')
-showNiche.multiSample(annot.table = annot.k9, indexCluster = 'CD8TOXHI_TCF1_HI_TOX_HI_CD8',
-                      title='CD8TOXHI_TCF1_HI_TOX_HI_CD8')
-showNiche.multiSample(annot.table = annot.k9, indexCluster = 'CD8TOXHI_TCF1_LO_TOX_HI_CD8',
-                      title='CD8TOXHI_TCF1_LO_TOX_HI_CD8')
+showNiche.multiSample(annot.table = annot.k9, indexCluster = 'LZ_BCELL', title='LZ_BCELL', parallel=F)
+showNiche.multiSample(annot.table = annot.k9, indexCluster = 'MIXED_GC_TCELL', title='MIXED_GC_TCELL')
+showNiche.multiSample(annot.table = annot.k9, indexCluster = 'TCF1_HI_TOX_HI_CD8', title='TCF1_HI_TOX_HI_CD8')
+showNiche.multiSample(annot.table = annot.k9, indexCluster = 'TCF1_LO_TOX_HI_CD8', title='TCF1_LO_TOX_HI_CD8')
 
 ```
 
 ```{r plot-average-niche}
 
-library(dplyr)
-
-plot.Average.Niche <- function( annot.table, indexCluster, title )
+plot.Average.Niche.squares <- function( annot.table, indexCluster, title )
 {
   # initialize the data table 
   grid_data <- data.table(  
@@ -613,27 +643,20 @@ plot.Average.Niche <- function( annot.table, indexCluster, title )
   
   # make the center the index cell 
   res <- showNiche.multiSample(annot.table = annot.table, indexCluster = indexCluster, title=indexCluster, plots = F)
+  stableColorsL2.fxn <- stableColorsL2
+
   ave <- res %>% group_by(subset) %>% summarise(mean_proportion = mean(proportion, na.rm = TRUE))
   ave <- ave[1:9,]
   ave$x[1:9] <- grid_data$x; ave$y[1:9] <- grid_data$y
   grid_data <- as.data.table(ave)
   grid_data[x == 2 & y == 2, subset:= indexCluster]
   grid_data[x == 2 & y == 2, mean_proportion:= 0]
-  stableColorsL2.fxn <- stableColorsL2
-  if(filterPrefix == 'on')  # trim color names accordingly 
-  { 
-    res[, subset := gsub(pattern = "CD8TOXHI_", replacement = "", x = .SD[[1]]), .SDcols = 1] 
-    res[, subset := gsub(pattern = "CD8TOXLO_", replacement = "", x = .SD[[1]]), .SDcols = 1] 
-    res[, subset := gsub(pattern = "TBMIXED_", replacement = "", x = .SD[[1]]), .SDcols = 1] 
-    names(stableColorsL2.fxn) <- gsub(pattern = "CD8TOXHI_", replacement = "", x = names(stableColorsL2.fxn ))
-    names(stableColorsL2.fxn) <- gsub(pattern = "CD8TOXLO_", replacement = "", x = names(stableColorsL2.fxn ))
-    names(stableColorsL2.fxn) <- gsub(pattern = "TBMIXED_", replacement = "", x = names(stableColorsL2.fxn ))
-    }
+
   # grid_data$mean_proportion <- grid_data$mean_proportion 
   grid_data$label <- gsub(pattern = "_", replacement = " ", x = grid_data$subset)
   grid_data$label <- stringr::str_wrap(grid_data$label, 5)
-  grid_data$label.annot.x <- c(0, 2, 4, 4, 4, 2, 0, 0, 2)
-  grid_data$label.annot.y <- c(4, 4, 4, 2, 0, 0, 0, 2, 2)
+  grid_data$label.annot.x <- c(0.5, 2, 3.5, 3.5, 3.5, 2, 0.5, 0.5, 2)
+  grid_data$label.annot.y <- c(3.75, 3.75, 3.75, 2, 0.25, 0.25, 0.25, 2, 2)
   hex.coord <- data.frame(x = c(2.5, 2.25, 1.75, 1.5, 1.75, 2.25), y=c(2, 2.433, 2.433, 2, 1.567, 1.567))
   print(
     ggplot(grid_data[1:8,], aes( x=x, y=y, fill=subset, label=label, size=mean_proportion)) + 
@@ -643,17 +666,62 @@ plot.Average.Niche <- function( annot.table, indexCluster, title )
       coord_equal() + # Ensure squares are square (base aspect ratio)
       scale_size(range = c(0,20)) + scale_fill_manual(values = stableColorsL2.fxn) + 
       ggtitle(title) + guides(fill = "none")  +#  scale_size_area() + 
-      annotate("text", x = 2, y = 2, label = "index cell", colour = "black", fontface = 'bold', size=2) +  
+      annotate("text", x = 2, y = 2, label = title, colour = "black", fontface = 'bold', size=2) +  
       theme_void() +
       xlim(c(-0.5,4.5)) + ylim(c(-0.5,4.5))
     )
 }
-plot.Average.Niche(annot.k9, indexCluster = 'TBMIXED_LZ_BCELL', title='TBMIXED_LZ_BCELL')
-plot.Average.Niche(annot.k9, indexCluster = 'TBMIXED_MIXED_GC_TCELL', title='TBMIXED_MIXED_GC_TCELL')
-a <- plot.Average.Niche(annot.table = annot.k9, indexCluster = 'CD8TOXHI_TCF1_HI_TOX_HI_CD8',
-                      title='CD8TOXHI_TCF1_HI_TOX_HI_CD8')
-b <- plot.Average.Niche(annot.table = annot.k9, indexCluster = 'CD8TOXHI_TCF1_LO_TOX_HI_CD8',
-                      title='CD8TOXHI_TCF1_LO_TOX_HI_CD8')
+
+plot.Average.Niche.igraph <- function( annot.table, indexCluster, title )
+{
+  library(ggraph)
+  # make the center the index cell 
+  res <- showNiche.multiSample(annot.table = annot.table, indexCluster = indexCluster, title=indexCluster, plots = F)
+  stableColorsL2.fxn <- stableColorsL2
+
+  ave <- res %>% group_by(subset) %>% summarise(mean_proportion = mean(proportion, na.rm = TRUE))
+  ave$subset <- as.character(ave$subset)
+  if (indexCluster %in% ave$subset)   {    
+    ave$subset[which(ave$subset == indexCluster)] <- paste0(indexCluster, ".")  
+    duplColor <- stableColorsL2.fxn[which(names(stableColorsL2.fxn)==indexCluster)]
+    names(duplColor) <- paste0(names(duplColor), ".")
+    stableColorsL2.fxn <- c(stableColorsL2.fxn, duplColor)
+  }
+  center_node_df <- data.frame(subset = indexCluster, mean_proportion = 0) 
+  setorder(ave, -mean_proportion)  # order ave from biggest to smallest 
+  ave <- ave[1:8,]  # keep the top 8 
+  grid_data <- as.data.table(bind_rows(center_node_df, ave))  # add the index cell to the data frame 
+  grid_data$label <- grid_data$subset  # wrap labels  
+  grid_data$label <- gsub(pattern = "_",replacement = " ", x = grid_data$label)
+  grid_data$label <- stringr::str_wrap(grid_data$label, 8)  # wrap labels  
+  edges <- data.frame(from = indexCluster, to = grid_data$subset[grid_data$subset != indexCluster] )  # new df with directional proportions
+  nodes <- data.frame(name = grid_data$subset, label = grid_data$label, size = grid_data$mean_proportion) # map to node size
+  graph <- tidygraph::tbl_graph(nodes = nodes, edges = edges, directed = TRUE)  # create an igraph object with nodes and edges 
+  print( 
+      a <- ggraph(graph, layout = 'dendrogram', circular = TRUE) +
+      geom_edge_fan(width = 0.5, color = "gray60", alpha = 0.8) +
+      geom_node_point(aes(fill = name, size = size), shape = 21, color = "black", stroke = 0.2) +
+      geom_node_text(aes(label = label, x = x * 1.3, y = y * 1.3), repel = F, size = 2, 
+                     hjust='outward', vjust='outward') +
+      scale_size_continuous( name = "Interaction\nProportion", limits = c(0, 0.5), range = c(0.1, 15), 
+                             breaks=c(0, 0.01, 0.05,0.1,0.2,0.3,0.4) ) + 
+      scale_fill_manual(values = stableColorsL2.fxn, guide = "none") +
+      geom_node_label( aes(label = label, filter = name == indexCluster), size = 2, alpha=1, fontface = 'bold') +
+      theme_graph(base_family = 'sans') +
+      labs(title = title) +
+          xlim(c(-3, 3)) + 
+      ylim(c(-3, 3)) +
+      coord_fixed()
+  )
+  return(a)
+}
+plot.Average.Niche.igraph(annot.table = annot.k9, indexCluster = 'LZ_BCELL', title='LZ_BCELL')
+plot.Average.Niche.igraph(annot.table = annot.k9, indexCluster = 'MIXED_GC_TCELL', title='MIXED_GC_TCELL')
+
+# plot.Average.Niche.squares(annot.table = annot.k9, indexCluster = 'LZ_BCELL', title='LZ_BCELL')
+# plot.Average.Niche.squares(annot.table = annot.k9, indexCluster = 'MIXED_GC_TCELL', title='MIXED_GC_TCELL')
+a <- plot.Average.Niche.igraph(annot.table = annot.k9, indexCluster = 'TCF1_HI_TOX_HI_CD8', title='TCF1_HI_TOX_HI_CD8')
+b <- plot.Average.Niche.igraph(annot.table = annot.k9, indexCluster = 'TCF1_LO_TOX_HI_CD8', title='TCF1_LO_TOX_HI_CD8')
 
 ```
 
@@ -664,15 +732,29 @@ gridExtra::grid.arrange(a,b, nrow=1)
 
 
 ```{r plot-average-niche-by-stage, fig.width=10, fig.height=5}
-a <- plot.Average.Niche(annot.table = annot.k9[stage1.subgroup], indexCluster = 'CD8TOXHI_TCF1_HI_TOX_HI_CD8',
-                      title='CD8TOXHI_TCF1_HI_TOX_HI_CD8 stage 1')
-b <- plot.Average.Niche(annot.table = annot.k9[stage3.subgroup], indexCluster = 'CD8TOXHI_TCF1_HI_TOX_HI_CD8',
-                      title='CD8TOXHI_TCF1_HI_TOX_HI_CD8 stage 3')
+a <- plot.Average.Niche.igraph(annot.table = annot.k9[stage1.subgroup], indexCluster = 'TCF1_HI_TOX_HI_CD8',
+                      title='TCF1_HI_TOX_HI_CD8 stage 1')
+b <- plot.Average.Niche.igraph(annot.table = annot.k9[stage3.subgroup], indexCluster = 'TCF1_HI_TOX_HI_CD8',
+                      title='TCF1_HI_TOX_HI_CD8 stage 3')
 gridExtra::grid.arrange(a,b, nrow=1) 
-a <- plot.Average.Niche(annot.table = annot.k9[stage1.subgroup], indexCluster = 'CD8TOXHI_TCF1_LO_TOX_HI_CD8',
-                      title='CD8TOXHI_TCF1_LO_TOX_HI_CD8 stage 1')
-b <- plot.Average.Niche(annot.table = annot.k9[stage3.subgroup], indexCluster = 'CD8TOXHI_TCF1_LO_TOX_HI_CD8',
-                      title='CD8TOXHI_TCF1_LO_TOX_HI_CD8 stage 3')
+a <- plot.Average.Niche.igraph(annot.table = annot.k9[stage1.subgroup], indexCluster = 'TCF1_LO_TOX_HI_CD8',
+                      title='TCF1_LO_TOX_HI_CD8 stage 1')
+b <- plot.Average.Niche.igraph(annot.table = annot.k9[stage3.subgroup], indexCluster = 'TCF1_LO_TOX_HI_CD8',
+                      title='TCF1_LO_TOX_HI_CD8 stage 3')
+gridExtra::grid.arrange(a,b, nrow=1) 
+```
+
+# plot average niche by recur
+```{r plot-average-niche-by-recur, fig.width=10, fig.height=5}
+a <- plot.Average.Niche.igraph(annot.table = annot.k9[recur.subgroup], indexCluster = 'TCF1_HI_TOX_HI_CD8',
+                      title='TCF1_HI_TOX_HI_CD8 recur')
+b <- plot.Average.Niche.igraph(annot.table = annot.k9[norecur.subgroup], indexCluster = 'TCF1_HI_TOX_HI_CD8',
+                      title='TCF1_HI_TOX_HI_CD8 no recur')
+gridExtra::grid.arrange(a,b, nrow=1) 
+a <- plot.Average.Niche.igraph(annot.table = annot.k9[recur.subgroup], indexCluster = 'TCF1_LO_TOX_HI_CD8',
+                      title='TCF1_LO_TOX_HI_CD8 recur')
+b <- plot.Average.Niche.igraph(annot.table = annot.k9[norecur.subgroup], indexCluster = 'TCF1_LO_TOX_HI_CD8',
+                      title='TCF1_LO_TOX_HI_CD8 no recur')
 gridExtra::grid.arrange(a,b, nrow=1) 
 ```
 
@@ -691,23 +773,17 @@ lighten_hex <- function(hex, factor = 0.3) { # You can adjust the factor
 }
 
 
-niche.contrastStage <- function( annot.table, indexCluster, common.title, filterPrefix='on')
+niche.contrastStage <- function( annot.table, indexCluster, common.title)
 {
   stage1.res <- showNiche.multiSample(annot.table[stage1.subgroup], indexCluster, title = paste0(common.title,".stage1"),
-                                      filterPrefix = 'on', plots=F)
+                                      plots=F)
   stage3.res <- showNiche.multiSample(annot.table[stage3.subgroup], indexCluster, title = paste0(common.title,".stage3"),
-                                      filterPrefix = 'on', plots=F)
+                                      plots=F)
   stage1.res$stage <- 'stage1';  stage3.res$stage <- 'stage3'
   res <- rbind(stage1.res, stage3.res)
   res$stage <- factor(res$stage, levels = c("stage3", "stage1"))
   res$subset <- factor(res$subset, levels = levels(stage3.res$subset))
   stableColorsL2.fxn <- stableColorsL2
-  if(filterPrefix == 'on')   # trim color names accordingly
-  {
-    names(stableColorsL2.fxn) <- gsub(pattern = "CD8TOXHI_", replacement = "", x = names(stableColorsL2.fxn ))
-    names(stableColorsL2.fxn) <- gsub(pattern = "CD8TOXLO_", replacement = "", x = names(stableColorsL2.fxn ))
-    names(stableColorsL2.fxn) <- gsub(pattern = "TBMIXED_", replacement = "", x = names(stableColorsL2.fxn ))
-  }
 
   # Create a lighter version of the color palette
   lighter_stableColorsL2.fxn <- sapply(stableColorsL2.fxn, lighten_hex, factor = 0.6) # Adjust factor as needed
@@ -751,21 +827,22 @@ niche.contrastStage <- function( annot.table, indexCluster, common.title, filter
 #   print( round(p.adjust( sapply(res, function(x) { x$p.value }), method="fdr"), digits = 2)) 
 # }
 
-niche.contrastStage( annot.k9, indexCluster = 'TBMIXED_LZ_BCELL', common.title='TBMIXED_LZ_BCELL')
-niche.contrastStage( annot.k9, indexCluster = 'TBMIXED_MIXED_GC_TCELL', common.title='TBMIXED_MIXEDGC_TCELL')
-niche.contrastStage( annot.k9, indexCluster = 'CD8TOXHI_TCF1_HI_TOX_HI_CD8', common.title='CD8TOXHI_TCF1_HI_TOX_HI_CD8')
-niche.contrastStage( annot.k9, indexCluster = 'CD8TOXHI_TCF1_LO_TOX_HI_CD8', common.title='CD8TOXHI_TCF1_LO_TOX_HI_CD8')
+niche.contrastStage( annot.k9, indexCluster = 'LZ_BCELL', common.title='LZ_BCELL')
+niche.contrastStage( annot.k9, indexCluster = 'MIXED_GC_TCELL', common.title='MIXED_GC_TCELL')
+niche.contrastStage( annot.k9, indexCluster = 'TCF1_HI_TOX_HI_CD8', common.title='TCF1_HI_TOX_HI_CD8')
+niche.contrastStage( annot.k9, indexCluster = 'TCF1_LO_TOX_HI_CD8', common.title='TCF1_LO_TOX_HI_CD8')
 
 ```
 
+# contrast stage using cellProxEnrich
 ```{r contrast-stage-using-cellProxEnrich}
+working.dt <- interaction.byStage
 
-working.dt <- copy(interaction.byStage)
-
-delta.pairwise.enrichment<- working.dt %>% group_by(unified_int, stage) %>% summarise(mean = mean(enrichm, na.rm = TRUE), sd = sd(enrichm, na.rm = TRUE), 
-                                                   n_replicates = n()) %>%  ungroup()
+delta.pairwise.enrichment<- working.dt %>% group_by(unified_int, condition) %>% summarise(mean = mean(enrichm, na.rm = TRUE), 
+                                                                                          sd = sd(enrichm, na.rm = TRUE), 
+                                                                                          n_replicates = n()) %>%  ungroup()
 range_of_means <- delta.pairwise.enrichment %>%
-  group_by(unified_int) %>% summarise( range_mean = max(mean, na.rm = TRUE) - min(mean, na.rm = TRUE), n_stages = n_distinct(stage)) 
+  group_by(unified_int) %>% summarise( range_mean = max(mean, na.rm = TRUE) - min(mean, na.rm = TRUE), n_stages = n_distinct(condition)) 
 delta.pairwise.enrichment <- range_of_means[order(range_of_means$range_mean, decreasing = T),]
 delta.pairwise.enrichment$unified_int <- with(delta.pairwise.enrichment, reorder(unified_int, range_mean))
 delta.pairwise.enrichment$rownum <- seq(1:nrow(delta.pairwise.enrichment))
@@ -789,68 +866,229 @@ ggplot(delta.pairwise.enrichment[ !unified_int %like% "Tumor"][1:100], aes(x = r
 
 
 ```
- 
-# activated cd4 t cells 
+
+
+# contrast recurrence using cellProxEnrich
+```{r contrast-recur-using-cellProxEnrich, fig.width=10, fig.height=6}
+
+working.dt <- interaction.byRecur
+
+delta.pairwise.enrichment<- working.dt %>% group_by(unified_int, condition) %>% summarise(mean = mean(enrichm, na.rm = TRUE), 
+                                                                                          sd = sd(enrichm, na.rm = TRUE), 
+                                                                                          n_replicates = n()) %>%  ungroup()
+range_of_means <- delta.pairwise.enrichment %>%
+  group_by(unified_int) %>% summarise( range_mean = max(mean, na.rm = TRUE) - min(mean, na.rm = TRUE), n_stages = n_distinct(condition)) 
+delta.pairwise.enrichment <- range_of_means[order(range_of_means$range_mean, decreasing = T),]
+delta.pairwise.enrichment$unified_int <- with(delta.pairwise.enrichment, reorder(unified_int, range_mean))
+delta.pairwise.enrichment$rownum <- seq(1:nrow(delta.pairwise.enrichment))
+delta.pairwise.enrichment <- as.data.table(delta.pairwise.enrichment)
+delta.pairwise.enrichment <- delta.pairwise.enrichment[ !unified_int %like% "GC_TCELL"]  # leave out the GC-T cell population
+delta.pairwise.enrichment <- removeArtifacts(delta.pairwise.enrichment)
+delta.pairwise.enrichment  # leave out the GC-T cell population
+
+ggplot(delta.pairwise.enrichment, aes(x = rownum, y=range_mean, label=unified_int)) + 
+  geom_point(size=2, pch=21, color="white", size=0.25, alpha=0.5, fill="black") + 
+  ggrepel::geom_text_repel(size=2.5, max.overlaps = 10, segment.color = 'gray60', force=5) + 
+  ggtitle("Changed enrichm between recur vs norecur - all results") + theme_classic() + 
+  theme(axis.text.x = element_blank()) 
+ggplot(delta.pairwise.enrichment[1:100,], aes(x = rownum, y=range_mean, label=unified_int)) + 
+  geom_point(size=2, pch=21, color="white", size=0.25, alpha=0.5, fill="black") + 
+  ggrepel::geom_text_repel(size=2.5, max.overlaps = 7, segment.color = 'gray60', force=20 ) + 
+  ggtitle("Changed enrichm between recur vs norecur - first 100") + theme_classic() + 
+  theme(axis.text.x = element_blank()) 
+ggplot(delta.pairwise.enrichment[ !unified_int %like% "Tumor"][1:100], aes(x = rownum, y=range_mean, label=unified_int)) + 
+  geom_point(size=2, pch=21, color="white", size=0.25, alpha=0.5, fill="black") + 
+  ggrepel::geom_text_repel(size=2.5, max.overlaps = 7, segment.color = 'gray60', force=20 ) + 
+  ggtitle("Changed enrichm between recur vs norecur - exclude tumor") + theme_classic() + 
+  theme(axis.text.x = element_blank()) 
+
+gridExtra::grid.arrange(plot.Average.Niche.igraph(annot.table = annot.k9[norecur.subgroup], 
+                                                  indexCluster = 'TCELL_BCELL_MYELOID_MIXED',
+                      title='TCELL_BCELL_MYELOID_MIXED no.recur'),
+                        plot.Average.Niche.igraph(annot.table = annot.k9[recur.subgroup], 
+                                                  indexCluster = 'TCELL_BCELL_MYELOID_MIXED',
+                      title='TCELL_BCELL_MYELOID_MIXED recur')
+                      , nrow=1) 
+```
+
+
+# activated cd4 t cells by stage
 ```{r explore-activated-cd4, fig.width=10, fig.height=6}
-niche.contrastStage( annot.k9, indexCluster = 'CD4FOXP3LO_ACTIVATED_MEMORY_CD4', common.title='CD4FOXP3LO_ACTIVATED_MEMORY_CD4')
-delta.pairwise.enrichment[unified_int %like% "CD4FOXP3LO_ACTIVATED_MEMORY_CD4"]
+niche.contrastStage( annot.k9, indexCluster = 'ACTIVATED_MEMORY_CD4', common.title='ACTIVATED_MEMORY_CD4')
+delta.pairwise.enrichment[unified_int %like% "ACTIVATED_MEMORY_CD4"]
 
-a <- plot.Average.Niche(annot.table = annot.k9[stage1.subgroup], indexCluster = 'CD4FOXP3LO_ACTIVATED_MEMORY_CD4',
-                      title='CD4FOXP3LO_ACTIVATED_MEMORY_CD4 stage 1')
-b <- plot.Average.Niche(annot.table = annot.k9[stage3.subgroup], indexCluster = 'CD4FOXP3LO_ACTIVATED_MEMORY_CD4',
-                      title='CD4FOXP3LO_ACTIVATED_MEMORY_CD4 stage 3')
+a <- plot.Average.Niche.igraph(annot.table = annot.k9[stage1.subgroup], indexCluster = 'ACTIVATED_MEMORY_CD4',
+                      title='ACTIVATED_MEMORY_CD4 stage 1')
+b <- plot.Average.Niche.igraph(annot.table = annot.k9[stage3.subgroup], indexCluster = 'ACTIVATED_MEMORY_CD4',
+                      title='ACTIVATED_MEMORY_CD4 stage 3')
 gridExtra::grid.arrange(a,b, nrow=1) 
 
 
 ```
 
-# activated cd8 t cells
+# activated cd8 t cells by stage
 ```{r explore-activated-cd8, fig.width=10, fig.height=6}
-niche.contrastStage( annot.k9, indexCluster = 'CD8TOXLO_ACTIVATED_MEMORY_CD8', common.title='CD8TOXLO_ACTIVATED_MEMORY_CD8')
-delta.pairwise.enrichment[unified_int %like% "CD8TOXLO_ACTIVATED_MEMORY_CD8"]
+niche.contrastStage( annot.k9, indexCluster = 'ACTIVATED_MEMORY_CD8', common.title='ACTIVATED_MEMORY_CD8')
+delta.pairwise.enrichment[unified_int %like% "ACTIVATED_MEMORY_CD8"]
 
-a <- plot.Average.Niche(annot.table = annot.k9[stage1.subgroup], indexCluster = 'CD8TOXLO_ACTIVATED_MEMORY_CD8',
-                      title='CD8TOXLO_ACTIVATED_MEMORY_CD8 stage 1')
-b <- plot.Average.Niche(annot.table = annot.k9[stage3.subgroup], indexCluster = 'CD8TOXLO_ACTIVATED_MEMORY_CD8',
-                      title='CD8TOXLO_ACTIVATED_MEMORY_CD8 stage 3')
+a <- plot.Average.Niche.igraph(annot.table = annot.k9[stage1.subgroup], indexCluster = 'ACTIVATED_MEMORY_CD8',
+                      title='ACTIVATED_MEMORY_CD8 stage 1')
+b <- plot.Average.Niche.igraph(annot.table = annot.k9[stage3.subgroup], indexCluster = 'ACTIVATED_MEMORY_CD8',
+                      title='ACTIVATED_MEMORY_CD8 stage 3')
 gridExtra::grid.arrange(a,b, nrow=1) 
 
 
 ```
 
-# Treg-ICOSlo  
+# Treg-ICOSlo by stage
 ```{r explore-treg, fig.width=10, fig.height=6}
-niche.contrastStage( annot.k9, indexCluster = 'CD4FOXP3HI_ICOS_LO_TREG', common.title='CD4FOXP3HI_ICOS_LO_TREG')
-delta.pairwise.enrichment[unified_int %like% "CD4FOXP3HI_ICOS_LO_TREG"]
+niche.contrastStage( annot.k9, indexCluster = 'ICOS_LO_TREG', common.title='ICOS_LO_TREG')
+delta.pairwise.enrichment[unified_int %like% "ICOS_LO_TREG"]
 
-a <- plot.Average.Niche(annot.table = annot.k9[stage1.subgroup], indexCluster = 'CD4FOXP3HI_ICOS_LO_TREG',
-                      title='CD4FOXP3HI_ICOS_LO_TREG stage 1')
-b <- plot.Average.Niche(annot.table = annot.k9[stage3.subgroup], indexCluster = 'CD4FOXP3HI_ICOS_LO_TREG',
-                      title='CD4FOXP3HI_ICOS_LO_TREG stage 3')
+a <- plot.Average.Niche.igraph(annot.table = annot.k9[stage1.subgroup], indexCluster = 'ICOS_LO_TREG',
+                      title='ICOS_LO_TREG stage 1')
+b <- plot.Average.Niche.igraph(annot.table = annot.k9[stage3.subgroup], indexCluster = 'ICOS_LO_TREG',
+                      title='ICOS_LO_TREG stage 3')
 gridExtra::grid.arrange(a,b, nrow=1) 
 
 ```
 
-# Treg-Activated  
-```{r explore-treg, fig.width=10, fig.height=6}
-niche.contrastStage( annot.k9, indexCluster = 'CD4FOXP3HI_ACTIVATED_TREG', common.title='CD4FOXP3HI_ACTIVATED_TREG')
-delta.pairwise.enrichment[unified_int %like% "CD4FOXP3HI_ACTIVATED_TREG"]
+# Treg-Activated by stage
+```{r explore-tregActivated, fig.width=10, fig.height=6}
+niche.contrastStage( annot.k9, indexCluster = 'ACTIVATED_TREG', common.title='ACTIVATED_TREG')
+delta.pairwise.enrichment[unified_int %like% "ACTIVATED_TREG"]
 
-a <- plot.Average.Niche(annot.table = annot.k9[stage1.subgroup], indexCluster = 'CD4FOXP3HI_ACTIVATED_TREG',
-                      title='CD4FOXP3HI_ACTIVATED_TREG stage 1')
-b <- plot.Average.Niche(annot.table = annot.k9[stage3.subgroup], indexCluster = 'CD4FOXP3HI_ACTIVATED_TREG',
-                      title='CD4FOXP3HI_ACTIVATED_TREG stage 3')
+a <- plot.Average.Niche.igraph(annot.table = annot.k9[stage1.subgroup], indexCluster = 'ACTIVATED_TREG',
+                      title='ACTIVATED_TREG stage 1')
+b <- plot.Average.Niche.igraph(annot.table = annot.k9[stage3.subgroup], indexCluster = 'ACTIVATED_TREG',
+                      title='ACTIVATED_TREG stage 3')
 gridExtra::grid.arrange(a,b, nrow=1) 
 
 ```
 
-```{r contrast-Treg-populations}
+
+ 
+# MIXED_GC_TCELL by recur
+```{r explore-activated-cd4-by-recur, fig.width=10, fig.height=6}
+niche.contrastStage( annot.k9, indexCluster = 'MIXED_GC_TCELL', common.title='MIXED_GC_TCELL')
+delta.pairwise.enrichment[unified_int %like% "MIXED_GC_TCELL"]
+
+a <- plot.Average.Niche.igraph(annot.table = annot.k9[recur.subgroup], indexCluster = 'MIXED_GC_TCELL',
+                      title='MIXED_GC_TCELL recur')
+b <- plot.Average.Niche.igraph(annot.table = annot.k9[norecur.subgroup], indexCluster = 'MIXED_GC_TCELL',
+                      title='MIXED_GC_TCELL norecur')
+gridExtra::grid.arrange(a,b, nrow=1) 
+
 
 ```
 
+# locate cells that exist in a given neighborhood 
+```{r finding-example-cells-for-neighborhood}
+defineNeighborhoods <- function( annot.list)
+{
+  list_ID <- names(annot.list)
+  res <- list()
+  copymatrix <- list()
+  for (i in list_ID)
+  { 
+    print(paste0("pass 1: ", i))
+    neighborhood.matrix <- annot.list[[i]][, .N, by = .(from, to_cell_type, from_cell_type)] %>% 
+      dcast(from + from_cell_type ~ to_cell_type, value.var= 'N', fill=0)  # count the cell types and make a wide data frame 
+    neighborhood.matrix[, c('ARTIFACT', 'CD4.outlier', 'CD8.outlier'):= NULL]
+    copymatrix[[i]] <- neighborhood.matrix
+  }
+  for (i in list_ID)
+  { 
+    print(paste0("pass 2: ", i))
+    working.dt <- copy(copymatrix[[i]])
+    id_cols <- c("from", "from_cell_type")
+    count_cols <- setdiff(names(working.dt), id_cols)
+    
+    # 2. Calculate the total for each row and add it as a new column
+    working.dt[, row_total := rowSums(.SD), .SDcols = count_cols]
+    
+    # 3. Divide each count column by the row_total to get the proportion
+    #    We loop through the count columns and update them "by reference"
+    working.dt[, (count_cols) := lapply(.SD, function(x) x / row_total), .SDcols = count_cols]
+    
+    # 4. (Optional) Remove the temporary 'row_total' column
+    working.dt[, row_total := NULL]
+    res[[i]] <- working.dt
+  } 
+  return( list(prop.table=res, raw.table=copymatrix, list_ID=list_ID)) 
+}
+
+neighborhoods <- defineNeighborhoods(annot.k9)
+gc()
+
+exampleNeighborhoods.filter <- function(res.list, indexCluster, chooseNeighbor, threshold)
+{  
+  filterList <- list()
+  list_ID <- res.list[['list_ID']]
+  res.list <- res.list[['prop.table']]
+  for (i in list_ID)    { filterList[[i]] <- res.list[[i]][from_cell_type == indexCluster & get(chooseNeighbor) > threshold]    }
+  return( rbindlist(filterList)  )
+}
+  
+a <- exampleNeighborhoods.filter(neighborhoods, indexCluster = "LZ_BCELL", chooseNeighbor = "LZ_BCELL", threshold=0.2)
+# write.csv(a, file = "LZ_BCELL.filtered.by.LZ_BCELL_over0.2.csv")
+a <- exampleNeighborhoods.filter(neighborhoods, indexCluster = "LZ_BCELL", chooseNeighbor = "PC", threshold=0.2)
+# write.csv(a, file = "LZ_BCELL.filtered.by.PC_over0.2.csv")
 
 
+```
 
+# cluster neighborhoods by kmeans
+
+The goal is to see patterns in the neighborhoods around individual cells. Could consider this at two different levels. 
+1. there might be neighborhood patterns that are irrespective of what cell is in the middle of the neighborhood
+  though this is of unclear utility. it's a feature arising from the data but interpretation is hard. will take a long time to calculate
+2. neighborhood patterns might be more interesting to consider at level of individual cell type.  
+```{r neighborhoods-by-kmeans-global, eval=F}
+# matrix.data = (neighborhoods[['raw.table']][['ctrl.1']])[, 3:35]
+# kvalues <- 1:20
+# wss_values <- sapply(kvalues, function(k) {  kmeans(matrix.data, centers = k)$tot.withinss   })
+# 
+# # Create a data frame for plotting
+# elbow_data <- data.frame(k = kvalues, wss = wss_values )
+# 
+# # Plot the elbow curve using ggplot2
+# ggplot(elbow_data, aes(x = k, y = wss)) +
+#   geom_line(linewidth = 1) + geom_point(size = 3) + 
+#   labs( title = "Elbow Method for Optimal k", x = "Number of Clusters (k)", y = "Total Within-Cluster Sum of Squares (WSS)") +
+#   theme_minimal()
+
+
+# kmeans.res.global <- kmeans( x = rbindlist(neighborhoods[['raw.table']])[, 3:35], centers=7, nstart=25)
+matrix.data = rbindlist(neighborhoods[['raw.table']])[from_cell_type == 'LZ_BCELL', 3:35]
+
+# factoextra::fviz_nbclust(matrix.data[sample(nrow(matrix.data), size = 1e4, replace = F)], kmeans, method = "wss") + 
+#   labs(subtitle = "Elbow plot")  # doen't work for 300k cells
+# kmeans.res.LZB <- kmeans( x = matrix.data, centers=7, nstart=25)
+
+# factoextra::fviz_cluster(object = kmeans.res.LZB, data = matrix.data, geom = "point", ellipse.type = "convex", ggtheme = theme_bw() )  # looks crummy, not well separated at all on PCA plot 
+umap.out <- uwot::umap(matrix.data[sample(.N, size = 3e4)], n_neighbors = 7)
+# plot.df <- as.data.table(cbind(umap.out, as.factor(kmeans.res.LZB$cluster)))
+plot.df <- as.data.table(umap.out)
+names(plot.df)[1:2] <- c('UMAP1', 'UMAP2')
+# ggplot(plot.df[sample(nrow(plot.df),size=5e4, replace=F)], aes(x = UMAP1, y = UMAP2, fill = kmeans.cluster)) + scale_fill_viridis_b() + 
+#   geom_point(size = 1, alpha = 0.3, pch=21, color='grey70') + labs(title = "UMAP Plot of K-Means Clusters",color = "Cluster" ) + theme_bw()
+# i guess kmeans is wrong for this kind of data 
+ 
+plot.df$db.clusters <- dbscan(plot.df[,1:2], eps = 1.2, minPts = 20)$cluster
+ggplot(plot.df[sample(.N, size=1e4)], aes(x = UMAP1, y = UMAP2, fill = db.clusters)) + scale_fill_viridis_b() + 
+  geom_density_2d(color='grey60', alpha=0.5) + 
+  geom_point(size = 1, alpha = 0.3, pch=21, color='grey70') + labs(title = "UMAP Plot of Clusters", color = "Cluster" ) + theme_bw()
+
+nngraph <- dbscan::sNN(matrix.data, k = 15)
+# Convert to an igraph object
+graph_obj <- igraph::graph_from_edgelist(as.matrix( nngraph$id), directed = FALSE)
+
+# 2. Run Leiden clustering
+leiden_clusters <- leidenAlg::leiden.community(nngraph) # Tune resolution
+
+
+```
 
 
 # plot as individual biological replicates 
@@ -885,7 +1123,7 @@ significant.Neighbors.acrossStage <- function( data, interacting.partner)
   print( round(p.adjust( sapply(res, function(x) { x$p.value }), method="fdr"), digits = 2)) 
 }
 
-significant.Neighbors.acrossStage(data = interaction.byStage, interacting.partner = 'CD8TOXHI_TCF1_HI_TOX_HI_CD8')
+significant.Neighbors.acrossStage(data = interaction.byStage, interacting.partner = 'TCF1_HI_TOX_HI_CD8')
 
 
 ```
@@ -894,7 +1132,7 @@ significant.Neighbors.acrossStage(data = interaction.byStage, interacting.partne
 # show a radial plot of contrast of neighborhoods 
 ```{r show-average-neighborhood-contrast-stage3vs1, eval = FALSE}
 intxn.index.s3 <- y[ , .(left.stage3, right.stage3, original.stage3) ]
-tcfloCD8.s3 <- filterIntxn(simpleIntxnTable = intxn.index.s3[left.stage3 == 'CD8TOXHI_TCF1_LO_TOX_HI_CD8'], title='CD8+Tox+Tcf-')
+tcfloCD8.s3 <- filterIntxn(simpleIntxnTable = intxn.index.s3[left.stage3 == 'TCF1_LO_TOX_HI_CD8'], title='CD8+Tox+Tcf-')
 tcfloCD8.s3$left.stage3 <- paste0(tcfloCD8.s3$left.stage3, ".s3")
 names(tcfloCD8.s1) <- names(tcfloCD8.s3)
 
@@ -1024,65 +1262,14 @@ write.csv(stage3$enrichm_res, file = "cellProximityHeatmap.stage3.csv")
 ```
 
 
-# interaction changed genes
-```{r Interaction-changed-genes}
-gd = fDataDT(sln)
-
-# high_expressed_genes = gd[mean_expr_det > quantile(gd$mean_expr_det)[4]]$feat_ID
-
-## identify genes that are associated with proximity to other cell types
-# ICGscoresHighGenes = findInteractionChangedFeats(gobject = sln, selected_feats = gd$feat_ID,
-#                                                  spatial_network_name = "knn_network", cluster_column = 'L1_annotations',
-#                                                  diff_test = 'permutation', adjust_method = 'fdr',
-#                                                  nr_permutations = 200, do_parallel = T)
-# ## visualize
-# plotCellProximityGenes(sln, cpgObject = ICGscoresHighGenes, method = 'dotplot')
-
-md <- pDataDT(sln); 
-keepCells <- subset(md, list_ID %in% c("tumor.1","tumor.2","tumor.3","tumor.4","tumor.5","tumor.6","tumor.7", "tumor.8",
-                                                 "tumor.9","tumor.10"))
-keepCells <- subset(keepCells, cell_ID %in% sample(keepCells$cell_ID, 3e5))$cell_ID
-sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
-gd = fDataDT(sln.sm)
-date()
-## identify genes that are associated with proximity to other cell types
-ICGscores.L1 = findInteractionChangedFeats(gobject = sln.sm, selected_feats = gd$feat_ID,
-                                                 spatial_network_name = "spatialknn.k5", cluster_column = 'L1_annotations',
-                                                 diff_test = 'permutation', adjust_method = 'fdr',
-                                                 nr_permutations = 200, do_parallel = F)
-ICGscores.L2 = findInteractionChangedFeats(gobject = sln.sm, selected_feats = gd$feat_ID,
-                                                 spatial_network_name = "spatialknn.k5", cluster_column = 'L2_annotations',
-                                                 diff_test = 'permutation', adjust_method = 'fdr',
-                                                 nr_permutations = 200, do_parallel = F)
-saveRDS(object = list(ICGscores.L1 = ICGscores.L1, ICGscores.L2 = ICGscores.L2), 
-        file = "neighborhood.ICGlist.s3.sln.clustering5.annot.spatnet.RDS"); date()  # took 6 hours at 300 permutations each 
 
 
-md <- pDataDT(sln); 
-keepCells <- subset(md, list_ID %in% c("ctrl.1","ctrl.2","ctrl.3","ctrl.4","ctrl.5"))
-keepCells <- subset(keepCells, cell_ID %in% sample(keepCells$cell_ID, 3e5))$cell_ID
-sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
-gd = fDataDT(sln.sm)
-date()
-## identify genes that are associated with proximity to other cell types
-ICGscores.L1 = findInteractionChangedFeats(gobject = sln.sm, selected_feats = gd$feat_ID,
-                                                 spatial_network_name = "spatialknn.k5", cluster_column = 'L1_annotations',
-                                                 diff_test = 'permutation', adjust_method = 'fdr',
-                                                 nr_permutations = 200, do_parallel = F)
-ICGscores.L2 = findInteractionChangedFeats(gobject = sln.sm, selected_feats = gd$feat_ID,
-                                                 spatial_network_name = "spatialknn.k5", cluster_column = 'L2_annotations',
-                                                 diff_test = 'permutation', adjust_method = 'fdr',
-                                                 nr_permutations = 200, do_parallel = F)
-saveRDS(object = list(ICGscores.L1 = ICGscores.L1, ICGscores.L2 = ICGscores.L2), 
-        file = "neighborhood.ICGlist.s1.sln.clustering5.annot.spatnet.RDS"); date()
+```{r Interaction-changed-genes-byCircosPlot, fig.width=10, fig.retina=2, eval=FALSE}
 
 
 df.icg <- readRDS("neighborhood.ICGlist.s3.sln.clustering5.annot.spatnet.RDS")[[2]][['ICFscores']] # ICGscores.L2
 df.icg.fil <- df.icg[ p.adj<0.01 & cell_type == 'CD8TOXHI_TCF1_HI_TOX_HI_CD8']
-```
 
-
-```{r Interaction-changed-genes-byCircosPlot, fig.width=10, fig.retina=2, eval=FALSE}
 pair_counts <- df.icg[p.adj < 0.1, .N, by = .(cell_type, int_cell_type)] # .N is a special data.table symbol that gives the number of rows in each group
 pair_counts <- pair_counts[N > 1]
 single.space <- c(rep(1, length(unique(pair_counts$cell_type)))); names(single.space) <- unique(pair_counts$cell_type)
