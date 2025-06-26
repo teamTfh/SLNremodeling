@@ -37,7 +37,7 @@ knitr::opts_chunk$set(fig.retina = 2)
 sessionInfo()
 
 #  ****** libraries to install 
-library(factoextra)
+# library(factoextra)
 
 ```
 
@@ -55,51 +55,8 @@ norecur.subgroup <- c("tumor.1","tumor.2", "tumor.6")
 ```
 
 
-# interaction changed genes
-```{r Interaction-changed-genes}
-# md <- pDataDT(sln)
-keepCells <- subset(md, list_ID %in% c("tumor.1","tumor.2","tumor.3","tumor.4","tumor.5","tumor.6","tumor.7", "tumor.8",
-                                                 "tumor.9","tumor.10"))
-keepCells <- subset(keepCells, cell_ID %in% sample(keepCells$cell_ID, 3e5))$cell_ID
-sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
-gd = fDataDT(sln.sm)
-date()
-## identify genes that are associated with proximity to other cell types
-ICGscores.L1 = findInteractionChangedFeats(gobject = sln.sm, selected_feats = gd$feat_ID,
-                                                 spatial_network_name = "spatialknn.k5", cluster_column = 'L1_annotations',
-                                                 diff_test = 'permutation', adjust_method = 'fdr',
-                                                 nr_permutations = 200, do_parallel = F)
-ICGscores.L2 = findInteractionChangedFeats(gobject = sln.sm, selected_feats = gd$feat_ID,
-                                                 spatial_network_name = "spatialknn.k5", cluster_column = 'L2_annotations',
-                                                 diff_test = 'permutation', adjust_method = 'fdr',
-                                                 nr_permutations = 200, do_parallel = F)
-saveRDS(object = list(ICGscores.L1 = ICGscores.L1, ICGscores.L2 = ICGscores.L2), 
-        file = "neighborhood.ICGlist.s3.sln.clustering5.annot.spatnet.RDS"); date()  # took 6 hours at 300 permutations each 
-
-
-# md <- pDataDT(sln); 
-keepCells <- subset(md, list_ID %in% c("ctrl.1","ctrl.2","ctrl.3","ctrl.4","ctrl.5"))
-keepCells <- subset(keepCells, cell_ID %in% sample(keepCells$cell_ID, 3e5))$cell_ID
-sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
-gd = fDataDT(sln.sm)
-date()
-## identify genes that are associated with proximity to other cell types
-ICGscores.L1 = findInteractionChangedFeats(gobject = sln.sm, selected_feats = gd$feat_ID,
-                                                 spatial_network_name = "spatialknn.k5", cluster_column = 'L1_annotations',
-                                                 diff_test = 'permutation', adjust_method = 'fdr',
-                                                 nr_permutations = 200, do_parallel = F)
-ICGscores.L2 = findInteractionChangedFeats(gobject = sln.sm, selected_feats = gd$feat_ID,
-                                                 spatial_network_name = "spatialknn.k5", cluster_column = 'L2_annotations',
-                                                 diff_test = 'permutation', adjust_method = 'fdr',
-                                                 nr_permutations = 200, do_parallel = F)
-saveRDS(object = list(ICGscores.L1 = ICGscores.L1, ICGscores.L2 = ICGscores.L2), 
-        file = "neighborhood.ICGlist.s1.sln.clustering5.annot.spatnet.RDS"); date()
-
-```
-
-
 # calculate proximity enrichment per sample for k=5
-```{r custom-cellproxEnrich-function-k5}
+```{r cellproxEnrich-function-k5}
 cellProx.sim <- function(gobject, spat_unit = NULL, feat_type = NULL, spatial_network_name="spatialknn.k5", 
                          #spatial_network_name = "Delaunay_network",
     cluster_column, number_of_simulations = 1000, 
@@ -387,7 +344,7 @@ for (i in list_ID)
                                        number_of_simulations = 200, spatial_network_name = "spatialknn.k9.persample")
 }
 
-saveRDS(list(annot.k9 = annot.k9, tableResults.k9 = tableResults.k9), file="neighborhood.annot.k9.l3.sln.RDS")  # all data merged
+saveRDS(list(annot.k9 = annot.k9, tableResults.k9 = tableResults.k9), file="neighborhood.annot.k9.L3.sln.RDS")  # all data merged
 
 annot.k9 <- readRDS(file="neighborhood.annot.k9.sln.RDS")[['annot.k9']]  #  read in L2 annotations 
 dt <- purrr::list_rbind(readRDS(file="neighborhood.annot.k9.sln.RDS")[['tableResults.k9']], names_to = "id")
@@ -467,6 +424,93 @@ interaction.byStage <- rbind(addLabels.fxn(perSampleInteraction.enrichm_res[stag
 interaction.byRecur <- rbind(addLabels.fxn(perSampleInteraction.enrichm_res[recur.subgroup], label = "recur"),
              addLabels.fxn(perSampleInteraction.enrichm_res[norecur.subgroup], label = "no.recur") ) 
 ```
+
+# find all neighborhoods within a fixed radius around the cell 
+```{r neighborhoods-by-fixed-radius}
+
+gc()
+
+tableResults.rad <- list()
+annot.radius <- list()
+for (i in list_ID)
+{
+  print(i)
+  keepCells <- subset(md, list_ID %in% i )$cell_ID
+  sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
+  sln.sm <- createSpatialKNNnetwork(sln.sm, k=50, maximum_distance = 15, verbose=T, name = "spatialknn.radius.persample")
+  annot.radius[[i]] <- annotateSpatialNetwork(sln.sm, cluster_column = "L2_annotations", spatial_network_name = 'spatialknn.radius.persample')
+  tableResults.rad[[i]] <- cellProx.sim(sln.sm, cluster_column = 'L2_annotations', adjust_method = "fdr",
+                                       number_of_simulations = 200, spatial_network_name = "spatialknn.radius.persample")
+}
+saveRDS(list(annot.radius = annot.radius, tableResults.rad = tableResults.rad), file="neighborhood.annot.radius.sln.RDS")  # all data merged
+
+```
+
+
+
+# interaction changed genes
+```{r Interaction-changed-genes}
+# md <- pDataDT(sln)
+keepCells <- subset(md, list_ID %in% stage3.subgroup)
+keepCells <- subset(keepCells, cell_ID %in% sample(keepCells$cell_ID, 3e5))$cell_ID
+sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
+gd = fDataDT(sln.sm)
+date()
+## identify genes that are associated with proximity to other cell types
+ICGscores.L2 = findInteractionChangedFeats(gobject = sln.sm, selected_feats = gd$feat_ID,
+                                                 spatial_network_name = "spatialknn.k5", cluster_column = 'L2_annotations',
+                                                 diff_test = 'permutation', adjust_method = 'fdr',
+                                                 nr_permutations = 200, do_parallel = F)
+saveRDS(object = ICGscores.L2, 
+        file = "neighborhood.ICGlist.s3.sln.clustering5.annot.spatnet.RDS"); date()  # took 6 hours at 300 permutations each 
+
+
+keepCells <- subset(md, list_ID %in% stage1.subgroup)
+keepCells <- subset(keepCells, cell_ID %in% sample(keepCells$cell_ID, 3e5))$cell_ID
+sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
+gd = fDataDT(sln.sm)
+date()
+## identify genes that are associated with proximity to other cell types
+ICGscores.L2 = findInteractionChangedFeats(gobject = sln.sm, selected_feats = gd$feat_ID,
+                                                 spatial_network_name = "spatialknn.k5", cluster_column = 'L2_annotations',
+                                                 diff_test = 'permutation', adjust_method = 'fdr',
+                                                 nr_permutations = 200, do_parallel = F)
+saveRDS(object = ICGscores.L2, 
+        file = "neighborhood.ICGlist.s1.sln.clustering5.annot.spatnet.RDS"); date()
+
+
+
+keepCells <- subset(md, list_ID %in% recur.subgroup)
+keepCells <- subset(keepCells, cell_ID %in% sample(keepCells$cell_ID, 3e5))$cell_ID
+sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
+gd = fDataDT(sln.sm)
+date()
+## identify genes that are associated with proximity to other cell types
+ICGscores.L2 = findInteractionChangedFeats(gobject = sln.sm, selected_feats = gd$feat_ID,
+                                                 spatial_network_name = "spatialknn.k5", cluster_column = 'L2_annotations',
+                                                 diff_test = 'permutation', adjust_method = 'fdr',
+                                                 nr_permutations = 200, do_parallel = F)
+saveRDS(object = ICGscores.L2, 
+        file = "neighborhood.ICGlist.recur.sln.clustering5.annot.spatnet.RDS"); date()
+
+
+
+keepCells <- subset(md, list_ID %in% norecur.subgroup)
+keepCells <- subset(keepCells, cell_ID %in% sample(keepCells$cell_ID, 3e5))$cell_ID
+sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
+gd = fDataDT(sln.sm)
+date()
+## identify genes that are associated with proximity to other cell types
+ICGscores.L2 = findInteractionChangedFeats(gobject = sln.sm, selected_feats = gd$feat_ID,
+                                                 spatial_network_name = "spatialknn.k5", cluster_column = 'L2_annotations',
+                                                 diff_test = 'permutation', adjust_method = 'fdr',
+                                                 nr_permutations = 200, do_parallel = F)
+saveRDS(object = ICGscores.L2, 
+        file = "neighborhood.ICGlist.norecur.sln.clustering5.annot.spatnet.RDS"); date()
+
+```
+
+
 
 # finish processing of subgroups at a summary level
 ```{r interact-with-pairwise-enrichment, eval=FALSE}
@@ -1026,7 +1070,8 @@ gridExtra::grid.arrange(plot.Average.Niche.igraph(annot.table = annot.k9[stage1.
                       title='ACTIVATED_TREG stage 3'), 
                       nrow=1) 
 
-a <- niche.contrastStage( annot.k9, indexCluster = 'ACTIVATED_TREG', common.title='ACTIVATED_TREG')
+a <- niche.contrast( annot.k9, indexCluster = 'ACTIVATED_TREG', common.title='ACTIVATED_TREG' , grouping.exp = stage3.subgroup, 
+               grouping.ctrl = stage1.subgroup, condition.exp = "stage3", condition.ctrl = 'stage1')
 
 a[subset == 'MEMORY_CD8'] %>% group_by(stage) %>% rstatix::get_summary_stats(show=c("n", "mean", "sd", "median"))
 a[subset == 'MEMORY_CD8'] %>% rstatix::wilcox_test(formula = proportion ~ stage)
@@ -1052,8 +1097,6 @@ gridExtra::grid.arrange(plot.Average.Niche.igraph(annot.table = annot.k9[norecur
                       plot.Average.Niche.igraph(annot.table = annot.k9[recur.subgroup], indexCluster = 'TCF1_HI_TOX_HI_CD8',
                       title='TCF1_HI_TOX_HI_CD8 recurrence'), 
                       nrow=1) 
-# a <- niche.contrastStage( annot.k9, indexCluster = 'ACTIVATED_TREG', common.title='ACTIVATED_TREG')
-# b <- niche.contrastStage( annot.k9, indexCluster = 'TCF1_HI_TOX_HI_CD8', common.title='TCF1_HI_TOX_HI_CD8')
 
 a <- niche.contrast(annot.table = annot.k9, indexCluster = 'ACTIVATED_TREG', common.title='ACTIVATED_TREG', grouping.exp = recur.subgroup, 
                grouping.ctrl = norecur.subgroup, condition.exp = 'recur', condition.ctrl = 'no.recur')
@@ -1064,6 +1107,15 @@ a[subset == 'ACTIVATED_TREG'] %>% group_by(stage) %>% rstatix::get_summary_stats
 a[subset == 'ACTIVATED_TREG'] %>% rstatix::wilcox_test(formula = proportion ~ stage)
 
 ```
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1347,17 +1399,18 @@ date()
 
 
 
-Job ID: 63949935
+seff 233115
+Job ID: 233115
 Cluster: slurm_cluster
 User/Group: heratr01/heratr01
 State: COMPLETED (exit code 0)
 Nodes: 1
 Cores per node: 10
-CPU Utilized: 02:56:58
-CPU Efficiency: 12.36% of 23:51:20 core-walltime
-Job Wall-clock time: 02:23:08
-Memory Utilized: 329.74 GB
-Memory Efficiency: 65.95% of 500.00 GB
+CPU Utilized: 08:33:29
+CPU Efficiency: 11.46% of 3-02:42:10 core-walltime
+Job Wall-clock time: 07:28:13
+Memory Utilized: 329.63 GB
+Memory Efficiency: 65.93% of 500.00 GB
 
 
 
