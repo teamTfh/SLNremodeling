@@ -32,6 +32,7 @@ library(dbscan)
 library(dplyr); library(leidenAlg)
 library(ComplexHeatmap)
 library(circlize)
+library(dplyr); library(tidyr)
 set.seed(43)
 knitr::opts_chunk$set(fig.retina = 2)
 sessionInfo()
@@ -385,9 +386,6 @@ cellProx.subgroup <- function(dt)
 stage3 <- cellProx.subgroup(subset(dt, id %in% stage3.subgroup))
 stage1 <- cellProx.subgroup(subset(dt, id %in% stage1.subgroup ))
 
-x <- list(stage1 = stage1, stage3=stage3)
-# saveRDS(x, file="neighborhood.x.sln.RDS")  # all data merged 
-
 recur <- cellProx.subgroup(subset(dt, id %in% c("tumor.3","tumor.4","tumor.5","tumor.7","tumor.8","tumor.10")))
 no.recur <- cellProx.subgroup(subset(dt, id %in% c("tumor.1","tumor.2", "tumor.6") ))
 
@@ -423,7 +421,9 @@ interaction.byStage <- rbind(addLabels.fxn(perSampleInteraction.enrichm_res[stag
              addLabels.fxn(perSampleInteraction.enrichm_res[stage1.subgroup], label = "stage1") ) 
 interaction.byRecur <- rbind(addLabels.fxn(perSampleInteraction.enrichm_res[recur.subgroup], label = "recur"),
              addLabels.fxn(perSampleInteraction.enrichm_res[norecur.subgroup], label = "no.recur") ) 
+
 ```
+
 
 # find all neighborhoods within a fixed radius around the cell 
 ```{r neighborhoods-by-fixed-radius}
@@ -443,6 +443,43 @@ for (i in list_ID)
                                        number_of_simulations = 200, spatial_network_name = "spatialknn.radius.persample")
 }
 saveRDS(list(annot.radius = annot.radius, tableResults.rad = tableResults.rad), file="neighborhood.annot.radius.sln.RDS")  # all data merged
+annot.rad <- readRDS(file="neighborhood.annot.radius.sln.RDS")[['annot.radius']]  #  read in L2 annotations 
+
+
+```
+
+
+```{r interaction-by-sample-radius}
+
+dt <- purrr::list_rbind(readRDS(file="neighborhood.annot.radius.sln.RDS")[['tableResults.rad']], names_to = "id")
+
+stage3 <- cellProx.subgroup(subset(dt, id %in% stage3.subgroup))
+stage1 <- cellProx.subgroup(subset(dt, id %in% stage1.subgroup ))
+
+recur <- cellProx.subgroup(subset(dt, id %in% c("tumor.3","tumor.4","tumor.5","tumor.7","tumor.8","tumor.10")))
+no.recur <- cellProx.subgroup(subset(dt, id %in% c("tumor.1","tumor.2", "tumor.6") ))
+
+sampleList <- unique(md$list_ID)
+perSampleInteraction <- list()
+for (i in seq_along(sampleList))
+{
+  print( paste("Interactions for sample", sampleList[i]) )
+  perSampleInteraction[[i]] <- cellProx.subgroup(subset(dt, id %in% sampleList[i]))  # format in a per-sample fashion 
+  perSampleInteraction[[i]]$name <- subset(dt, id %in% sampleList[i])$id[1]   # carry forward the sample name 
+  names(perSampleInteraction)[i] <-  subset(dt, id %in% sampleList[i])$id[1]
+}
+
+perSampleInteraction.enrichm_res <- list()
+for (i in seq_along(perSampleInteraction))
+{
+  perSampleInteraction.enrichm_res[[i]] <- perSampleInteraction[[i]]$enrichm_res  # save the enrichm results table 
+  names(perSampleInteraction.enrichm_res)[i] <- names(perSampleInteraction)[i]
+}
+
+interaction.byStage.rad <- rbind(addLabels.fxn(perSampleInteraction.enrichm_res[stage3.subgroup], label = "stage3"),
+             addLabels.fxn(perSampleInteraction.enrichm_res[stage1.subgroup], label = "stage1") ) 
+interaction.byRecur.rad <- rbind(addLabels.fxn(perSampleInteraction.enrichm_res[recur.subgroup], label = "recur"),
+             addLabels.fxn(perSampleInteraction.enrichm_res[norecur.subgroup], label = "no.recur") ) 
 
 ```
 
@@ -627,7 +664,7 @@ showNiche.multiSample <- function(annot.table, indexCluster, title,  plots=T, pa
   {  
     library(future.apply)
     res_list <- future_lapply(IDlist, function(i) {
-      single_res <- showNiche.singleSample( annot.table = annot.k9[[i]], indexCluster = indexCluster, title = title, plots = F )
+      single_res <- showNiche.singleSample( annot.table = annot.table[[i]], indexCluster = indexCluster, title = title, plots = F )
       single_res$list_ID <- i    # name by list_ID
       return(single_res)
     }, future.seed = TRUE) # future.seed = TRUE is crucial for reproducible results!
@@ -637,7 +674,7 @@ showNiche.multiSample <- function(annot.table, indexCluster, title,  plots=T, pa
   {  
     for (i in IDlist)
     {
-      res[[i]] <- showNiche.singleSample(annot.table = annot.k9[[i]], indexCluster = indexCluster,
+      res[[i]] <- showNiche.singleSample(annot.table = annot.table[[i]], indexCluster = indexCluster,
                                          title=title, plots=F )  # return per-sample proportions
       res[[i]]$list_ID <- i  # name by list_ID
     }
@@ -827,6 +864,8 @@ a <- exampleNeighborhoods.filter(neighborhoods, indexCluster = "LZ_BCELL", choos
 # write.csv(a, file = "LZ_BCELL.filtered.by.LZ_BCELL_over0.2.csv")
 a <- exampleNeighborhoods.filter(neighborhoods, indexCluster = "LZ_BCELL", chooseNeighbor = "PC", threshold=0.2)
 # write.csv(a, file = "LZ_BCELL.filtered.by.PC_over0.2.csv")
+a <- exampleNeighborhoods.filter(neighborhoods, indexCluster = "TCF1_HI_TOX_HI_CD8", chooseNeighbor = "ACTIVATED_TREG", threshold=0.1)
+# write.csv(a, file = "TCF1_HI_TOX_HI_CD8.filtered.by.ACTIVATED_TREG_over0.2.csv")
 
 
 ```
@@ -874,55 +913,16 @@ lighten_hex <- function(hex, factor = 0.3) { # You can adjust the factor
   return(rgb_to_hex(new_rgb))
 }
 
-# 
-# niche.contrastStage <- function( annot.table, indexCluster, common.title)
-# {
-#   stage1.res <- showNiche.multiSample(annot.table[stage1.subgroup], indexCluster, title = paste0(common.title,".stage1"),
-#                                       plots=F)
-#   stage3.res <- showNiche.multiSample(annot.table[stage3.subgroup], indexCluster, title = paste0(common.title,".stage3"),
-#                                       plots=F)
-#   stage1.res$stage <- 'stage1';  stage3.res$stage <- 'stage3'
-#   res <- rbind(stage1.res, stage3.res)
-#   res$stage <- factor(res$stage, levels = c("stage3", "stage1"))
-#   res$subset <- factor(res$subset, levels = levels(stage3.res$subset))
-#   stableColorsL2.fxn <- stableColorsL2
-# 
-#   # Create a lighter version of the color palette
-#   lighter_stableColorsL2.fxn <- sapply(stableColorsL2.fxn, lighten_hex, factor = 0.6) # Adjust factor as needed
-# 
-#   # Create a combined color mapping key
-#   res$color_key <- interaction(res$subset, res$stage, sep = "_")
-# 
-#   # Create the combined color palette
-#   combined_palette <- c(stableColorsL2.fxn, lighter_stableColorsL2.fxn[names(stableColorsL2.fxn)])
-#   names(combined_palette) <- c(paste0(names(stableColorsL2.fxn), "_stage3"), paste0(names(lighter_stableColorsL2.fxn), "_stage1"))
-#   
-#   annotateX <- max(res$proportion)-0.1*max(res$proportion)
-#   print(
-#     ggplot(res, aes(y = subset, x = proportion, fill=color_key, label=list_ID, group=stage)) +
-#       geom_point(size=2, position=position_dodge(width=1), pch=21, stroke=0.1, color='grey70') +
-#       annotate('text',x= annotateX ,y=35, label="s1 in light shade\ns3 in dark shade", size=3)+
-#       stat_summary( fun.min = "mean", fun.max = "mean", geom = "errorbar", position = position_dodge(width=1),
-#                     width = 1, color = "black", linewidth = 0.5 ) +
-#       theme_bw() + ggtitle(common.title) +
-#       scale_fill_manual(name = 'subset & stage', values= combined_palette,  guide = guide_legend(ncol = 2))  +
-#       theme(axis.text = element_text(size=6), axis.title.y = element_blank()) +
-#       theme(legend.position = 'none')
-#   )
-#   return(res)
-# }
-
-
 niche.contrast <- function( annot.table, indexCluster, common.title, grouping.exp, grouping.ctrl, condition.exp, condition.ctrl)
 {
   ctrl <- showNiche.multiSample(annot.table[grouping.ctrl], indexCluster, title = paste0(common.title,".",condition.ctrl),
                                       plots=F)
-  exp <- showNiche.multiSample(annot.table[grouping.exp], indexCluster, title = paste0(common.title,".",condition.exp),
+  expt <- showNiche.multiSample(annot.table[grouping.exp], indexCluster, title = paste0(common.title,".",condition.exp),
                                       plots=F)
-  ctrl$stage <- condition.ctrl;  exp$stage <- condition.exp
-  res <- rbind(ctrl, exp)
+  ctrl$stage <- condition.ctrl;  expt$stage <- condition.exp
+  res <- rbind(ctrl, expt)
   res$stage <- factor(res$stage, levels = c(condition.exp, condition.ctrl))
-  res$subset <- factor(res$subset, levels = levels(exp$subset))
+  res$subset <- factor(res$subset, levels = levels(expt$subset))
   stableColorsL2.fxn <- stableColorsL2
 
   # Create a lighter version of the color palette
@@ -1048,17 +1048,6 @@ findImportantInteractions <- function( interaction.dt, condition.exp, condition.
             axis.title.x = element_text(size=10), axis.text.x = element_text(size=10)) + 
             theme(legend.position = 'none') 
   return(list(df=df, fullggplot=a, filteredggplot=b)) 
-#  fail!!!   unlist(strsplit) fills in the table columns V1 and V2 in the wrong order
-# df.split <- as.data.table(cbind(df, as.data.frame( matrix(unlist(strsplit(as.character(df$unified_int), "--")), nrow=30)  )))  
-# df.split <- df.split[,c('V1', 'V2', 'delta.effect.size')]
-# df.split <- df.split %>%  rename(cell_type_1 = V1, cell_type_2 = V2)
-# to_swap <- df.split[which( ! df.split$cell_type_2 %in% df.split$cell_type_1), ]  # find entries in column 2 that aren't in column 1 
-# names(to_swap)[1:2] <- c('cell_type_2','cell_type_1')
-# df.split <- rbind( df.split[which( df.split$cell_type_2 %in% df.split$cell_type_1), ],   
-#              to_swap)
-# df.split <- df.split %>% arrange(desc(delta.effect.size))
-# df.split$cell_type_1 %>% table %>% as.data.frame() %>% arrange(desc(Freq)) 
-
 }
 
 a <- findImportantInteractions( interaction.dt= interaction.byStage, condition.exp="stage3", condition.ctrl="stage1", ef.threshold=1)
@@ -1084,7 +1073,7 @@ a[subset == 'MIXED_TOX_LO_CD8'] %>% rstatix::wilcox_test(formula = proportion ~ 
 
 
 # contrast recurrence using cellProxEnrich
-```{r contrast-recur-using-cellProxEnrich, fig.width=10, fig.height=10}
+```{r contrast-recur-using-cellProxEnrich, fig.width=8, fig.height=8}
 a <- findImportantInteractions( interaction.dt= interaction.byRecur, condition.exp="recur", condition.ctrl="no.recur", ef.threshold=1)
 print(a$filteredggplot)
 gridExtra::grid.arrange(plot.Average.Niche.igraph(annot.table = annot.k9[norecur.subgroup], indexCluster = 'ACTIVATED_TREG',
@@ -1110,6 +1099,39 @@ a[subset == 'ACTIVATED_TREG'] %>% rstatix::wilcox_test(formula = proportion ~ st
 
 
 
+```{r evaluate-neighborhoods-by-radius}
+
+showNiche.singleSample(annot.table = annot.rad[['tumor.5']], indexCluster = 'LZ_BCELL', title='LZ_BCELL.rad',
+                            plots=T)
+showNiche.singleSample(annot.table = annot.k9[['tumor.5']], indexCluster = 'LZ_BCELL', title='LZ_BCELL.k9',
+                            plots=T)
+niche.contrast(annot.table = annot.rad, indexCluster = 'LZ_BCELL', common.title='LZ_BCELL.rad', grouping.exp = stage3.subgroup, 
+               grouping.ctrl = stage1.subgroup, condition.exp = "stage3", condition.ctrl = 'stage1')
+niche.contrast(annot.table = annot.k9, indexCluster = 'LZ_BCELL', common.title='LZ_BCELL.k9', grouping.exp = stage3.subgroup, 
+               grouping.ctrl = stage1.subgroup, condition.exp = "stage3", condition.ctrl = 'stage1')
+
+a <- findImportantInteractions( interaction.dt= interaction.byStage.rad, condition.exp="stage3", condition.ctrl="stage1", ef.threshold=1)
+a <- findImportantInteractions( interaction.dt= interaction.byRecur.rad, condition.exp="recur", condition.ctrl="no.recur", ef.threshold=1)
+b <- findImportantInteractions( interaction.dt= interaction.byRecur, condition.exp="recur", condition.ctrl="no.recur", ef.threshold=1)
+print(a$filteredggplot)
+gridExtra::grid.arrange(plot.Average.Niche.igraph(annot.table = annot.rad[norecur.subgroup], indexCluster = 'ACTIVATED_TREG',
+                      title='ACTIVATED_TREG no recurrence'),
+                      plot.Average.Niche.igraph(annot.table = annot.rad[recur.subgroup], indexCluster = 'ACTIVATED_TREG',
+                      title='ACTIVATED_TREG recurrence'), 
+                      nrow=1) 
+gridExtra::grid.arrange(plot.Average.Niche.igraph(annot.table = annot.rad[norecur.subgroup], indexCluster = 'TCF1_HI_TOX_HI_CD8',
+                      title='TCF1_HI_TOX_HI_CD8 no recurrence'),
+                      plot.Average.Niche.igraph(annot.table = annot.rad[recur.subgroup], indexCluster = 'TCF1_HI_TOX_HI_CD8',
+                      title='TCF1_HI_TOX_HI_CD8 recurrence'), 
+                      nrow=1) 
+
+# dt <- purrr::list_rbind(readRDS(file="neighborhood.annot.radius.sln.RDS")[['tableResults.rad']], names_to = "id")
+df.a <- a$df; df.b <- b$df
+df.a <- merge(x = df.a, y = df.b, by = 'unified_int', all=T, suffixes = c('.rad','.k9'))
+df.a %>% tidyr::pivot_longer()
+compareDF <- 
+
+```
 
 
 
