@@ -345,6 +345,9 @@ for (i in list_ID)
                                        number_of_simulations = 200, spatial_network_name = "spatialknn.k9.persample")
 }
 
+# pull example cell for study
+# annot.k9$tumor.5[from %like% 215265 | to %like% 215265] %>% write.csv("neighbors.of.tumor5.215265.csv")
+
 saveRDS(list(annot.k9 = annot.k9, tableResults.k9 = tableResults.k9), file="neighborhood.annot.k9.L3.sln.RDS")  # all data merged
 
 annot.k9 <- readRDS(file="neighborhood.annot.k9.sln.RDS")[['annot.k9']]  #  read in L2 annotations 
@@ -658,11 +661,11 @@ gridExtra::grid.arrange(a,b, nrow=1)
 ```{r show-niche-multipleSample}
 showNiche.multiSample <- function(annot.table, indexCluster, title,  plots=T, parallel=F)
 {
+  library(future.apply)
   res <- list()
   IDlist <- names(annot.table)
   if(parallel == T)
   {  
-    library(future.apply)
     res_list <- future_lapply(IDlist, function(i) {
       single_res <- showNiche.singleSample( annot.table = annot.table[[i]], indexCluster = indexCluster, title = title, plots = F )
       single_res$list_ID <- i    # name by list_ID
@@ -795,11 +798,11 @@ plot.Average.Niche.igraph <- function( annot.table, indexCluster, title )
   )
   return(a)
 }
-plot.Average.Niche.igraph(annot.table = annot.k9, indexCluster = 'LZ_BCELL', title='LZ_BCELL')
-plot.Average.Niche.igraph(annot.table = annot.k9, indexCluster = 'MIXED_GC_TCELL', title='MIXED_GC_TCELL')
+plot.Average.Niche.igraph(annot.table = annot.k9, indexCluster = 'LZ_BCELL', title='Light zone B cells')
+plot.Average.Niche.igraph(annot.table = annot.k9, indexCluster = 'PC', title='Plasma cells')
 
 # plot.Average.Niche.squares(annot.table = annot.k9, indexCluster = 'LZ_BCELL', title='LZ_BCELL')
-# plot.Average.Niche.squares(annot.table = annot.k9, indexCluster = 'MIXED_GC_TCELL', title='MIXED_GC_TCELL')
+
 a <- plot.Average.Niche.igraph(annot.table = annot.k9, indexCluster = 'TCF1_HI_TOX_HI_CD8', title='TCF1_HI_TOX_HI_CD8')
 b <- plot.Average.Niche.igraph(annot.table = annot.k9, indexCluster = 'TCF1_LO_TOX_HI_CD8', title='TCF1_LO_TOX_HI_CD8')
 
@@ -1125,12 +1128,26 @@ gridExtra::grid.arrange(plot.Average.Niche.igraph(annot.table = annot.rad[norecu
                       title='TCF1_HI_TOX_HI_CD8 recurrence'), 
                       nrow=1) 
 
-# dt <- purrr::list_rbind(readRDS(file="neighborhood.annot.radius.sln.RDS")[['tableResults.rad']], names_to = "id")
-df.a <- a$df; df.b <- b$df
-df.a <- merge(x = df.a, y = df.b, by = 'unified_int', all=T, suffixes = c('.rad','.k9'))
-df.a %>% tidyr::pivot_longer()
-compareDF <- 
+df.a <- a$df; df.b <- b$df;  df.a[, source := 'radius'];  df.b[, source := 'nearest.9']
+df.a <- rbindlist(list(df.a, df.b));  df.a$unified_int <- as.character(df.a$unified_int)
+df.a <- df.a[!unified_int %like% 'ARTIFACT']
+df.a <- df.a %>% select(unified_int, source, delta.effect.size) %>%
+  tidyr::pivot_wider(names_from = source, values_from = delta.effect.size  ) %>%
+  # Arrange by the average effect size for a cleaner plot
+  mutate(avg.effect = (radius + nearest.9) / 2) %>%     arrange(avg.effect) %>%
+  mutate(unified_int = factor(unified_int, levels = unified_int))    # Reorder the factor levels 
 
+ggplot(df.a, aes(y = unified_int)) +
+  geom_segment(aes(x = radius, xend = nearest.9, y = unified_int, yend = unified_int),
+      color = "grey80", linewidth = 1.5 ) + xlab("Delta effect size") + 
+  geom_point(aes(x = radius), color = "#d6604d", size = 4) +  geom_point(aes(x = nearest.9), color = "#4393c3", size = 4) + 
+  annotate( "text", x = 2.1, y = 6, size = 5, label = "Method", fontface = "bold" ) +
+  annotate( "point", x = 2.1, y = 4, size = 5, color = "#d6604d" ) +
+  annotate( "text", x = 2.35, y = 4, size = 4, label = "radius", hjust = "left" ) +
+  annotate( "point", x = 2.1, y = 2, size = 5, color = "#4393c3" ) +
+  annotate( "text", x = 2.35, y = 2, size = 4, label = "Nearest 9", hjust = "left" ) +
+  theme_minimal() + theme(panel.grid.major.y = element_blank(), panel.grid.minor.x = element_line(color = "grey90", linetype = "dashed")
+  )
 ```
 
 
