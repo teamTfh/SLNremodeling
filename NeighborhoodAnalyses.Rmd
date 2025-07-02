@@ -693,7 +693,7 @@ showNiche.multiSample <- function(annot.table, indexCluster, title,  plots=T, pa
     # scatter plot of biological replicates
     print( 
       ggplot(res, aes(y = subset, x = proportion, fill=subset, label=list_ID)) +
-      geom_point(size=2, position=position_dodge(width=1), pch=21, stroke=0.1, color='grey70') +
+      geom_point(size=2, position=position_dodge(width=1), pch=21, stroke=0.2, color='grey50') +
       stat_summary( fun.min = "mean", fun.max = "mean", geom = "errorbar",
         width = 0.75, color = "black", linewidth = 0.5 ) + # geom_path(aes(group = list_ID), alpha=0.2, color='grey80') + 
       theme_bw() + ggtitle(title) + 
@@ -706,7 +706,7 @@ showNiche.multiSample <- function(annot.table, indexCluster, title,  plots=T, pa
   return(res)
 }  
 showNiche.multiSample(annot.table = annot.k9, indexCluster = 'LZ_BCELL', title='LZ_BCELL', parallel=F)
-showNiche.multiSample(annot.table = annot.k9, indexCluster = 'MIXED_GC_TCELL', title='MIXED_GC_TCELL')
+ # ggsave("output/LZBCELL.scatterplot.allSamples.pdf", height=6,width=5)
 showNiche.multiSample(annot.table = annot.k9, indexCluster = 'TCF1_HI_TOX_HI_CD8', title='TCF1_HI_TOX_HI_CD8')
 showNiche.multiSample(annot.table = annot.k9, indexCluster = 'TCF1_LO_TOX_HI_CD8', title='TCF1_LO_TOX_HI_CD8')
 
@@ -787,7 +787,7 @@ plot.Average.Niche.igraph <- function( annot.table, indexCluster, title )
       geom_node_text(aes(label = label, x = x * 1.3, y = y * 1.3), repel = F, size = 2, 
                      hjust='outward', vjust='outward') +
       scale_size_continuous( name = "Interaction\nProportion", limits = c(0, 0.5), range = c(0.1, 15), 
-                             breaks=c(0, 0.01, 0.05,0.1,0.2,0.3,0.4) ) + 
+                             breaks=c(0, 0.01, 0.05,0.1,0.2,0.4) ) + 
       scale_fill_manual(values = stableColorsL2.fxn, guide = "none") +
       geom_node_label( aes(label = label, filter = name == indexCluster), size = 2, alpha=1, fontface = 'bold') +
       theme_graph(base_family = 'sans') +
@@ -799,6 +799,7 @@ plot.Average.Niche.igraph <- function( annot.table, indexCluster, title )
   return(a)
 }
 plot.Average.Niche.igraph(annot.table = annot.k9, indexCluster = 'LZ_BCELL', title='Light zone B cells')
+ # ggsave("output/LZBCELL.igraph.allSamples.pdf", height=5,width=5)
 plot.Average.Niche.igraph(annot.table = annot.k9, indexCluster = 'PC', title='Plasma cells')
 
 # plot.Average.Niche.squares(annot.table = annot.k9, indexCluster = 'LZ_BCELL', title='LZ_BCELL')
@@ -939,10 +940,9 @@ niche.contrast <- function( annot.table, indexCluster, common.title, grouping.ex
   names(combined_palette) <- c(paste0(names(stableColorsL2.fxn), "_", condition.exp), 
                                paste0(names(lighter_stableColorsL2.fxn), "_", condition.ctrl))
   
-  annotateX <- max(res$proportion)-0.1*max(res$proportion)
-  print(
-    ggplot(res, aes(y = subset, x = proportion, fill=color_key, label=list_ID, group=stage)) +
-      geom_point(size=2, position=position_dodge(width=1), pch=21, stroke=0.1, color='grey70') +
+  annotateX <- max(res$proportion)-0.2*max(res$proportion)
+  print(a <- ggplot(res, aes(y = subset, x = proportion, fill=color_key, label=list_ID, group=stage)) +
+      geom_point(size=2, position=position_dodge(width=1), pch=21, stroke=0.2, color='grey50') +
       annotate('text',x= annotateX ,y=35, label=paste0(condition.ctrl," in light shade\n", condition.exp," in dark shade"), size=3)+
       stat_summary( fun.min = "mean", fun.max = "mean", geom = "errorbar", position = position_dodge(width=1),
                     width = 1, color = "black", linewidth = 0.5 ) +
@@ -951,7 +951,7 @@ niche.contrast <- function( annot.table, indexCluster, common.title, grouping.ex
       theme(axis.text = element_text(size=6), axis.title.y = element_blank()) +
       theme(legend.position = 'none')
   )
-  return(res)
+  return(list(res=res, scatterplot = a, colorScheme = combined_palette))
 }
 niche.contrast(annot.table = annot.k9, indexCluster = 'LZ_BCELL', common.title='LZ_BCELL', grouping.exp = stage3.subgroup, 
                grouping.ctrl = stage1.subgroup, condition.exp = "stage3", condition.ctrl = 'stage1')
@@ -964,7 +964,7 @@ niche.contrast(annot.table = annot.k9, indexCluster = 'LZ_BCELL', common.title='
 
 # contrast stage using cellProxEnrich
 ```{r contrast-stage-using-cellProxEnrich, fig.width=10, fig.height=5}
-findImportantInteractions <- function( interaction.dt, condition.exp, condition.ctrl, ef.threshold)
+findImportantInteractions <- function( interaction.dt, condition.exp, condition.ctrl, ef.threshold, leaveOutTumor = T)
 {
   working.dt <- copy(interaction.dt)
 # example output
@@ -1023,7 +1023,8 @@ findImportantInteractions <- function( interaction.dt, condition.exp, condition.
       theme(axis.text.x = element_blank())
   
   df <- as.data.table(mean.diff.enrichm)[ abs(delta.effect.size) > ef.threshold]
-  df <- as.data.table(df)[!unified_int %like% 'Tumor' & !unified_int %like% 'outlier']
+  df <- as.data.table(df)[ !unified_int %like% 'outlier' & !unified_int %like% 'ARTIFACT'] 
+  if(leaveOutTumor == T) { df <- as.data.table(df)[!unified_int %like% 'Tumor'] }  # leave out tumor interactions 
   df$unified_int <- factor(df$unified_int, levels = df$unified_int)
   print("delta effect size table, filtered for effect size threshold")
   print(as_tibble(df))
@@ -1043,34 +1044,60 @@ findImportantInteractions <- function( interaction.dt, condition.exp, condition.
 # 28 ARTIFACT--MIXED_TOX_LO_CD8                           -0.530              -1.67
 # 29 CD8_PC_MIXED--GZMB_CD8                               -0.497              -1.68
 # 30 ACTIVATED_TREG--MEMORY_CD8                           -0.778              -2.08
+  annotateX.exp <- max(df$delta.effect.size)-0.2*max(df$delta.effect.size)
+  annotateX.ctrl <- min(df$delta.effect.size)+0.2*min(df$delta.effect.size)
 
   b <- ggplot(df, aes(x = delta.effect.size, y = unified_int))  +   
-      geom_bar(stat='identity', width=0.05) +  geom_point(size=4, pch=21, color='white', fill='black', stroke=0.2) + 
+    geom_bar(stat='identity', width=0.05) +  geom_point(size=4, pch=21, color='white', fill='black', stroke=0.2) + 
           theme_classic() + ggtitle( paste0("Filtered delta effect size: ", condition.exp, " - ", condition.ctrl))  +       
-      theme(axis.text.y = element_text( size=8), axis.title.y = element_blank(), plot.title=element_text(size=10), 
-            axis.title.x = element_text(size=10), axis.text.x = element_text(size=10)) + 
-            theme(legend.position = 'none') 
+    theme(axis.text.y = element_text( size=8), axis.title.y = element_blank(), plot.title=element_text(size=10), 
+          axis.title.x = element_text(size=10), axis.text.x = element_text(size=10)) + 
+    theme(legend.position = 'none') + annotate("text", x = annotateX.exp, y = -2.2, size = 5, label = condition.exp) + 
+    annotate("text", x = annotateX.ctrl, y = -2.2, size = 5, label = condition.ctrl) + 
+    coord_cartesian(clip = 'off', ylim= c(0, nrow(df)))
   return(list(df=df, fullggplot=a, filteredggplot=b)) 
 }
 
-a <- findImportantInteractions( interaction.dt= interaction.byStage, condition.exp="stage3", condition.ctrl="stage1", ef.threshold=1)
+a <- findImportantInteractions( interaction.dt= interaction.byStage, condition.exp="stage3", condition.ctrl="stage1", ef.threshold=1,
+                                leaveOutTumor = T)
 print(a$filteredggplot)
+# ggsave(file = "output/interaction.Stage.deltaEffectSize.pdf", height=5, width=6)
 
-gridExtra::grid.arrange(plot.Average.Niche.igraph(annot.table = annot.k9[stage1.subgroup], indexCluster = 'ACTIVATED_TREG',
-                      title='ACTIVATED_TREG stage 1'),
-                      plot.Average.Niche.igraph(annot.table = annot.k9[stage3.subgroup], indexCluster = 'ACTIVATED_TREG',
-                      title='ACTIVATED_TREG stage 3'), 
-                      nrow=1) 
+a <- plot.Average.Niche.igraph(annot.table = annot.k9[stage1.subgroup], indexCluster = 'ACTIVATED_TREG',
+                      title='ACTIVATED_TREG stage 1')
+b <- plot.Average.Niche.igraph(annot.table = annot.k9[stage3.subgroup], indexCluster = 'ACTIVATED_TREG',
+                      title='ACTIVATED_TREG stage 3')
+gridExtra::grid.arrange(a, b, nrow=1) 
+# ggsave(a, file = "output/ACTIVATED_TREG.igraph.s1.pdf", height=5,width=5)
+# ggsave(b, file = "output/ACTIVATED_TREG.igraph.s3.pdf", height=5,width=5)
 
 a <- niche.contrast( annot.k9, indexCluster = 'ACTIVATED_TREG', common.title='ACTIVATED_TREG' , grouping.exp = stage3.subgroup, 
                grouping.ctrl = stage1.subgroup, condition.exp = "stage3", condition.ctrl = 'stage1')
+# ggsave(a[['scatterplot']], file = "output/ACTIVATED_TREG.scatterplot.s1-v-s3.pdf", height=6,width=6)
 
-a[subset == 'MEMORY_CD8'] %>% group_by(stage) %>% rstatix::get_summary_stats(show=c("n", "mean", "sd", "median"))
-a[subset == 'MEMORY_CD8'] %>% rstatix::wilcox_test(formula = proportion ~ stage)
+a[['res']][subset == 'MIXED_TOX_LO_CD8'] %>% group_by(stage) %>% rstatix::get_summary_stats(show=c("n", "mean", "sd", "median"))
+a[['res']][subset == 'MIXED_TOX_LO_CD8'] %>% rstatix::wilcox_test(formula = proportion ~ stage)
+a[['res']][subset == 'MIXED_TOX_LO_CD8'] %>% group_by(stage) %>% rstatix::shapiro_test(proportion)
+a[['res']][subset == 'MIXED_TOX_LO_CD8'] %>% rstatix::welch_anova_test(formula = proportion ~ stage)
 
-a[subset == 'MIXED_TOX_LO_CD8'] %>% group_by(stage) %>% rstatix::get_summary_stats(show=c("n", "mean", "sd", "median"))
-a[subset == 'MIXED_TOX_LO_CD8'] %>% rstatix::wilcox_test(formula = proportion ~ stage)
-
+plot.boxplot <- function(df, probeSubset, grouping.var, plot.var='proportion', colorList, title)
+{
+  df <- df[subset == probeSubset]
+  pVal <- df %>% rstatix::welch_anova_test(formula = get(plot.var) ~ get(grouping.var)) 
+  pVal$p <- round(pVal$p, 2)
+  colorList <- colorList[names(colorList) %like% probeSubset]
+  ggplot(df, aes(x = get(grouping.var), y=get(plot.var))) + geom_boxplot(aes(fill = color_key)) + 
+    geom_point(size=4, pch=21, fill='white', color='grey50',) + theme_bw() + theme(axis.text = element_text(color='black')) + 
+    scale_fill_manual(values = colorList)  + theme(legend.position = 'null', axis.title.x = element_blank()) + 
+    annotate('text', x=2, y=max(df$proportion), label = paste("Welch's P=",pVal$p), color='black')+
+    ylab(paste(probeSubset, plot.var)) + ggtitle(title) 
+}
+plot.boxplot( df = a$res, probeSubset = 'MIXED_TOX_LO_CD8', grouping.var = 'stage', plot.var='proportion', colorList = a$colorScheme,
+              title = "ACTIVATED_TREG")
+# ggsave(filename = 'output/ACTIVATED_TREG-for-MIXED_TOX_LO_CD8.stage.boxplot.pdf', width=3,height=3)
+plot.boxplot( df = a$res, probeSubset = 'MEMORY_CD8', grouping.var = 'stage', plot.var='proportion', colorList = a$colorScheme,
+              title = "ACTIVATED_TREG")
+# ggsave(filename = 'output/ACTIVATED_TREG-for-MEMORY_CD8.stage.boxplot.pdf', width=3,height=3)
 
 ```
 
@@ -1079,24 +1106,41 @@ a[subset == 'MIXED_TOX_LO_CD8'] %>% rstatix::wilcox_test(formula = proportion ~ 
 ```{r contrast-recur-using-cellProxEnrich, fig.width=8, fig.height=8}
 a <- findImportantInteractions( interaction.dt= interaction.byRecur, condition.exp="recur", condition.ctrl="no.recur", ef.threshold=1)
 print(a$filteredggplot)
-gridExtra::grid.arrange(plot.Average.Niche.igraph(annot.table = annot.k9[norecur.subgroup], indexCluster = 'ACTIVATED_TREG',
-                      title='ACTIVATED_TREG no recurrence'),
-                      plot.Average.Niche.igraph(annot.table = annot.k9[recur.subgroup], indexCluster = 'ACTIVATED_TREG',
-                      title='ACTIVATED_TREG recurrence'), 
-                      nrow=1) 
-gridExtra::grid.arrange(plot.Average.Niche.igraph(annot.table = annot.k9[norecur.subgroup], indexCluster = 'TCF1_HI_TOX_HI_CD8',
-                      title='TCF1_HI_TOX_HI_CD8 no recurrence'),
-                      plot.Average.Niche.igraph(annot.table = annot.k9[recur.subgroup], indexCluster = 'TCF1_HI_TOX_HI_CD8',
-                      title='TCF1_HI_TOX_HI_CD8 recurrence'), 
-                      nrow=1) 
+# ggsave(file = "output/interaction.Recur.deltaEffectSize.pdf", height=11, width=8)
+
+a <- plot.Average.Niche.igraph(annot.table = annot.k9[norecur.subgroup], indexCluster = 'ACTIVATED_TREG',
+                      title='ACTIVATED_TREG no recurrence')
+b <- plot.Average.Niche.igraph(annot.table = annot.k9[recur.subgroup], indexCluster = 'ACTIVATED_TREG',
+                      title='ACTIVATED_TREG recurrence')
+gridExtra::grid.arrange(a, b, nrow=1)
+# ggsave(a, file = "output/ACTIVATED_TREG.igraph.norecur.pdf", height=5,width=5)
+# ggsave(b, file = "output/ACTIVATED_TREG.igraph.recur.pdf", height=5,width=5)
+
+a <- plot.Average.Niche.igraph(annot.table = annot.k9[norecur.subgroup], indexCluster = 'TCF1_HI_TOX_HI_CD8',
+                      title='TCF1_HI_TOX_HI_CD8 no recurrence')
+b <- plot.Average.Niche.igraph(annot.table = annot.k9[recur.subgroup], indexCluster = 'TCF1_HI_TOX_HI_CD8',
+                      title='TCF1_HI_TOX_HI_CD8 recurrence')
+gridExtra::grid.arrange(a, b, nrow=1) 
 
 a <- niche.contrast(annot.table = annot.k9, indexCluster = 'ACTIVATED_TREG', common.title='ACTIVATED_TREG', grouping.exp = recur.subgroup, 
                grouping.ctrl = norecur.subgroup, condition.exp = 'recur', condition.ctrl = 'no.recur')
-a <- niche.contrast(annot.table = annot.k9, indexCluster = 'TCF1_HI_TOX_HI_CD8', common.title='TCF1_HI_TOX_HI_CD8', 
-                    grouping.exp = recur.subgroup, grouping.ctrl = norecur.subgroup, condition.exp = 'recur', condition.ctrl = 'no.recur')
+ggsave(a[['scatterplot']], file = "output/ACTIVATED_TREG.scatterplot.recur-v-norecur.pdf", height=6,width=6)
 
-a[subset == 'ACTIVATED_TREG'] %>% group_by(stage) %>% rstatix::get_summary_stats(show=c("n", "mean", "sd", "median"))
-a[subset == 'ACTIVATED_TREG'] %>% rstatix::wilcox_test(formula = proportion ~ stage)
+b <- niche.contrast(annot.table = annot.k9, indexCluster = 'TCF1_HI_TOX_HI_CD8', common.title='TCF1_HI_TOX_HI_CD8', 
+                    grouping.exp = recur.subgroup, grouping.ctrl = norecur.subgroup, condition.exp = 'recur', condition.ctrl = 'no.recur')
+a[['res']][subset == 'TCF1_HI_TOX_HI_CD8'] %>% group_by(stage) %>% rstatix::get_summary_stats(show=c("n", "mean", "sd", "median"))
+a[['res']][subset == 'TCF1_HI_TOX_HI_CD8'] %>% group_by(stage) %>% rstatix::shapiro_test(proportion)
+a[['res']][subset == 'TCF1_HI_TOX_HI_CD8'] %>% rstatix::wilcox_test(formula = proportion ~ stage)
+b[['res']][subset == 'ACTIVATED_TREG'] %>% group_by(stage) %>% rstatix::get_summary_stats(show=c("n", "mean", "sd", "median"))
+# b[['res']][subset == 'ACTIVATED_TREG'] %>% group_by(stage) %>% rstatix::shapiro_test(proportion)
+b[['res']][subset == 'ACTIVATED_TREG'] %>% rstatix::wilcox_test(formula = proportion ~ stage)
+
+plot.boxplot( df = a$res, probeSubset = 'TCF1_HI_TOX_HI_CD8', grouping.var = 'stage', plot.var='proportion', colorList = a$colorScheme,
+              title = "ACTIVATED_TREG")
+# ggsave(filename = 'output/ACTIVATED_TREG-for-TCF1_HI_TOX_HI_CD8.recur.boxplot.pdf', width=3,height=3)
+plot.boxplot( df = b$res, probeSubset = 'ACTIVATED_TREG', grouping.var = 'stage', plot.var='proportion', colorList = a$colorScheme,
+              title = "TCF1_HI_TOX_HI_CD8")
+# ggsave(filename = 'output/TCF1_HI_TOX_HI_CD8-for-ACTIVATED_TREG.recur.boxplot.pdf', width=3,height=3)
 
 ```
 
@@ -1141,13 +1185,15 @@ ggplot(df.a, aes(y = unified_int)) +
   geom_segment(aes(x = radius, xend = nearest.9, y = unified_int, yend = unified_int),
       color = "grey80", linewidth = 1.5 ) + xlab("Delta effect size") + 
   geom_point(aes(x = radius), color = "#d6604d", size = 4) +  geom_point(aes(x = nearest.9), color = "#4393c3", size = 4) + 
-  annotate( "text", x = 2.1, y = 6, size = 5, label = "Method", fontface = "bold" ) +
-  annotate( "point", x = 2.1, y = 4, size = 5, color = "#d6604d" ) +
-  annotate( "text", x = 2.35, y = 4, size = 4, label = "radius", hjust = "left" ) +
-  annotate( "point", x = 2.1, y = 2, size = 5, color = "#4393c3" ) +
-  annotate( "text", x = 2.35, y = 2, size = 4, label = "Nearest 9", hjust = "left" ) +
-  theme_minimal() + theme(panel.grid.major.y = element_blank(), panel.grid.minor.x = element_line(color = "grey90", linetype = "dashed")
-  )
+  annotate( "text", x = 2.1, y = 6, size = 5, label = "Method", fontface = "bold", ) +
+  annotate( "point", x = 1.6, y = 4, size = 5, color = "#d6604d" ) +
+  annotate( "text", x = 1.9, y = 4, size = 4, label = "radius", hjust = "left" ) +
+  annotate( "point", x = 1.6, y = 2, size = 5, color = "#4393c3" ) +
+  annotate( "text", x = 1.9, y = 2, size = 4, label = "Nearest 9", hjust = "left" ) +
+  theme_bw() + 
+  theme(panel.grid.major.y = element_blank(), panel.grid.minor.x = element_line(color = "grey90", linetype = "dashed"), 
+        axis.text = element_text(color='black', size=6), axis.title.y = element_blank())
+# ggsave(filename = 'output/interaction.radius-vs-nearest9.pdf', height=9, width=8)
 ```
 
 
