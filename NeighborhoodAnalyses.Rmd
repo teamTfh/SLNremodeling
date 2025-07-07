@@ -1045,6 +1045,7 @@ findImportantInteractions <- function( interaction.dt, condition.exp, condition.
 # 28 ARTIFACT--MIXED_TOX_LO_CD8                           -0.530              -1.67
 # 29 CD8_PC_MIXED--GZMB_CD8                               -0.497              -1.68
 # 30 ACTIVATED_TREG--MEMORY_CD8                           -0.778              -2.08
+  
   annotateX.exp <- max(df$delta.effect.size)-0.2*max(df$delta.effect.size)
   annotateX.ctrl <- min(df$delta.effect.size)+0.2*min(df$delta.effect.size)
 
@@ -1081,16 +1082,18 @@ a[['res']][subset == 'MIXED_TOX_LO_CD8'] %>% rstatix::wilcox_test(formula = prop
 a[['res']][subset == 'MIXED_TOX_LO_CD8'] %>% group_by(stage) %>% rstatix::shapiro_test(proportion)
 a[['res']][subset == 'MIXED_TOX_LO_CD8'] %>% rstatix::welch_anova_test(formula = proportion ~ stage)
 
-plot.boxplot <- function(df, probeSubset, grouping.var, plot.var='proportion', colorList, title)
+plot.boxplot <- function(df, probeSubset, grouping.var, plot.var='proportion', nonparam = T, colorList, title)
 {
   df <- df[subset == probeSubset]
-  pVal <- df %>% rstatix::welch_anova_test(formula = get(plot.var) ~ get(grouping.var)) 
-  pVal$p <- round(pVal$p, 2)
+  # pVal <- df %>% rstatix::welch_anova_test(formula = get(plot.var) ~ get(grouping.var)) 
+  formula.str <- as.formula(paste(plot.var, "~", grouping.var))
+  if(nonparam==F)   { pVal <- df %>% rstatix::welch_anova_test(formula = formula.str) %>% select(p) %>% round(digits=2)}
+  if(nonparam==T)   { pVal <- df %>% rstatix::wilcox_test(formula = formula.str) %>% select(p) %>% round(digits=2) }
   colorList <- colorList[names(colorList) %like% probeSubset]
   ggplot(df, aes(x = get(grouping.var), y=get(plot.var))) + geom_boxplot(aes(fill = color_key)) + 
     geom_point(size=4, pch=21, fill='white', color='grey50',) + theme_bw() + theme(axis.text = element_text(color='black')) + 
     scale_fill_manual(values = colorList)  + theme(legend.position = 'null', axis.title.x = element_blank()) + 
-    annotate('text', x=2, y=max(df$proportion), label = paste("Welch's P=",pVal$p), color='black')+
+    annotate('text', x=2, y=max(df$proportion), label = paste("P=",pVal$p), color='black')+
     ylab(paste(probeSubset, plot.var)) + ggtitle(title) 
 }
 plot.boxplot( df = a$res, probeSubset = 'MIXED_TOX_LO_CD8', grouping.var = 'stage', plot.var='proportion', colorList = a$colorScheme,
@@ -1170,16 +1173,14 @@ plot.boxplot( df = b$res, probeSubset = 'ACTIVATED_TREG', grouping.var = 'stage'
 plot.enrichm.interaction(interaction.dt = interaction.byRecur, probeSubset = "ACTIVATED_TREG--TCF1_HI_TOX_HI_CD8", colorList = a$colorScheme, title="ACTIVATED_TREG--TCF1_HI_TOX_HI_CD8")
 # ggsave(filename = 'output/ACTIVATED_TREG--TCF1_HI_TOX_HI_CD8.recur.boxplot.pdf', width=4,height=3)
 
-
-```
-
-# plot specific pairwise interactions between cohorts 
-```{r plot-logFC-for-interaction}
+plot.enrichm.interaction(interaction.dt = interaction.byRecur, probeSubset = "ACTIVATED_CD8--ACTIVATED_TREG", colorList = a$colorScheme, title="ACTIVATED_CD8--ACTIVATED_TREG")
+# ggsave(filename = 'output/ACTIVATED_CD8--ACTIVATED_TREG.recur.boxplot.pdf', width=4,height=3)
 
 
 ```
 
 
+# evaluate neighborhoods by radius approach
 ```{r evaluate-neighborhoods-by-radius}
 
 showNiche.singleSample(annot.table = annot.rad[['tumor.5']], indexCluster = 'LZ_BCELL', title='LZ_BCELL.rad',
