@@ -53,6 +53,7 @@ stage3.subgroup <- c("tumor.1","tumor.2","tumor.3","tumor.4","tumor.5","tumor.6"
 stage1.subgroup <- c("ctrl.1","ctrl.2","ctrl.3","ctrl.4","ctrl.5")
 recur.subgroup <- c("tumor.3","tumor.4","tumor.5","tumor.7","tumor.8","tumor.10")
 norecur.subgroup <- c("tumor.1","tumor.2", "tumor.6")
+gc()
 ```
 
 
@@ -1019,7 +1020,7 @@ findImportantInteractions <- function( interaction.dt, condition.exp, condition.
   a <- ggplot(mean.diff.enrichm, aes(x = 1:nrow(mean.diff.enrichm), y=delta.effect.size, label=unified_int)) +
       geom_point(size=2, pch=21, color="white",  alpha=0.5, fill="black") +
       ggrepel::geom_text_repel(size=2.5, max.overlaps = 10, segment.color = 'gray60', force=5) +
-      ggtitle(paste0("delta effect size:)", condition.exp, " - ", condition.ctrl))  + theme_classic() +
+      ggtitle(paste0("effect size:)", condition.exp, " - ", condition.ctrl))  + theme_classic() +
       theme(axis.text.x = element_blank())
   
   df <- as.data.table(mean.diff.enrichm)[ abs(delta.effect.size) > ef.threshold]
@@ -1049,11 +1050,11 @@ findImportantInteractions <- function( interaction.dt, condition.exp, condition.
 
   b <- ggplot(df, aes(x = delta.effect.size, y = unified_int))  +   
     geom_bar(stat='identity', width=0.05) +  geom_point(size=4, pch=21, color='white', fill='black', stroke=0.2) + 
-          theme_classic() + ggtitle( paste0("Filtered delta effect size: ", condition.exp, " - ", condition.ctrl))  +       
+          theme_classic() + ggtitle( paste0("Effect size (filtered): ", condition.exp, " - ", condition.ctrl))  +       
     theme(axis.text.y = element_text( size=8), axis.title.y = element_blank(), plot.title=element_text(size=10), 
           axis.title.x = element_text(size=10), axis.text.x = element_text(size=10)) + 
     theme(legend.position = 'none') + annotate("text", x = annotateX.exp, y = -2.2, size = 5, label = condition.exp) + 
-    annotate("text", x = annotateX.ctrl, y = -2.2, size = 5, label = condition.ctrl) + 
+    annotate("text", x = annotateX.ctrl, y = -2.2, size = 5, label = condition.ctrl) + xlab("Effect size") + 
     coord_cartesian(clip = 'off', ylim= c(0, nrow(df)))
   return(list(df=df, fullggplot=a, filteredggplot=b)) 
 }
@@ -1099,10 +1100,31 @@ plot.boxplot( df = a$res, probeSubset = 'MEMORY_CD8', grouping.var = 'stage', pl
               title = "ACTIVATED_TREG")
 # ggsave(filename = 'output/ACTIVATED_TREG-for-MEMORY_CD8.stage.boxplot.pdf', width=3,height=3)
 
+
+plot.enrichm.interaction <- function(interaction.dt, probeSubset, nonparam=T, plot.var='enrichm', colorList, title)
+{
+  interaction.dt <- interaction.dt[unified_int == probeSubset]
+  formula.str <- as.formula(paste(plot.var, "~", 'condition'))
+  if(nonparam==F)   { pVal <- interaction.dt %>% rstatix::welch_anova_test(formula = formula.str) %>% select(p) %>% round(digits=2)}
+  if(nonparam==T)   { pVal <- interaction.dt %>% rstatix::wilcox_test(formula = formula.str) %>% select(p) %>% round(digits=2) }
+  # pVal$p <- round(pVal$p, 2)
+  colorList <- colorList[names(colorList) %like% probeSubset]
+  ggplot(interaction.dt, aes(x = condition, y=get(plot.var))) + geom_boxplot(fill = 'grey80', alpha=0.5) + 
+    geom_point(size=4, pch=21, fill='white', color='grey30',) + theme_bw() + theme(axis.text = element_text(color='black')) + 
+    scale_fill_manual(values = colorList)  + theme(legend.position = 'null', axis.title.x = element_blank()) + 
+    annotate('text', x=1, y=max(interaction.dt[,.(get(plot.var))]), label = paste("P=",pVal$p), color='black')+
+    ggtitle(title) + ylab("Log2FC enrichment relative to random")
+}
+
+plot.enrichm.interaction(interaction.dt = interaction.byStage, probeSubset = "ACTIVATED_TREG--MIXED_TOX_LO_CD8", colorList = a$colorScheme, title="ACTIVATED_TREG--MIXED_TOX_LO_CD8")
+# ggsave(filename = 'output/ACTIVATED_TREG--MIXED_TOX_LO_CD8.stage.boxplot.pdf', width=4,height=3)
+plot.enrichm.interaction(interaction.dt = interaction.byStage, probeSubset = "ACTIVATED_TREG--MEMORY_CD8", colorList = a$colorScheme, title="ACTIVATED_TREG--MEMORY_CD8")
+# ggsave(filename = 'output/ACTIVATED_TREG--MEMORY_CD8.stage.boxplot.pdf', width=4,height=3)
+
 ```
 
 
-# contrast recurrence using cellProxEnrich
+# contrast recurrence  
 ```{r contrast-recur-using-cellProxEnrich, fig.width=8, fig.height=8}
 a <- findImportantInteractions( interaction.dt= interaction.byRecur, condition.exp="recur", condition.ctrl="no.recur", ef.threshold=1)
 print(a$filteredggplot)
@@ -1121,6 +1143,9 @@ a <- plot.Average.Niche.igraph(annot.table = annot.k9[norecur.subgroup], indexCl
 b <- plot.Average.Niche.igraph(annot.table = annot.k9[recur.subgroup], indexCluster = 'TCF1_HI_TOX_HI_CD8',
                       title='TCF1_HI_TOX_HI_CD8 recurrence')
 gridExtra::grid.arrange(a, b, nrow=1) 
+# ggsave(a, file = "output/TCF1_HI_TOX_HI_CD8.igraph.norecur.pdf", height=5,width=5)
+# ggsave(b, file = "output/TCF1_HI_TOX_HI_CD8.igraph.recur.pdf", height=5,width=5)
+
 
 a <- niche.contrast(annot.table = annot.k9, indexCluster = 'ACTIVATED_TREG', common.title='ACTIVATED_TREG', grouping.exp = recur.subgroup, 
                grouping.ctrl = norecur.subgroup, condition.exp = 'recur', condition.ctrl = 'no.recur')
@@ -1142,8 +1167,17 @@ plot.boxplot( df = b$res, probeSubset = 'ACTIVATED_TREG', grouping.var = 'stage'
               title = "TCF1_HI_TOX_HI_CD8")
 # ggsave(filename = 'output/TCF1_HI_TOX_HI_CD8-for-ACTIVATED_TREG.recur.boxplot.pdf', width=3,height=3)
 
+plot.enrichm.interaction(interaction.dt = interaction.byRecur, probeSubset = "ACTIVATED_TREG--TCF1_HI_TOX_HI_CD8", colorList = a$colorScheme, title="ACTIVATED_TREG--TCF1_HI_TOX_HI_CD8")
+# ggsave(filename = 'output/ACTIVATED_TREG--TCF1_HI_TOX_HI_CD8.recur.boxplot.pdf', width=4,height=3)
+
+
 ```
 
+# plot specific pairwise interactions between cohorts 
+```{r plot-logFC-for-interaction}
+
+
+```
 
 
 ```{r evaluate-neighborhoods-by-radius}
