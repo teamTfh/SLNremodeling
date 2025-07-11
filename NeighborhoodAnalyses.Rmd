@@ -533,7 +533,7 @@ ICGscores.L2 = findInteractionChangedFeats(gobject = sln.sm, selected_feats = gd
                                                  nr_permutations = 200, do_parallel = F)
 saveRDS(object = ICGscores.L2, 
         file = "neighborhood.ICGlist.recur.sln.clustering5.annot.spatnet.RDS"); date()
-
+ICGscores.L2 = readRDS(file = "neighborhood.ICGlist.recur.sln.clustering5.annot.spatnet.RDS")
 
 
 keepCells <- subset(md, list_ID %in% norecur.subgroup)
@@ -1355,24 +1355,8 @@ ggplot(comb, aes(y = right.stage3, x = proportion, group=left.stage3, fill=left.
 ```
 
 
-```{r plot-pairwise-enrichment-recurrence, fig.width=10}
-y <- merge(x=df[which(df$subgroup=='no.recur'),], y=df[which(df$subgroup == 'recur'),] , by='unified_int', suffixes = c(".no.recur",".recur"), all=T)
-y$diff.PI_value <- y$PI_value.recur - y$PI_value.no.recur
-y <- y[!is.na(y$diff.PI_value),]  # remove NA values, which imply interactions not present in both settings
-y$unified_int <- factor(y$unified_int, levels = y$unified_int[order(y$diff.PI_value, decreasing = T)])
-y$unified_char <- paste0(y$left.recur,"--",y$right.recur)
-
-y <- y[which(y$original.recur > 20),]
-
-ggplot(y, aes(x=unified_int, y=diff.PI_value, label=unified_char)) + geom_point() + theme_classic() + 
-  ggrepel::geom_label_repel(max.overlaps = 20) + ggtitle("PI_value:  Recur - noRecur") + 
-  geom_hline(yintercept = 0.001, color="grey50") + 
-  theme(axis.text.x = element_blank())  
-
-```
-
 # show stage 1 interactions
-```{r proximity-heatmap-stage1, fig.width=10}
+```{r proximity-heatmap-stage1, fig.width=10, eval = FALSE}
 cellProximityHeatmap( sln, CPscore = stage1, scale = TRUE, order_cell_types = TRUE, color_breaks = NULL, color_names = NULL, )
 cellProximityNetwork(sln, CPscore = stage1)
 
@@ -1452,7 +1436,7 @@ cellProximityHeatmap.retMatrix <- function(gobject, CPscore, scale = TRUE, order
 ```
 
 # show stage 3 interactions 
-```{r proximity-heatmap-stage3, fig.width=10}
+```{r proximity-heatmap-stage3, fig.width=10, eval = FALSE}
 Giotto::cellProximityHeatmap( sln, CPscore = stage3, scale = F, order_cell_types = TRUE, return_plot = T)
 final_matrix <- cellProximityHeatmap.retMatrix( sln, CPscore = stage3, scale = TRUE, order_cell_types = T)$final_matrix
 clus <- cellProximityHeatmap.retMatrix( sln, CPscore = stage3, scale = TRUE, order_cell_types = T)$clus
