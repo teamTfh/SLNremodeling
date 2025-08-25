@@ -1,0 +1,309 @@
+---
+title: "Neighborhood analyses - Interaction Changed Features"
+output:
+  html_document:
+    df_print: paged    
+    toc: TRUE
+    toc_float: true
+    toc_collapsed: true
+    toc_depth: 3
+    number_sections: true
+---
+ 
+
+```{css, echo=FALSE}
+img {
+  max-width:150%;
+  height: auto;
+}
+```
+ 
+ 
+```{r call-libraries} 
+date()
+library(Giotto)
+library(future); if(parallelly::availableCores() > 2 )  # & .Platform$OS.type == "windows")  
+  {plan('multisession', workers = parallelly::availableCores()-2)}
+options(future.globals.maxSize= 1e12)
+library(scran); library(MAST); # library(leiden);   # library(multinet);  
+library(data.table)
+library(gplots); library(ggplot2); library(viridis)
+library(dbscan)
+library(dplyr); library(leidenAlg)
+library(ComplexHeatmap)
+library(circlize)
+library(dplyr); library(tidyr)
+set.seed(43)
+knitr::opts_chunk$set(fig.retina = 2)
+sessionInfo()
+
+#  ****** libraries to install 
+# library(factoextra)
+
+```
+
+# read in data object 
+```{r read-annot-sln-spatnet}
+
+sln <- readRDS("sln.clustering5.annot.spatnet.20250617.160512.RDS")
+gc()
+md <- pDataDT(sln)
+stableColorsL2 <- getDistinctColors(length(unique(md$L2_annotations)));  names(stableColorsL2) <- unique(md$L2_annotations)
+stage3.subgroup <- c("tumor.1","tumor.2","tumor.3","tumor.4","tumor.5","tumor.6","tumor.7", "tumor.8",
+                                                 "tumor.9","tumor.10")
+stage1.subgroup <- c("ctrl.1","ctrl.2","ctrl.3","ctrl.4","ctrl.5")
+recur.subgroup <- c("tumor.3","tumor.4","tumor.5","tumor.7","tumor.8","tumor.10")
+norecur.subgroup <- c("tumor.1","tumor.2", "tumor.6", "tumor.9")
+```
+
+
+# calculate ICF 
+```{r ICF-perSample-calculateICF, fig.width=10}
+list_ID <- unique(md$list_ID)
+icf.persample <- list(); icf.persample.enrich <- list()
+proteinsList <- c("BCA1", "CD3E", "CD4","CD8" ,"CD11C" ,"CD19","CD20" ,"CD21","CD27","CD38","CD39", "CD45RO","CXCR3","CXCR5",
+                  "FOXP3" , "GZMB" ,"HLA.DR", "ICOS","IFNG","IL21","IRF4","IRF7","KI67", "LAG3","MAC2/GAL3","PAX5",
+                  "PD1","PDL1","PMTOR","STAT1","STAT3","TBET","TCF1","TOX","VIMENTIN" )
+timeStamp <- format(Sys.time(), "%m%d.%H%M")
+enrich.celltypes <- c("ACTIVATED_TREG", "TCF1_LO_TOX_HI_CD8", "ACTIVATED_CD8") # make a version that keeps all of these cells 
+
+for (i in list_ID)
+{
+  if( .Platform$OS.type != "windows")    {    cat(paste("Starting on: ", i, " on ", date(),"\n"), 
+                                                  file = paste0("progress.",timeStamp,".txt"), append = T)   }
+
+  keepCells <- subset(md, list_ID %in% i )
+  # if(nrow(keepCells)>3e5) 
+  #   { sln.sm <- subsetGiotto(gobject = sln, cell_ids = subset(keepCells, cell_ID %in% sample(keepCells$cell_ID, 3e5))$cell_ID)    }  
+  # if(nrow(keepCells)<3e5)  {   sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells$cell_ID)}
+  sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells$cell_ID)
+  sln.sm <- createSpatialKNNnetwork(sln.sm, k=9, verbose=T, name = "spatialknn.k9.persample") 
+  print("made spatialKNN")
+  print(getSpatialNetwork(sln.sm))
+  # limiting number of permutations because the perm test results won't be used going forward
+  res <- findInteractionChangedFeats(gobject = sln.sm, selected_feats = proteinsList,
+                                     spatial_network_name = "spatialknn.k9.persample", 
+                                     cluster_column = "L2_annotations", diff_test = 'permutation', 
+                                     adjust_method = 'fdr', nr_permutations = 1, do_parallel = T)  
+  res$list_ID <- i
+  icf.persample[i] <- res
+  print(paste("Random downsample process for", i, "ends at", date()))
+  
+  # keep.these <- subset(keepCells, L2_annotations %in% enrich.celltypes)$cell_ID
+  # # print(head(keep.these))
+  # remainingCells <- subset(keepCells, !L2_annotations %in% enrich.celltypes)$cell_ID
+  # remainingCells <- sample(remainingCells, 1e5 - length(keep.these))  # keeps the total # cells the same
+  # # print(head(c(keep.these, remainingCells)))
+  # sln.sm <- subsetGiotto(gobject = sln, cell_ids = c(keep.these, remainingCells))
+  # sln.sm <- createSpatialKNNnetwork(sln.sm, k=9, verbose=T, name = "spatialknn.k9.persample") 
+  # print("re-made spatialKNN")
+  # print(getSpatialNetwork(sln.sm))
+  # res <- findInteractionChangedFeats(gobject = sln.sm, selected_feats = proteinsList,
+  #                                    spatial_network_name = "spatialknn.k9.persample", 
+  #                                    cluster_column = "L2_annotations", diff_test = 'permutation', 
+  #                                    adjust_method = 'fdr', nr_permutations = 1, do_parallel = T)
+  # res$list_ID <- i
+  # icf.persample.enrich[i] <- res
+  # print(paste("Enrich process for", i, "ends at", date()))
+
+}
+
+saveRDS(
+  # list(random.downsample = icf.persample, 
+  #            enriched = icf.persample.enrich), 
+        icf.persample,
+        file = "neighborhood.ICFlist.perSample.sln.clustering5.spatnet.RDS")
+
+# Job Wall-clock time: 01:51:30              Memory Utilized: 72.67 GB
+```
+
+# load ICF data 
+```{r ICF-perSample-loadICF, fig.width=10}
+icf.persample <- purrr::list_rbind(readRDS(file="neighborhood.ICFlist.perSample.sln.clustering5.spatnet.RDS"), 
+                                    names_to = "list_ID")
+
+ #    list_ID  feats       sel     other     log2fc        diff p.value p.adj  perm_sel perm_other perm_log2fc   perm_diff
+ #     <char> <char>     <num>     <num>      <num>       <num>   <num> <num>     <num>      <num>       <num>       <num>
+ # 1:  ctrl.1    CD4  6.678378  4.273293  0.6322200   2.4050848       0     0  4.443401   4.591068 -0.04614361 -0.14766649
+ # 2:  ctrl.1   IRF7  4.335566  2.802213  0.6119648   1.5333530       0     0  2.833045   3.015845 -0.08722451 -0.18280052
+ # 3:  ctrl.1 HLA.DR  7.155213  4.690167  0.5989422   2.4650466       0     0  5.143791   4.976156  0.04687391  0.16763547
+ #                  cell_type             int_cell_type nr_select int_nr_select nr_other int_nr_other
+ #                   <char>                    <char>     <int>         <int>    <int>        <int>
+ # 1: TCF1_MIXED_TOX_HI_CD8        TCF1_HI_TOX_HI_CD8       271           309     1906         1054
+ # 2: TCF1_MIXED_TOX_HI_CD8        TCF1_HI_TOX_HI_CD8       271           309     1906         1054
+ # 3: TCF1_MIXED_TOX_HI_CD8        TCF1_HI_TOX_HI_CD8       271           309     1906         1054
+ #                                          unif_int                                  spec_int type_int
+ #                                       <char>                                    <char>   <char>
+ # 1: TCF1_HI_TOX_HI_CD8--TCF1_MIXED_TOX_HI_CD8 TCF1_MIXED_TOX_HI_CD8--TCF1_HI_TOX_HI_CD8   hetero
+ # 2: TCF1_HI_TOX_HI_CD8--TCF1_MIXED_TOX_HI_CD8 TCF1_MIXED_TOX_HI_CD8--TCF1_HI_TOX_HI_CD8   hetero
+ # 3: TCF1_HI_TOX_HI_CD8--TCF1_MIXED_TOX_HI_CD8 TCF1_MIXED_TOX_HI_CD8--TCF1_HI_TOX_HI_CD8   hetero
+
+```
+
+# make volcano plots 
+```{r ICF-perSample-calculate-volcano, fig.width=6, eval=FALSE}
+# intxns <- findImportantInteractions( interaction.dt= interaction.byRecur, condition.exp="recur", condition.ctrl="no.recur", ef.threshold=1)[[1]]
+plot.volcano.icf <- function( dt, receiver_cell, sender_cell )
+{
+  dt <- dt[int_cell_type == sender_cell & cell_type == receiver_cell]
+  volcano.data <- dt[, .(mean_log2fc = mean(log2fc, na.rm = TRUE),
+                                           p_value = t.test(log2fc, mu = 0)$p.value, 
+                                           Welch_t = t.test(log2fc, mu = 0)$statistic ),
+                                       by = .(feats)  ]
+  volcano.data[, p_adj := p.adjust(p_value, method="fdr" ) ] [order(p_adj, decreasing = T)]
+  print(
+    ggplot(volcano.data, aes(y = -log10(p_adj), x=mean_log2fc,label = feats )) + 
+      geom_point(shape=21, color="white", fill="black",size=3) + 
+      ggrepel::geom_text_repel() + ggtitle(paste0(receiver_cell, " adjacent to ", sender_cell )) + 
+      theme_classic()  
+  )
+  return(dt)
+}
+
+a <- plot.volcano.icf(dt = icf.persample, receiver_cell = "ACTIVATED_TREG", sender_cell = "ACTIVATED_CD8")
+plot.volcano.icf(dt = icf.persample, receiver_cell = "ACTIVATED_CD8", sender_cell = "ACTIVATED_TREG")
+
+plot.volcano.icf(dt = icf.persample, receiver_cell = "ACTIVATED_TREG", sender_cell = "TCF1_HI_TOX_HI_CD8")
+plot.volcano.icf(dt = icf.persample, receiver_cell = "TCF1_HI_TOX_HI_CD8", sender_cell = "ACTIVATED_TREG")
+plot.volcano.icf(dt = icf.persample, receiver_cell = "MEMORY_CD4", sender_cell = "ACTIVATED_TREG")
+
+```
+
+# calculate statistics 
+```{r plot-everything}
+
+dt <- icf.persample[,.(list_ID, feats, log2fc, cell_type, int_cell_type, nr_select, int_nr_select)]
+volcano.data <- dt[cell_type == "ACTIVATED_TREG", .(mean_log2fc = mean(log2fc, na.rm = TRUE),
+                                           p_value = t.test(log2fc, mu = 0)$p.value, 
+                                           Welch_t = t.test(log2fc, mu = 0)$statistic ),
+                                       by = .(feats, int_cell_type)  ]
+volcano.data <- volcano.data[! int_cell_type %in% c("ARTIFACT", "CD4.outlier","CD8.outlier")]
+volcano.data[, p_adj := p.adjust(p_value, method="fdr" ) ] [order(p_adj, decreasing = T)]
+
+```
+
+# heatmap of the ICF 
+```{r ICF-perSample-calculate-volcano, fig.width=10, eval=FALSE}
+a <- plot.volcano.icf(dt = icf.persample, receiver_cell = "ACTIVATED_TREG", sender_cell = "TCF1_HI_TOX_HI_CD8")
+annotation.df <- data.frame(list_ID = c(stage1.subgroup, recur.subgroup, norecur.subgroup))
+annotation.df$annot <- c(rep("stage1", 5), rep("stage3.recur", length(recur.subgroup)), 
+                         rep("stage3.no.recur", length(norecur.subgroup))) 
+rownames(annotation.df) <- annotation.df$list_ID
+annotation.df$list_ID <- NULL
+heatmap.feats <- proteinsList # c("IFNG", "GZMB", "HLADR")
+heatmap.matrix <- a[feats %in% heatmap.feats, .(log2fc, feats, list_ID)]
+heatmap.matrix <- (heatmap.matrix %>% pivot_wider(names_from = feats, values_from=log2fc, id_cols = list_ID)) %>% 
+   tibble::column_to_rownames("list_ID") 
+heatmap.matrix <- heatmap.matrix[rownames(annotation.df), ] %>% as.matrix()
+colors <- c("stage1" = "gray80", "stage3.no.recur" = "gray30", "stage3.recur" = "black")
+ht.annot <- HeatmapAnnotation(df = annotation.df, col = list(annot = colors), which = "row")
+
+Heatmap(  heatmap.matrix, name = "log2FC",
+  row_split = annotation.df$annot, left_annotation = ht.annot, rect_gp = gpar(col = "white", lwd = 1),
+  cluster_rows = TRUE, cluster_columns = TRUE, row_title = "Samples", show_row_names = F, 
+  column_title = "Features", row_names_gp = gpar(fontsize = 10),  column_names_gp = gpar(fontsize = 10)
+)
+
+
+```
+
+```{r regroup-Treg}
+md.mod <- md
+
+
+
+```
+
+
+
+
+# deprecated:  interaction changed genes
+```{r Interaction-changed-genes-calculate, eval=FALSE}
+# md <- pDataDT(sln)
+keepCells <- subset(md, list_ID %in% stage3.subgroup)
+keepCells <- subset(keepCells, cell_ID %in% sample(keepCells$cell_ID, 3e5))$cell_ID
+sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
+gd = fDataDT(sln.sm)
+date()
+## identify genes that are associated with proximity to other cell types
+ICGscores.L2 = findInteractionChangedFeats(gobject = sln.sm, selected_feats = gd$feat_ID,
+                                                 spatial_network_name = "spatialknn.k5", cluster_column = 'L2_annotations',
+                                                 diff_test = 'permutation', adjust_method = 'fdr',
+                                                 nr_permutations = 200, do_parallel = F)
+saveRDS(object = ICGscores.L2, 
+        file = "neighborhood.ICGlist.s3.sln.clustering5.annot.spatnet.RDS"); date()  # took 6 hours at 300 permutations each 
+
+
+keepCells <- subset(md, list_ID %in% stage1.subgroup)
+keepCells <- subset(keepCells, cell_ID %in% sample(keepCells$cell_ID, 3e5))$cell_ID
+sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
+gd = fDataDT(sln.sm)
+date()
+## identify genes that are associated with proximity to other cell types
+ICGscores.L2 = findInteractionChangedFeats(gobject = sln.sm, selected_feats = gd$feat_ID,
+                                                 spatial_network_name = "spatialknn.k5", cluster_column = 'L2_annotations',
+                                                 diff_test = 'permutation', adjust_method = 'fdr',
+                                                 nr_permutations = 200, do_parallel = F)
+saveRDS(object = ICGscores.L2, 
+        file = "neighborhood.ICGlist.s1.sln.clustering5.annot.spatnet.RDS"); date()
+
+
+
+keepCells <- subset(md, list_ID %in% recur.subgroup)
+keepCells <- subset(keepCells, cell_ID %in% sample(keepCells$cell_ID, 3e5))$cell_ID
+sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
+gd = fDataDT(sln.sm)
+date()
+## identify genes that are associated with proximity to other cell types
+ICGscores.L2 = findInteractionChangedFeats(gobject = sln.sm, selected_feats = gd$feat_ID,
+                                                 spatial_network_name = "spatialknn.k5", cluster_column = 'L2_annotations',
+                                                 diff_test = 'permutation', adjust_method = 'fdr',
+                                                 nr_permutations = 200, do_parallel = F)
+saveRDS(object = ICGscores.L2, 
+        file = "neighborhood.ICGlist.recur.sln.clustering5.annot.spatnet.RDS"); date()
+
+
+keepCells <- subset(md, list_ID %in% norecur.subgroup)
+keepCells <- subset(keepCells, cell_ID %in% sample(keepCells$cell_ID, 3e5))$cell_ID
+sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
+gd = fDataDT(sln.sm)
+date()
+## identify genes that are associated with proximity to other cell types
+ICGscores.L2 = findInteractionChangedFeats(gobject = sln.sm, selected_feats = gd$feat_ID,
+                                                 spatial_network_name = "spatialknn.k5", cluster_column = 'L2_annotations',
+                                                 diff_test = 'permutation', adjust_method = 'fdr',
+                                                 nr_permutations = 200, do_parallel = F)
+saveRDS(object = ICGscores.L2, 
+        file = "neighborhood.ICGlist.norecur.sln.clustering5.annot.spatnet.RDS"); date()
+
+ICGscores.L2.recur = readRDS(file = "neighborhood.ICGlist.recur.sln.clustering5.annot.spatnet.RDS")
+ICGscores.L2.norecur = readRDS(file = "neighborhood.ICGlist.norecur.sln.clustering5.annot.spatnet.RDS")
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

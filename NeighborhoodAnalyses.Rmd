@@ -58,8 +58,23 @@ gc()
 ```
 
 
+```{r grant-example-images}
+keepCells <- subset(md, list_ID == "tumor.5" & y %in% c(10000:20000) )$cell_ID
+sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
+# leiden_colors <- getDistinctColors(length(unique(md$L2_annotations)))
+leiden_colors <- stableColorsL2
+names(leiden_colors) <- unique(md$L2_annotations)
+leiden_colors.focus <- leiden_colors 
+leiden_colors.focus <- rep("gray90",length(leiden_colors)); leiden_colors.focus["1"] <- leiden_colors["1"]
+spatPlot2D(sln.sm, cell_color = 'L2_annotations', cell_color_code = leiden_colors, 
+                         point_size = 0.1, point_shape="no_border", point_alpha=0.4, axis_text=14, 
+                         legend_text = 4)
+# ggsave(filename = 'output/tumor.5.L2annot.pdf')
+```
+
+
 # calculate proximity enrichment per sample for k=5
-```{r cellproxEnrich-function-k5}
+```{r cellproxEnrich-function-functions}
 cellProx.sim <- function(gobject, spat_unit = NULL, feat_type = NULL, spatial_network_name="spatialknn.k5", 
                          #spatial_network_name = "Delaunay_network",
     cluster_column, number_of_simulations = 1000, 
@@ -297,7 +312,10 @@ cellProx.calcP <- function(table_results, number_of_simulations = 1000,
 
 list_ID <- unique(md$list_ID)
 gc()
+```
 
+
+```{r cellproxEnrich-function-k5}
 tableResults.k5 <- list()
 annot.k5 <- list()
 for (i in list_ID)
@@ -485,7 +503,8 @@ interaction.byStage.rad <- rbind(addLabels.fxn(perSampleInteraction.enrichm_res[
              addLabels.fxn(perSampleInteraction.enrichm_res[stage1.subgroup], label = "stage1") ) 
 interaction.byRecur.rad <- rbind(addLabels.fxn(perSampleInteraction.enrichm_res[recur.subgroup], label = "recur"),
              addLabels.fxn(perSampleInteraction.enrichm_res[norecur.subgroup], label = "no.recur") ) 
-
+rm(dt)
+gc()
 ```
 
 
@@ -565,6 +584,13 @@ showNiche.singleSample <- function(annot.table, indexCluster, title, plots=TRUE)
   else return(res)
 }
 
+a <- removeArtifacts(annot.k9[['tumor.5']])
+b <- a[to_cell_type == 'ACTIVATED_TREG']
+a <- a[from_cell_type == 'ACTIVATED_TREG']
+# write.csv(x = rbind(a, b), file = "neighborsTable.ACTIVATED_TREG.tumor5.csv")
+# write.csv(x = annot.k9[['tumor.5']], file = "neighborsTable.allCells.tumor5.csv")
+#   
+  
 a <- showNiche.singleSample(annot.table = annot.k9[['tumor.5']], indexCluster = 'LZ_BCELL', title='LZ_BCELL',
                             plots=T)
 b <- showNiche.singleSample(annot.table = annot.k9[['tumor.5']], indexCluster = 'MIXED_GC_TCELL', title='MIXED_GC_TCELL',
@@ -821,13 +847,15 @@ exampleNeighborhoods.filter <- function(res.list, indexCluster, chooseNeighbor, 
   for (i in list_ID)    { filterList[[i]] <- res.list[[i]][from_cell_type == indexCluster & get(chooseNeighbor) > threshold]    }
   return( rbindlist(filterList)  )
 }
-  
+
 a <- exampleNeighborhoods.filter(neighborhoods, indexCluster = "LZ_BCELL", chooseNeighbor = "LZ_BCELL", threshold=0.2)
 # write.csv(a, file = "LZ_BCELL.filtered.by.LZ_BCELL_over0.2n.csv")
 a <- exampleNeighborhoods.filter(neighborhoods, indexCluster = "LZ_BCELL", chooseNeighbor = "PC", threshold=0.2)
 # write.csv(a, file = "LZ_BCELL.filtered.by.PC_over0.2.csv")
 a <- exampleNeighborhoods.filter(neighborhoods, indexCluster = "TCF1_HI_TOX_HI_CD8", chooseNeighbor = "ACTIVATED_TREG", threshold=0.15)
 # write.csv(a, file = "TCF1_HI_TOX_HI_CD8.filtered.by.ACTIVATED_TREG_over0.15.csv")
+a <- exampleNeighborhoods.filter(neighborhoods, indexCluster = "ACTIVATED_TREG", chooseNeighbor = "TCF1_HI_TOX_HI_CD8", threshold=-0.1)
+# write.csv(a, file = "ACTIVATED_TREG.unfiltered.csv")
 
 # example output
 #                      from     from_cell_type ACTIVATED_CD4 ACTIVATED_CD8 ACTIVATED_MEMORY_CD4 ACTIVATED_MEMORY_CD8 ACTIVATED_TREG
@@ -910,7 +938,8 @@ niche.contrast <- function( annot.table, indexCluster, common.title, grouping.ex
   annotateX <- max(res$proportion)-0.2*max(res$proportion)
   print(a <- ggplot(res, aes(y = subset, x = proportion, fill=color_key, label=list_ID, group=stage)) +
       geom_point(size=2, position=position_dodge(width=1), pch=21, stroke=0.2, color='grey50') +
-      annotate('text',x= annotateX ,y=35, label=paste0(condition.ctrl," in light shade\n", condition.exp," in dark shade"), size=3)+
+      annotate('text',x= annotateX ,y=35, label=paste0(condition.ctrl," in light shade\n", 
+                                                       condition.exp," in dark shade"), size=3)+
       stat_summary( fun.min = "mean", fun.max = "mean", geom = "errorbar", position = position_dodge(width=1),
                     width = 1, color = "black", linewidth = 0.5 ) +
       theme_bw() + ggtitle(common.title) +
@@ -993,7 +1022,7 @@ findImportantInteractions <- function( interaction.dt, condition.exp, condition.
   df <- as.data.table(df)[ !unified_int %like% 'outlier' & !unified_int %like% 'ARTIFACT'] 
   if(leaveOutTumor == T) { df <- as.data.table(df)[!unified_int %like% 'Tumor'] }  # leave out tumor interactions 
   df$unified_int <- factor(df$unified_int, levels = df$unified_int)
-  print("delta effect size table, filtered for effect size threshold")
+  print("effect size table, filtered for effect size threshold")
   print(as_tibble(df))
 # example output
 # # A tibble: 30 × 3
@@ -1081,8 +1110,9 @@ globalChanges.Effectsize.plot <- function(importIntxn.obj, colNames = names(stab
   b %>% rstatix::dunn_test(formula = Effect.size ~ subset) 
   order <- b %>% group_by(subset) %>% rstatix::get_summary_stats(type = 'mean') %>% arrange(mean)
   b$subset <- factor(b$subset, levels = order$subset) 
-  a <- ggplot(b, aes(y = subset, x=Effect.size)) + geom_violin() +# geom_point(pch=21, color='grey50',fill='grey90', size=0.5) +  
-    theme_bw() + theme(axis.title.y = element_blank()) + 
+  a <- ggplot(b, aes(y = subset, x=Effect.size)) + geom_vline(xintercept = 0, color='grey50')+ 
+    geom_violin() +# geom_point(pch=21, color='grey50',fill='grey90', size=0.5) +  
+    theme_bw() + theme(axis.title.y = element_blank()) + theme(axis.text = element_text(color='black')) + 
     ggtitle(title)
   return(a)
 }  
@@ -1114,13 +1144,13 @@ plot.boxplot <- function(df, probeSubset, grouping.var, plot.var='proportion', n
   df <- df[subset == probeSubset]
   # pVal <- df %>% rstatix::welch_anova_test(formula = get(plot.var) ~ get(grouping.var)) 
   formula.str <- as.formula(paste(plot.var, "~", grouping.var))
-  if(nonparam==F)   { pVal <- df %>% rstatix::welch_anova_test(formula = formula.str) %>% select(p) %>% round(digits=2)}
-  if(nonparam==T)   { pVal <- df %>% rstatix::wilcox_test(formula = formula.str) %>% select(p) %>% round(digits=2) }
+  if(nonparam==F)   { pVal <- df %>% rstatix::welch_anova_test(formula = formula.str) }
+  if(nonparam==T)   { pVal <- df %>% rstatix::wilcox_test(formula = formula.str)  }
   colorList <- colorList[names(colorList) %like% probeSubset]
   ggplot(df, aes(x = get(grouping.var), y=get(plot.var))) + geom_boxplot(aes(fill = color_key)) + 
     geom_point(size=4, pch=21, fill='white', color='grey50',) + theme_bw() + theme(axis.text = element_text(color='black')) + 
     scale_fill_manual(values = colorList)  + theme(legend.position = 'null', axis.title.x = element_blank()) + 
-    annotate('text', x=2, y=max(df$proportion), label = paste("P=",pVal$p), color='black')+
+    annotate('text', x=2, y=max(df$proportion), label = paste("P=", round(pVal$p, 2)), color='black')+
     ylab(paste(probeSubset, plot.var)) + ggtitle(title) 
 }
 plot.boxplot( df = a$res, probeSubset = 'MIXED_TOX_LO_CD8', grouping.var = 'stage', plot.var='proportion', colorList = a$colorScheme,
@@ -1135,23 +1165,23 @@ plot.enrichm.interaction <- function(interaction.dt, probeSubset, nonparam=T, pl
 {
   interaction.dt <- interaction.dt[unified_int == probeSubset]
   formula.str <- as.formula(paste(plot.var, "~", 'condition'))
-  if(nonparam==F)   { pVal <- interaction.dt %>% rstatix::welch_anova_test(formula = formula.str) %>% select(p) %>% round(digits=2)}
-  if(nonparam==T)   { pVal <- interaction.dt %>% rstatix::wilcox_test(formula = formula.str) %>% select(p) %>% round(digits=2) }
-  # pVal$p <- round(pVal$p, 2)
+  if(nonparam==F)   { pVal <- interaction.dt %>% rstatix::welch_anova_test(formula = formula.str) }
+  if(nonparam==T)   { pVal <- interaction.dt %>% rstatix::wilcox_test(formula = formula.str)   }
   colorList <- colorList[names(colorList) %like% probeSubset]
   ggplot(interaction.dt, aes(x = condition, y=get(plot.var))) + geom_boxplot(fill = 'grey80', alpha=0.5) + 
     geom_point(size=4, pch=21, fill='white', color='grey30',) + theme_bw() + theme(axis.text = element_text(color='black')) + 
     scale_fill_manual(values = colorList)  + theme(legend.position = 'null', axis.title.x = element_blank()) + 
-    annotate('text', x=1, y=max(interaction.dt[,.(get(plot.var))]), label = paste("P=",pVal$p), color='black')+
-    ggtitle(title) + ylab("Log2FC enrichment relative to random")
+    annotate('text', x=1, y=1.2*max(interaction.dt[,.(get(plot.var))]), 
+             label = paste("P=", round(pVal$p, digits=2)), color='black')+
+    ggtitle(title) + ylab("Log2FC enrichment relative to random") #+   scale_y_continuous(expand = expansion(mult = 0.1))
 }
 
 plot.enrichm.interaction(interaction.dt = interaction.byStage, probeSubset = "ACTIVATED_TREG--MIXED_TOX_LO_CD8", 
-                         colorList = a$colorScheme, title="ACTIVATED_TREG--MIXED_TOX_LO_CD8")
-# ggsave(filename = 'output/ACTIVATED_TREG--MIXED_TOX_LO_CD8.stage.boxplot.pdf', width=4,height=3)
+                         colorList = a$colorScheme, title="ACTIVATED_TREG--\nMIXED_TOX_LO_CD8")
+# ggsave(filename = 'output/ACTIVATED_TREG--MIXED_TOX_LO_CD8.stage.boxplot.pdf', width=2.5,height=3)
 plot.enrichm.interaction(interaction.dt = interaction.byStage, probeSubset = "ACTIVATED_TREG--MEMORY_CD8", 
-                         colorList = a$colorScheme, title="ACTIVATED_TREG--MEMORY_CD8")
-# ggsave(filename = 'output/ACTIVATED_TREG--MEMORY_CD8.stage.boxplot.pdf', width=4,height=3)
+                         colorList = a$colorScheme, title="ACTIVATED_TREG--\nMEMORY_CD8")
+# ggsave(filename = 'output/ACTIVATED_TREG--MEMORY_CD8.stage.boxplot.pdf', width=2.5,height=3)
 
 ```
 
@@ -1160,7 +1190,7 @@ plot.enrichm.interaction(interaction.dt = interaction.byStage, probeSubset = "AC
 ```{r contrast-recur-using-cellProxEnrich, fig.width=8, fig.height=8}
 a <- findImportantInteractions( interaction.dt= interaction.byRecur, condition.exp="recur", condition.ctrl="no.recur", ef.threshold=1)
 # ggsave(plot = a$filteredggplot, file = "output/interaction.Recur.EffectSize.pdf", height=11, width=8)
-
+a$filteredggplot
 # a$df[, colorMe:=ifelse(unified_int %like% "ACTIVATED_TREG", "T","F")]
 a$filteredggplot.selective <- findImportantInteractions.plotFiltered(df = a$df[unified_int %like% "ACTIVATED_TREG"], 
                                             condition.exp="recur", condition.ctrl="no.recur", labelPlot = F)
@@ -1169,7 +1199,7 @@ a$filteredggplot.selective
 
 b <- globalChanges.Effectsize.plot(importIntxn.obj = a, title = "Recur vs NoRecur")
 # ggsave(b, filename = 'output/EffectSize.allSubsets.byRecur.violin.pdf', height=6,width=6)
-
+b
 
 
 a <- plot.Average.Niche.igraph(annot.table = annot.k9[norecur.subgroup], indexCluster = 'ACTIVATED_TREG',
@@ -1209,11 +1239,11 @@ plot.boxplot( df = b$res, probeSubset = 'ACTIVATED_TREG', grouping.var = 'stage'
               title = "TCF1_HI_TOX_HI_CD8")
 # ggsave(filename = 'output/TCF1_HI_TOX_HI_CD8-for-ACTIVATED_TREG.recur.boxplot.pdf', width=3,height=3)
 
-plot.enrichm.interaction(interaction.dt = interaction.byRecur, probeSubset = "ACTIVATED_TREG--TCF1_HI_TOX_HI_CD8", colorList = a$colorScheme, title="ACTIVATED_TREG--TCF1_HI_TOX_HI_CD8")
-# ggsave(filename = 'output/ACTIVATED_TREG--TCF1_HI_TOX_HI_CD8.recur.boxplot.pdf', width=4,height=3)
+plot.enrichm.interaction(interaction.dt = interaction.byRecur, probeSubset = "ACTIVATED_TREG--TCF1_HI_TOX_HI_CD8", colorList = a$colorScheme, title="ACTIVATED_TREG--\nTCF1_HI_TOX_HI_CD8")
+# ggsave(filename = 'output/ACTIVATED_TREG--TCF1_HI_TOX_HI_CD8.recur.boxplot.pdf', width=2.5,height=3)
 
-plot.enrichm.interaction(interaction.dt = interaction.byRecur, probeSubset = "ACTIVATED_CD8--ACTIVATED_TREG", colorList = a$colorScheme, title="ACTIVATED_CD8--ACTIVATED_TREG")
-# ggsave(filename = 'output/ACTIVATED_CD8--ACTIVATED_TREG.recur.boxplot.pdf', width=4,height=3)
+plot.enrichm.interaction(interaction.dt = interaction.byRecur, probeSubset = "ACTIVATED_CD8--ACTIVATED_TREG", colorList = a$colorScheme, title="ACTIVATED_CD8--\nACTIVATED_TREG")
+# ggsave(filename = 'output/ACTIVATED_CD8--ACTIVATED_TREG.recur.boxplot.pdf', width=2.5,height=3)
 
 
 ```
@@ -1249,15 +1279,15 @@ gridExtra::grid.arrange(plot.Average.Niche.igraph(annot.table = annot.rad[norecu
 df.a <- a$df; df.b <- b$df;  df.a[, source := 'radius'];  df.b[, source := 'nearest.9']
 df.a <- rbindlist(list(df.a, df.b));  df.a$unified_int <- as.character(df.a$unified_int)
 df.a <- df.a[!unified_int %like% 'ARTIFACT']
-df.a <- df.a %>% select(unified_int, source, delta.effect.size) %>%
-  tidyr::pivot_wider(names_from = source, values_from = delta.effect.size  ) %>%
+df.a <- df.a %>% select(unified_int, source, effect.size) %>%
+  tidyr::pivot_wider(names_from = source, values_from = effect.size  ) %>%
   # Arrange by the average effect size for a cleaner plot
   mutate(avg.effect = (radius + nearest.9) / 2) %>%     arrange(avg.effect) %>%
   mutate(unified_int = factor(unified_int, levels = unified_int))    # Reorder the factor levels 
 
 ggplot(df.a, aes(y = unified_int)) +
   geom_segment(aes(x = radius, xend = nearest.9, y = unified_int, yend = unified_int),
-      color = "grey80", linewidth = 1.5 ) + xlab("Delta effect size") + 
+      color = "grey80", linewidth = 1.5 ) + xlab("effect size") + 
   geom_point(aes(x = radius), color = "#d6604d", size = 4) +  geom_point(aes(x = nearest.9), color = "#4393c3", size = 4) + 
   annotate( "text", x = 2.1, y = 6, size = 5, label = "Method", fontface = "bold", ) +
   annotate( "point", x = 1.6, y = 4, size = 5, color = "#d6604d" ) +
@@ -1268,74 +1298,34 @@ ggplot(df.a, aes(y = unified_int)) +
   theme(panel.grid.major.y = element_blank(), panel.grid.minor.x = element_line(color = "grey90", linetype = "dashed"), 
         axis.text = element_text(color='black', size=6), axis.title.y = element_blank())
 # ggsave(filename = 'output/interaction.radius-vs-nearest9.pdf', height=9, width=8)
-```
 
 
+DT <- dcast.data.table( data = md, formula = Recurrence + list_ID + SLN_Stage ~ L2_annotations )
+DT[, Recurrence:= ifelse(Recurrence == 0, "no", "yes")]
+DT$TotalNumber <- rowSums(DT[,4:38])
+DT <- melt(DT, id.vars = c("Recurrence","list_ID","TotalNumber", "SLN_Stage"))
+DT[, Freq:= value/TotalNumber]
+  #    Recurrence list_ID TotalNumber SLN_Stage      variable value         Freq
+  #        <char>  <char>       <num>    <char>        <fctr> <int>        <num>
+  # 1:         no  ctrl.1      506375    Stage1 ACTIVATED_CD4 26889 0.0531009627
+  # 2:         no  ctrl.2      742999    Stage1 ACTIVATED_CD4 39215 0.0527793443
+  # 3:         no  ctrl.3      924247    Stage1 ACTIVATED_CD4 34117 0.0369132927
 
+pValue <- DT[variable == "ACTIVATED_TREG"] %>% rstatix::wilcox_test(formula = Freq ~ SLN_Stage) 
+ggplot(DT[variable == "ACTIVATED_TREG"], aes(x = SLN_Stage, y=Freq )) + # , fill=list_ID)) + 
+  geom_point(size=5, color='grey30', pch=21, stroke = 0.3, fill='grey70') + ggtitle("ACTIVATED_TREG") + 
+  # scale_fill_manual(values = getDistinctColors(n = length(unique(DT$list_ID)), seed=3)) + 
+  annotate('text', x=1, y=max(DT[variable == "ACTIVATED_TREG", Freq]), label = paste("P=", round(pValue$p, digits=2) ), color='black')+
+  ylab("Frequency of all cells") + theme_bw()
+# ggsave(filename = "output/SimpleFreq_ACTIVATED_TREG_byStage.pdf" , height=4, width=2)
 
-
-
-# interaction changed genes
-```{r Interaction-changed-genes}
-# md <- pDataDT(sln)
-keepCells <- subset(md, list_ID %in% stage3.subgroup)
-keepCells <- subset(keepCells, cell_ID %in% sample(keepCells$cell_ID, 3e5))$cell_ID
-sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
-gd = fDataDT(sln.sm)
-date()
-## identify genes that are associated with proximity to other cell types
-ICGscores.L2 = findInteractionChangedFeats(gobject = sln.sm, selected_feats = gd$feat_ID,
-                                                 spatial_network_name = "spatialknn.k5", cluster_column = 'L2_annotations',
-                                                 diff_test = 'permutation', adjust_method = 'fdr',
-                                                 nr_permutations = 200, do_parallel = F)
-saveRDS(object = ICGscores.L2, 
-        file = "neighborhood.ICGlist.s3.sln.clustering5.annot.spatnet.RDS"); date()  # took 6 hours at 300 permutations each 
-
-
-keepCells <- subset(md, list_ID %in% stage1.subgroup)
-keepCells <- subset(keepCells, cell_ID %in% sample(keepCells$cell_ID, 3e5))$cell_ID
-sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
-gd = fDataDT(sln.sm)
-date()
-## identify genes that are associated with proximity to other cell types
-ICGscores.L2 = findInteractionChangedFeats(gobject = sln.sm, selected_feats = gd$feat_ID,
-                                                 spatial_network_name = "spatialknn.k5", cluster_column = 'L2_annotations',
-                                                 diff_test = 'permutation', adjust_method = 'fdr',
-                                                 nr_permutations = 200, do_parallel = F)
-saveRDS(object = ICGscores.L2, 
-        file = "neighborhood.ICGlist.s1.sln.clustering5.annot.spatnet.RDS"); date()
-
-
-
-keepCells <- subset(md, list_ID %in% recur.subgroup)
-keepCells <- subset(keepCells, cell_ID %in% sample(keepCells$cell_ID, 3e5))$cell_ID
-sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
-gd = fDataDT(sln.sm)
-date()
-## identify genes that are associated with proximity to other cell types
-ICGscores.L2 = findInteractionChangedFeats(gobject = sln.sm, selected_feats = gd$feat_ID,
-                                                 spatial_network_name = "spatialknn.k5", cluster_column = 'L2_annotations',
-                                                 diff_test = 'permutation', adjust_method = 'fdr',
-                                                 nr_permutations = 200, do_parallel = F)
-saveRDS(object = ICGscores.L2, 
-        file = "neighborhood.ICGlist.recur.sln.clustering5.annot.spatnet.RDS"); date()
-ICGscores.L2.recur = readRDS(file = "neighborhood.ICGlist.recur.sln.clustering5.annot.spatnet.RDS")
-
-
-keepCells <- subset(md, list_ID %in% norecur.subgroup)
-keepCells <- subset(keepCells, cell_ID %in% sample(keepCells$cell_ID, 3e5))$cell_ID
-sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
-gd = fDataDT(sln.sm)
-date()
-## identify genes that are associated with proximity to other cell types
-ICGscores.L2 = findInteractionChangedFeats(gobject = sln.sm, selected_feats = gd$feat_ID,
-                                                 spatial_network_name = "spatialknn.k5", cluster_column = 'L2_annotations',
-                                                 diff_test = 'permutation', adjust_method = 'fdr',
-                                                 nr_permutations = 200, do_parallel = F)
-saveRDS(object = ICGscores.L2, 
-        file = "neighborhood.ICGlist.norecur.sln.clustering5.annot.spatnet.RDS"); date()
-ICGscores.L2.norecur = readRDS(file = "neighborhood.ICGlist.norecur.sln.clustering5.annot.spatnet.RDS")
-
+DT <- DT[SLN_Stage == 'Stage3']
+pValue <- DT[variable == "ACTIVATED_TREG"] %>% rstatix::wilcox_test(formula = Freq ~ Recurrence) 
+ggplot(DT[variable == "ACTIVATED_TREG"], aes(x = Recurrence, y=Freq )) + # , fill=list_ID)) + 
+  geom_point(size=5, color='grey30', pch=21, stroke = 0.3, fill='grey70') + ggtitle("ACTIVATED_TREG") + 
+  annotate('text', x=1, y=max(DT[variable == "ACTIVATED_TREG", Freq]), label = paste("P=", round(pValue$p, digits=2) ), color='black')+
+  ylab("Frequency of all cells") + theme_bw()
+# ggsave(filename = "output/SimpleFreq_ACTIVATED_TREG_byRecur.pdf" , height=4, width=2)
 ```
 
 
@@ -1346,119 +1336,6 @@ ICGscores.L2.norecur = readRDS(file = "neighborhood.ICGlist.norecur.sln.clusteri
 
 
 
-# cluster neighborhoods by kmeans
-
-The goal is to see patterns in the neighborhoods around individual cells. Could consider this at two different levels. 
-1. there might be neighborhood patterns that are irrespective of what cell is in the middle of the neighborhood
-  though this is of unclear utility. it's a feature arising from the data but interpretation is hard. will take a long time to calculate
-2. neighborhood patterns might be more interesting to consider at level of individual cell type.  
-```{r neighborhoods-by-kmeans-global, eval=F}
-# matrix.data = (neighborhoods[['raw.table']][['ctrl.1']])[, 3:35]
-# kvalues <- 1:20
-# wss_values <- sapply(kvalues, function(k) {  kmeans(matrix.data, centers = k)$tot.withinss   })
-# 
-# # Create a data frame for plotting
-# elbow_data <- data.frame(k = kvalues, wss = wss_values )
-# 
-# # Plot the elbow curve using ggplot2
-# ggplot(elbow_data, aes(x = k, y = wss)) +
-#   geom_line(linewidth = 1) + geom_point(size = 3) + 
-#   labs( title = "Elbow Method for Optimal k", x = "Number of Clusters (k)", y = "Total Within-Cluster Sum of Squares (WSS)") +
-#   theme_minimal()
-
-
-# kmeans.res.global <- kmeans( x = rbindlist(neighborhoods[['raw.table']])[, 3:35], centers=7, nstart=25)
-matrix.data = rbindlist(neighborhoods[['raw.table']])[from_cell_type == 'LZ_BCELL', 3:35]
-
-# factoextra::fviz_nbclust(matrix.data[sample(nrow(matrix.data), size = 1e4, replace = F)], kmeans, method = "wss") + 
-#   labs(subtitle = "Elbow plot")  # doen't work for 300k cells
-# kmeans.res.LZB <- kmeans( x = matrix.data, centers=7, nstart=25)
-
-# factoextra::fviz_cluster(object = kmeans.res.LZB, data = matrix.data, geom = "point", ellipse.type = "convex", ggtheme = theme_bw() )  # looks crummy, not well separated at all on PCA plot 
-umap.out <- uwot::umap(matrix.data[sample(.N, size = 3e4)], n_neighbors = 7)
-# plot.df <- as.data.table(cbind(umap.out, as.factor(kmeans.res.LZB$cluster)))
-plot.df <- as.data.table(umap.out)
-names(plot.df)[1:2] <- c('UMAP1', 'UMAP2')
-# ggplot(plot.df[sample(nrow(plot.df),size=5e4, replace=F)], aes(x = UMAP1, y = UMAP2, fill = kmeans.cluster)) + scale_fill_viridis_b() + 
-#   geom_point(size = 1, alpha = 0.3, pch=21, color='grey70') + labs(title = "UMAP Plot of K-Means Clusters",color = "Cluster" ) + theme_bw()
-# i guess kmeans is wrong for this kind of data 
- 
-plot.df$db.clusters <- dbscan(plot.df[,1:2], eps = 1.2, minPts = 20)$cluster
-ggplot(plot.df[sample(.N, size=1e4)], aes(x = UMAP1, y = UMAP2, fill = db.clusters)) + scale_fill_viridis_b() + 
-  geom_density_2d(color='grey60', alpha=0.5) + 
-  geom_point(size = 1, alpha = 0.3, pch=21, color='grey70') + labs(title = "UMAP Plot of Clusters", color = "Cluster" ) + theme_bw()
-
-nngraph <- dbscan::sNN(matrix.data, k = 15)
-# Convert to an igraph object
-graph_obj <- igraph::graph_from_edgelist(as.matrix( nngraph$id), directed = FALSE)
-
-# 2. Run Leiden clustering
-leiden_clusters <- leidenAlg::leiden.community(nngraph) # Tune resolution
-
-
-```
-
-
-# plot as individual biological replicates 
-```{r show-average-neighborhood-contrast-biolReplicates, eval=FALSE}
-significant.Neighbors.acrossStage <- function( data, interacting.partner)
-{
-  data <- as.data.table(tidyr::separate(data, col = unified_int, into = c("left", "right"), sep = "--"))
-  data <- data[left == interacting.partner] 
-  data[, proportion := original/sum(original), by=.(stage, list_ID)]
-  
-  print( 
-    ggplot(data, aes(y = right, x = proportion, group = stage, fill=stage, label=list_ID)) +
-      geom_point(size=3, position=position_dodge(width=1), pch=21, stroke=0.1, color='white') +
-      theme_classic() + ggtitle(paste("Neighbors of ", interacting.partner)) + 
-      ggrepel::geom_label_repel(size=2, box.padding = unit(0.1,"lines"), alpha=0.2) + 
-      scale_fill_manual(values= ( RColorBrewer::brewer.pal(n = 4, name = "Paired")) )  + 
-      theme(axis.text.x = element_text(angle=45, hjust=1,vjust=1))
-  )
-  aggregated_DT <- data[, .(proportion), by = .(right, list_ID, stage)]
-  interacting.subsets <- unique(aggregated_DT$right)
-  res <- list()
-  for (i in seq_along(interacting.subsets))
-  {
-    data = aggregated_DT[ right %in% interacting.subsets[i], ]
-    res[[i]] <- wilcox.test(proportion ~ stage, data = data)
-    names(res)[i] <- data$right[1]
-  }
-  
-  print(paste("Unadjusted pvalues:")); 
-  print( round(sapply(res, function(x) { x$p.value }), digits = 2) )
-  print(paste("FDR-adjusted pvalues"));  
-  print( round(p.adjust( sapply(res, function(x) { x$p.value }), method="fdr"), digits = 2)) 
-}
-
-significant.Neighbors.acrossStage(data = interaction.byStage, interacting.partner = 'TCF1_HI_TOX_HI_CD8')
-
-
-```
-
-
-# show a radial plot of contrast of neighborhoods 
-```{r show-average-neighborhood-contrast-stage3vs1, eval = FALSE}
-intxn.index.s3 <- y[ , .(left.stage3, right.stage3, original.stage3) ]
-tcfloCD8.s3 <- filterIntxn(simpleIntxnTable = intxn.index.s3[left.stage3 == 'TCF1_LO_TOX_HI_CD8'], title='CD8+Tox+Tcf-')
-tcfloCD8.s3$left.stage3 <- paste0(tcfloCD8.s3$left.stage3, ".s3")
-names(tcfloCD8.s1) <- names(tcfloCD8.s3)
-
-comb <- rbind(tcfloCD8.s1, tcfloCD8.s3)
-
-ggplot(comb, aes(y = right.stage3, x = proportion, group=left.stage3, fill=left.stage3)) + 
-  geom_bar( stat='identity', width=0.5, position=position_dodge(preserve='single')) + 
-  coord_radial("y", start = 0, direction = 1, rotate.angle=T, r_axis_inside = TRUE)+
-  ggtitle(paste("Tcflo CD8 T cells - Stage 3 vs 1"))  +  
-  scale_fill_manual(values= ( RColorBrewer::brewer.pal(n = 4, name = "Paired")) )  + 
-  theme(   axis.title = element_blank(),axis.ticks = element_blank() , axis.text.y = element_text(color = "grey"),
-           axis.text.x = element_text(color = "black", size = 4), legend.position = "bottom", legend.title = element_blank(), 
-           plot.title = element_text(face = "bold", size = 18, hjust = 1), 
-           panel.background = element_rect(fill = "white", color = "white"), panel.grid = element_blank(),  
-           panel.grid.major.x = element_line(color="grey90", size=0.5)) 
-
-
-```
 
 
 # show stage 1 interactions
@@ -1864,3 +1741,164 @@ cellProxEnrich.orig <- function(gobject,
         enrichm_res = table_mean_results_dc
     ))
 }
+
+
+
+
+
+
+
+findInteractionChangedFeats <- function(gobject,
+    feat_type = NULL,
+    spat_unit = NULL,
+    expression_values = "normalized",
+    selected_feats = NULL,
+    cluster_column,
+    spatial_network_name = "Delaunay_network",
+    minimum_unique_cells = 1,
+    minimum_unique_int_cells = 1,
+    diff_test = c("permutation", "limma", "t.test", "wilcox"),
+    mean_method = c("arithmic", "geometric"),
+    offset = 0.1,
+    adjust_method = c(
+        "bonferroni", "BH", "holm", "hochberg", "hommel",
+        "BY", "fdr", "none"
+    ),
+    nr_permutations = 1000,
+    exclude_selected_cells_from_test = TRUE,
+    do_parallel = TRUE,
+    set_seed = TRUE,
+    seed_number = 1234) {
+    # Set feat_type and spat_unit
+    spat_unit <- set_default_spat_unit(
+        gobject = gobject,
+        spat_unit = spat_unit
+    )
+    feat_type <- set_default_feat_type(
+        gobject = gobject,
+        spat_unit = spat_unit,
+        feat_type = feat_type
+    )
+
+    # expression values to be used
+    values <- match.arg(
+        expression_values,
+        unique(c("normalized", "scaled", "custom", expression_values))
+    )
+    expr_values <- getExpression(
+        gobject = gobject,
+        spat_unit = spat_unit,
+        feat_type = feat_type,
+        values = values,
+        output = "matrix"
+    ) # as matrix (never set back)
+
+    ## test selected feats ##
+    if (!is.null(selected_feats)) {
+        expr_values <- expr_values[rownames(expr_values) %in% selected_feats, ]
+    }
+
+    ## stop test selected feats ##
+
+    # difference test
+    diff_test <- match.arg(
+        diff_test,
+        choices = c("permutation", "limma", "t.test", "wilcox")
+    )
+
+    # p.adj test
+    adjust_method <- match.arg(adjust_method, choices = c(
+        "bonferroni", "BH", "holm", "hochberg", "hommel",
+        "BY", "fdr", "none"
+    ))
+    # how to calculate mean
+    mean_method <- match.arg(mean_method, choices = c("arithmic", "geometric"))
+
+    ## metadata
+    cell_metadata <- pDataDT(
+        gobject,
+        spat_unit = spat_unit, feat_type = feat_type
+    )
+
+
+    ## annotated spatial network
+    annot_spatnetwork <- annotateSpatialNetwork(gobject,
+        feat_type = feat_type,
+        spat_unit = spat_unit,
+        spatial_network_name = spatial_network_name,
+        cluster_column = cluster_column
+    )
+
+    all_interactions <- unique(annot_spatnetwork$unified_int)
+
+    ## prepare function
+    fcp_feats_per_i <- function(x) {
+        .findCellProximityFeats_per_interaction(
+            expr_values = expr_values,
+            cell_metadata = cell_metadata,
+            annot_spatnetwork = annot_spatnetwork,
+            minimum_unique_cells = minimum_unique_cells,
+            minimum_unique_int_cells = minimum_unique_int_cells,
+            sel_int = x,
+            cluster_column = cluster_column,
+            exclude_selected_cells_from_test = exclude_selected_cells_from_test,
+            diff_test = diff_test,
+            mean_method = mean_method,
+            offset = offset,
+            adjust_method = adjust_method,
+            nr_permutations = nr_permutations,
+            set_seed = set_seed,
+            seed_number = seed_number
+        )
+    }
+
+    if (isTRUE(do_parallel)) { # parallel
+        fin_result <- lapply_flex(
+            X = all_interactions, future.seed = TRUE, FUN = fcp_feats_per_i
+        )
+    } else { # sequential
+        fin_result <- list()
+
+        for (i in seq_along(all_interactions)) {
+            x <- all_interactions[i]
+            tempres <- fcp_feats_per_i(x)
+            fin_result[[i]] <- tempres
+        }
+    }
+
+    final_result <- do.call("rbind", fin_result)
+
+    # NSE variables
+    spec_int <- cell_type <- int_cell_type <- type_int <- NULL
+
+    final_result[, spec_int := paste0(cell_type, "--", int_cell_type)]
+    final_result[, type_int := ifelse(
+        cell_type == int_cell_type, "homo", "hetero"
+    )]
+
+    permutation_test <- ifelse(
+        diff_test == "permutation", nr_permutations, "no permutations"
+    )
+
+    icfObject <- structure(
+        .Data = list(
+            ICFscores = final_result,
+            Giotto_info = list(
+                "values" = values,
+                "cluster" = cluster_column,
+                "spatial network" = spatial_network_name
+            ),
+            test_info = list(
+                "test" = diff_test,
+                "p.adj" = adjust_method,
+                "min cells" = minimum_unique_cells,
+                "min interacting cells" = minimum_unique_int_cells,
+                "exclude selected cells" = exclude_selected_cells_from_test,
+                "perm" = permutation_test
+            )
+        ),
+        class = "icfObject"
+    )
+    return(icfObject)
+}
+
