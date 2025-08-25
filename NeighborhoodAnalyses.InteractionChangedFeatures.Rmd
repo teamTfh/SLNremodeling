@@ -71,16 +71,11 @@ for (i in list_ID)
 {
   if( .Platform$OS.type != "windows")    {    cat(paste("Starting on: ", i, " on ", date(),"\n"), 
                                                   file = paste0("progress.",timeStamp,".txt"), append = T)   }
-
   keepCells <- subset(md, list_ID %in% i )
-  # if(nrow(keepCells)>3e5) 
-  #   { sln.sm <- subsetGiotto(gobject = sln, cell_ids = subset(keepCells, cell_ID %in% sample(keepCells$cell_ID, 3e5))$cell_ID)    }  
-  # if(nrow(keepCells)<3e5)  {   sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells$cell_ID)}
   sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells$cell_ID)
   sln.sm <- createSpatialKNNnetwork(sln.sm, k=9, verbose=T, name = "spatialknn.k9.persample") 
   print("made spatialKNN")
   print(getSpatialNetwork(sln.sm))
-  # limiting number of permutations because the perm test results won't be used going forward
   res <- findInteractionChangedFeats(gobject = sln.sm, selected_feats = proteinsList,
                                      spatial_network_name = "spatialknn.k9.persample", 
                                      cluster_column = "L2_annotations", diff_test = 'permutation', 
@@ -88,31 +83,9 @@ for (i in list_ID)
   res$list_ID <- i
   icf.persample[i] <- res
   print(paste("Random downsample process for", i, "ends at", date()))
-  
-  # keep.these <- subset(keepCells, L2_annotations %in% enrich.celltypes)$cell_ID
-  # # print(head(keep.these))
-  # remainingCells <- subset(keepCells, !L2_annotations %in% enrich.celltypes)$cell_ID
-  # remainingCells <- sample(remainingCells, 1e5 - length(keep.these))  # keeps the total # cells the same
-  # # print(head(c(keep.these, remainingCells)))
-  # sln.sm <- subsetGiotto(gobject = sln, cell_ids = c(keep.these, remainingCells))
-  # sln.sm <- createSpatialKNNnetwork(sln.sm, k=9, verbose=T, name = "spatialknn.k9.persample") 
-  # print("re-made spatialKNN")
-  # print(getSpatialNetwork(sln.sm))
-  # res <- findInteractionChangedFeats(gobject = sln.sm, selected_feats = proteinsList,
-  #                                    spatial_network_name = "spatialknn.k9.persample", 
-  #                                    cluster_column = "L2_annotations", diff_test = 'permutation', 
-  #                                    adjust_method = 'fdr', nr_permutations = 1, do_parallel = T)
-  # res$list_ID <- i
-  # icf.persample.enrich[i] <- res
-  # print(paste("Enrich process for", i, "ends at", date()))
-
 }
 
-saveRDS(
-  # list(random.downsample = icf.persample, 
-  #            enriched = icf.persample.enrich), 
-        icf.persample,
-        file = "neighborhood.ICFlist.perSample.sln.clustering5.spatnet.RDS")
+saveRDS(icf.persample, file = "neighborhood.ICFlist.perSample.sln.clustering5.spatnet.RDS")
 
 # Job Wall-clock time: 01:51:30              Memory Utilized: 72.67 GB
 ```
@@ -151,11 +124,18 @@ plot.volcano.icf <- function( dt, receiver_cell, sender_cell )
                                            Welch_t = t.test(log2fc, mu = 0)$statistic ),
                                        by = .(feats)  ]
   volcano.data[, p_adj := p.adjust(p_value, method="fdr" ) ] [order(p_adj, decreasing = T)]
+  
+  annotateX.incr <- max(volcano.data$mean_log2fc)-0.2*max(volcano.data$mean_log2fc)
+  annotateX.decr <- min(volcano.data$mean_log2fc)+0.2*min(volcano.data$mean_log2fc)
+  annotateY.ylim <- max(-log10(volcano.data$p_adj))*1.1
   print(
     ggplot(volcano.data, aes(y = -log10(p_adj), x=mean_log2fc,label = feats )) + 
       geom_point(shape=21, color="white", fill="black",size=3) + 
       ggrepel::geom_text_repel() + ggtitle(paste0(receiver_cell, " adjacent to ", sender_cell )) + 
-      theme_classic()  
+      theme_classic()  + 
+      annotate("text", x = annotateX.incr, y = -0.15*annotateY.ylim, size = 3, label = "Increased expr") + 
+      annotate("text", x = annotateX.decr, y = -0.15*annotateY.ylim, size = 3, label = "Reduced expr")  +
+      coord_cartesian(clip = 'off', ylim= c(0, annotateY.ylim))
   )
   return(dt)
 }
@@ -183,15 +163,17 @@ volcano.data[, p_adj := p.adjust(p_value, method="fdr" ) ] [order(p_adj, decreas
 ```
 
 # heatmap of the ICF 
-```{r ICF-perSample-calculate-volcano, fig.width=10, eval=FALSE}
-a <- plot.volcano.icf(dt = icf.persample, receiver_cell = "ACTIVATED_TREG", sender_cell = "TCF1_HI_TOX_HI_CD8")
+```{r ICF-perSample-calculate-volcano, fig.width=8}
+index.cell = "TCF1_LO_TOX_HI_CD8"
+interacting.cell = "ACTIVATED_TREG"
+df.for.plot <- plot.volcano.icf(dt = icf.persample, receiver_cell = index.cell, sender_cell = interacting.cell)
 annotation.df <- data.frame(list_ID = c(stage1.subgroup, recur.subgroup, norecur.subgroup))
 annotation.df$annot <- c(rep("stage1", 5), rep("stage3.recur", length(recur.subgroup)), 
                          rep("stage3.no.recur", length(norecur.subgroup))) 
 rownames(annotation.df) <- annotation.df$list_ID
 annotation.df$list_ID <- NULL
 heatmap.feats <- proteinsList # c("IFNG", "GZMB", "HLADR")
-heatmap.matrix <- a[feats %in% heatmap.feats, .(log2fc, feats, list_ID)]
+heatmap.matrix <- df.for.plot[feats %in% heatmap.feats, .(log2fc, feats, list_ID)]
 heatmap.matrix <- (heatmap.matrix %>% pivot_wider(names_from = feats, values_from=log2fc, id_cols = list_ID)) %>% 
    tibble::column_to_rownames("list_ID") 
 heatmap.matrix <- heatmap.matrix[rownames(annotation.df), ] %>% as.matrix()
@@ -200,19 +182,108 @@ ht.annot <- HeatmapAnnotation(df = annotation.df, col = list(annot = colors), wh
 
 Heatmap(  heatmap.matrix, name = "log2FC",
   row_split = annotation.df$annot, left_annotation = ht.annot, rect_gp = gpar(col = "white", lwd = 1),
-  cluster_rows = TRUE, cluster_columns = TRUE, row_title = "Samples", show_row_names = F, 
-  column_title = "Features", row_names_gp = gpar(fontsize = 10),  column_names_gp = gpar(fontsize = 10)
-)
+  cluster_rows = TRUE, cluster_columns = TRUE, show_row_names = F, 
+  row_names_gp = gpar(fontsize = 10),  column_names_gp = gpar(fontsize = 10), 
+  column_title = (paste0(index.cell, " adjacent to ", interacting.cell)), row_title = " "
+) 
 
 
 ```
 
+# regroup Treg subgroups into one entity in L2_annotations
 ```{r regroup-Treg}
 md.mod <- md
+md.mod[, L2_annotations.mergeTreg:= L2_annotations]
+md.mod[L2_annotations.mergeTreg %like% "TREG", L2_annotations.mergeTreg := "TREG"]
+newdf <- data.frame(cell_ID=md.mod$cell_ID, L2_annotations.mergeTreg = md.mod$L2_annotations.mergeTreg)
+sln <- addCellMetadata(gobject = sln, new_metadata = newdf, by_column=T, column_cell_ID = 'cell_ID')
+md <- pDataDT(sln)
+for (i in list_ID)
+{
+  if( .Platform$OS.type != "windows")    {    cat(paste("Starting on: ", i, " on ", date(),"\n"), 
+                                                  file = paste0("progress.",timeStamp,".txt"), append = T)   }
+  keepCells <- subset(md, list_ID %in% i )
+  sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells$cell_ID)
+  sln.sm <- createSpatialKNNnetwork(sln.sm, k=9, verbose=T, name = "spatialknn.k9.persample") 
+  print("made spatialKNN")
+  print(getSpatialNetwork(sln.sm))
+  res <- findInteractionChangedFeats(gobject = sln.sm, selected_feats = proteinsList,
+                                     spatial_network_name = "spatialknn.k9.persample", 
+                                     cluster_column = "L2_annotations.mergeTreg", diff_test = 'permutation', 
+                                     adjust_method = 'fdr', nr_permutations = 1, do_parallel = T)  
+  res$list_ID <- i
+  icf.persample[i] <- res
+  print(paste("Random downsample process for", i, "ends at", date()))
+}
 
+saveRDS(icf.persample, file = "neighborhood.ICFlistmod.perSample.sln.clustering5.spatnet.RDS")
+
+```
+
+```{r load-ICF-groupedTreg}
+
+icf.persample.regroup <- purrr::list_rbind(readRDS(file="neighborhood.ICFlistmod.perSample.sln.clustering5.spatnet.RDS"), 
+                                    names_to = "list_ID")
 
 
 ```
+
+```{r volcano-plots-regrouped, fig.width=8}
+plot.volcano.icf(dt = icf.persample.regroup, receiver_cell = "TREG", sender_cell = "ACTIVATED_CD8")
+plot.volcano.icf(dt = icf.persample.regroup, receiver_cell = "ACTIVATED_CD8", sender_cell = "TREG")
+
+plot.volcano.icf(dt = icf.persample.regroup, receiver_cell = "TREG", sender_cell = "TCF1_HI_TOX_HI_CD8")
+plot.volcano.icf(dt = icf.persample.regroup, receiver_cell = "TCF1_HI_TOX_HI_CD8", sender_cell = "TREG")
+plot.volcano.icf(dt = icf.persample.regroup, receiver_cell = "TCF1_LO_TOX_HI_CD8", sender_cell = "TREG")
+plot.volcano.icf(dt = icf.persample.regroup, receiver_cell = "TCF1_LO_TOX_HI_CD8", sender_cell = "PC")
+plot.volcano.icf(dt = icf.persample.regroup, receiver_cell = "PC", sender_cell = "TREG")
+```
+
+
+```{r heatmap-plots-regrouped, fig.width=8}
+index.cell = "TCF1_LO_TOX_HI_CD8"
+interacting.cell = "TREG"
+df.for.plot <- plot.volcano.icf(dt = icf.persample.regroup, receiver_cell = index.cell, sender_cell = interacting.cell)
+
+annotation.df <- data.frame(list_ID = c(stage1.subgroup, recur.subgroup, norecur.subgroup))
+annotation.df$annot <- c(rep("stage1", 5), rep("stage3.recur", length(recur.subgroup)), 
+                         rep("stage3.no.recur", length(norecur.subgroup))) 
+rownames(annotation.df) <- annotation.df$list_ID
+annotation.df$list_ID <- NULL
+heatmap.feats <- proteinsList # c("IFNG", "GZMB", "HLADR")
+heatmap.matrix <- df.for.plot[feats %in% heatmap.feats, .(log2fc, feats, list_ID)]
+heatmap.matrix <- (heatmap.matrix %>% pivot_wider(names_from = feats, values_from=log2fc, id_cols = list_ID)) %>% 
+   tibble::column_to_rownames("list_ID") 
+heatmap.matrix <- heatmap.matrix[rownames(annotation.df), ] %>% as.matrix()
+colors <- c("stage1" = "gray80", "stage3.no.recur" = "gray30", "stage3.recur" = "black")
+ht.annot <- HeatmapAnnotation(df = annotation.df, col = list(annot = colors), which = "row")
+
+Heatmap(  heatmap.matrix, name = "log2FC",
+  row_split = annotation.df$annot, left_annotation = ht.annot, rect_gp = gpar(col = "white", lwd = 1),
+  cluster_rows = TRUE, cluster_columns = TRUE, show_row_names = F, 
+  row_names_gp = gpar(fontsize = 10),  column_names_gp = gpar(fontsize = 10), 
+  column_title = (paste0(index.cell, " adjacent to ", interacting.cell)), row_title = " "
+) 
+
+
+```
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
