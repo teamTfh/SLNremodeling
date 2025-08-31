@@ -54,6 +54,7 @@ stage3.subgroup <- c("tumor.1","tumor.2","tumor.3","tumor.4","tumor.5","tumor.6"
 stage1.subgroup <- c("ctrl.1","ctrl.2","ctrl.3","ctrl.4","ctrl.5")
 recur.subgroup <- c("tumor.3","tumor.4","tumor.5","tumor.7","tumor.8","tumor.10")
 norecur.subgroup <- c("tumor.1","tumor.2", "tumor.6", "tumor.9")
+saveRDS(md, file = "md.RDS")
 ```
 
 
@@ -61,9 +62,9 @@ norecur.subgroup <- c("tumor.1","tumor.2", "tumor.6", "tumor.9")
 ```{r ICF-perSample-calculateICF, fig.width=10}
 list_ID <- unique(md$list_ID)
 icf.persample <- list(); icf.persample.enrich <- list()
-proteinsList <- c("BCA1", "CD3E", "CD4","CD8" ,"CD11C" ,"CD19","CD20" ,"CD21","CD27","CD38","CD39", "CD45RO","CXCR3","CXCR5",
-                  "FOXP3" , "GZMB" ,"HLA.DR", "ICOS","IFNG","IL21","IRF4","IRF7","KI67", "LAG3","MAC2/GAL3","PAX5",
-                  "PD1","PDL1","PMTOR","STAT1","STAT3","TBET","TCF1","TOX","VIMENTIN" )
+proteinsList <- c("BCA1", "CD3E", "CD4","CD8" ,"CD11C" ,"CD27","CD38","CD39", "CD45RO","CXCR3","CXCR5",
+                  "FOXP3" , "GZMB" ,"HLA.DR", "ICOS","IFNG","IL21","IRF4","IRF7","KI67", "LAG3",
+                  "PD1","PDL1","STAT1","STAT3","TCF1","TOX" ) # "TBET","PMTOR","CD19","CD20" ,"CD21","MAC2/GAL3","PAX5","VIMENTIN"
 timeStamp <- format(Sys.time(), "%m%d.%H%M")
 enrich.celltypes <- c("ACTIVATED_TREG", "TCF1_LO_TOX_HI_CD8", "ACTIVATED_CD8") # make a version that keeps all of these cells 
 
@@ -114,9 +115,9 @@ icf.persample <- purrr::list_rbind(readRDS(file="neighborhood.ICFlist.perSample.
 ```
 
 # make volcano plots 
-```{r ICF-perSample-calculate-volcano, fig.width=6, eval=FALSE}
+```{r ICF-perSample-calculate-volcano, fig.width=6}
 # intxns <- findImportantInteractions( interaction.dt= interaction.byRecur, condition.exp="recur", condition.ctrl="no.recur", ef.threshold=1)[[1]]
-plot.volcano.icf <- function( dt, receiver_cell, sender_cell )
+plot.volcano.icf <- function( dt, receiver_cell, sender_cell, key.feat = NULL, plot = T)
 {
   dt <- dt[int_cell_type == sender_cell & cell_type == receiver_cell]
   volcano.data <- dt[, .(mean_log2fc = mean(log2fc, na.rm = TRUE),
@@ -124,23 +125,36 @@ plot.volcano.icf <- function( dt, receiver_cell, sender_cell )
                                            Welch_t = t.test(log2fc, mu = 0)$statistic ),
                                        by = .(feats)  ]
   volcano.data[, p_adj := p.adjust(p_value, method="fdr" ) ] [order(p_adj, decreasing = T)]
-  
+  volcano.data[, highlight.feat := "0"]
+  volcano.data[feats %in% key.feat, highlight.feat := "1"]
   annotateX.incr <- max(volcano.data$mean_log2fc)-0.2*max(volcano.data$mean_log2fc)
   annotateX.decr <- min(volcano.data$mean_log2fc)+0.2*min(volcano.data$mean_log2fc)
   annotateY.ylim <- max(-log10(volcano.data$p_adj))*1.1
-  print(
-    ggplot(volcano.data, aes(y = -log10(p_adj), x=mean_log2fc,label = feats )) + 
-      geom_point(shape=21, color="white", fill="black",size=3) + 
-      ggrepel::geom_text_repel() + ggtitle(paste0(receiver_cell, " adjacent to ", sender_cell )) + 
-      theme_classic()  + 
-      annotate("text", x = annotateX.incr, y = -0.15*annotateY.ylim, size = 3, label = "Increased expr") + 
-      annotate("text", x = annotateX.decr, y = -0.15*annotateY.ylim, size = 3, label = "Reduced expr")  +
-      coord_cartesian(clip = 'off', ylim= c(0, annotateY.ylim))
-  )
-  return(dt)
+  if (plot == T)
+  {
+    print(
+      ggplot(volcano.data, aes(y = -log10(p_adj), x=mean_log2fc, label = feats, color=highlight.feat)) + 
+        geom_hline(yintercept = -log10(0.05), color="grey60", linetype="dashed", linewidth=0.1)+
+        geom_point(aes(fill = highlight.feat), shape=21, color="white",  size=3) +   #fill="black",
+        ggrepel::geom_text_repel(max.overlaps = 20) + 
+        ggtitle(paste0(receiver_cell, " adjacent to ", sender_cell )) + 
+        theme_classic()  + 
+        scale_color_manual(values = c('black','red')) + scale_fill_manual(values = c('black','red'))+ 
+        annotate("text", x = annotateX.incr, y = -0.15*annotateY.ylim, size = 3, label = "Increased expr") + 
+        annotate("text", x = annotateX.decr, y = -0.15*annotateY.ylim, size = 3, label = "Reduced expr")  +
+        coord_cartesian(clip = 'off', ylim= c(0, annotateY.ylim)) + theme(legend.position = 'none')
+      )
+  }
+  return(volcano.data)
+#  
+#      feats mean_log2fc      p_value    Welch_t        p_adj
+#    <char>       <num>        <num>      <num>        <num>
+# 1: HLA.DR  0.67395872 1.071667e-07  9.8895908 2.893501e-06
+# 2:   CD3E  0.02025484 5.118152e-01  0.6731441 5.757921e-01
+# 3:   ICOS -0.05803399 7.299591e-02 -1.9384811 1.159347e-01
 }
 
-a <- plot.volcano.icf(dt = icf.persample, receiver_cell = "ACTIVATED_TREG", sender_cell = "ACTIVATED_CD8")
+plot.volcano.icf(dt = icf.persample, receiver_cell = "ACTIVATED_TREG", sender_cell = "ACTIVATED_CD8")
 plot.volcano.icf(dt = icf.persample, receiver_cell = "ACTIVATED_CD8", sender_cell = "ACTIVATED_TREG")
 
 plot.volcano.icf(dt = icf.persample, receiver_cell = "ACTIVATED_TREG", sender_cell = "TCF1_HI_TOX_HI_CD8")
@@ -149,24 +163,26 @@ plot.volcano.icf(dt = icf.persample, receiver_cell = "MEMORY_CD4", sender_cell =
 
 ```
 
+This is curious. It's likely showing membrane spillover from the adjacent cell. All of the recipient cells have ICOS and Foxp3 which is likely coming from the ACTIVATED_TREG. 
+
 # calculate statistics 
 ```{r plot-everything}
 
-dt <- icf.persample[,.(list_ID, feats, log2fc, cell_type, int_cell_type, nr_select, int_nr_select)]
-volcano.data <- dt[cell_type == "ACTIVATED_TREG", .(mean_log2fc = mean(log2fc, na.rm = TRUE),
+dtable <- icf.persample[,.(list_ID, feats, log2fc, cell_type, int_cell_type, nr_select, int_nr_select)]
+volcano.dt <- dtable[cell_type == "ACTIVATED_TREG", .(mean_log2fc = mean(log2fc, na.rm = TRUE),
                                            p_value = t.test(log2fc, mu = 0)$p.value, 
                                            Welch_t = t.test(log2fc, mu = 0)$statistic ),
                                        by = .(feats, int_cell_type)  ]
-volcano.data <- volcano.data[! int_cell_type %in% c("ARTIFACT", "CD4.outlier","CD8.outlier")]
-volcano.data[, p_adj := p.adjust(p_value, method="fdr" ) ] [order(p_adj, decreasing = T)]
+volcano.dt <- volcano.dt[! int_cell_type %in% c("ARTIFACT", "CD4.outlier","CD8.outlier")]
+volcano.dt[, p_adj := p.adjust(p_value, method="fdr" ) ] [order(p_adj, decreasing = T)]
 
 ```
 
 # heatmap of the ICF 
-```{r ICF-perSample-calculate-volcano, fig.width=8}
+```{r ICF-perSample-calculate-volcano-dupl, fig.width=8, eval=FALSE}
 index.cell = "TCF1_LO_TOX_HI_CD8"
 interacting.cell = "ACTIVATED_TREG"
-df.for.plot <- plot.volcano.icf(dt = icf.persample, receiver_cell = index.cell, sender_cell = interacting.cell)
+df.for.plot <- icf.persample[int_cell_type == interacting.cell & cell_type == index.cell]
 annotation.df <- data.frame(list_ID = c(stage1.subgroup, recur.subgroup, norecur.subgroup))
 annotation.df$annot <- c(rep("stage1", 5), rep("stage3.recur", length(recur.subgroup)), 
                          rep("stage3.no.recur", length(norecur.subgroup))) 
@@ -198,6 +214,7 @@ md.mod[L2_annotations.mergeTreg %like% "TREG", L2_annotations.mergeTreg := "TREG
 newdf <- data.frame(cell_ID=md.mod$cell_ID, L2_annotations.mergeTreg = md.mod$L2_annotations.mergeTreg)
 sln <- addCellMetadata(gobject = sln, new_metadata = newdf, by_column=T, column_cell_ID = 'cell_ID')
 md <- pDataDT(sln)
+icf.persample.regroup <- list()
 for (i in list_ID)
 {
   if( .Platform$OS.type != "windows")    {    cat(paste("Starting on: ", i, " on ", date(),"\n"), 
@@ -212,11 +229,11 @@ for (i in list_ID)
                                      cluster_column = "L2_annotations.mergeTreg", diff_test = 'permutation', 
                                      adjust_method = 'fdr', nr_permutations = 1, do_parallel = T)  
   res$list_ID <- i
-  icf.persample[i] <- res
+  icf.persample.regroup[i] <- res
   print(paste("Random downsample process for", i, "ends at", date()))
 }
 
-saveRDS(icf.persample, file = "neighborhood.ICFlistmod.perSample.sln.clustering5.spatnet.RDS")
+saveRDS(icf.persample.regroup, file = "neighborhood.ICFlistmod.perSample.sln.clustering5.spatnet.RDS")
 
 ```
 
@@ -225,20 +242,26 @@ saveRDS(icf.persample, file = "neighborhood.ICFlistmod.perSample.sln.clustering5
 icf.persample.regroup <- purrr::list_rbind(readRDS(file="neighborhood.ICFlistmod.perSample.sln.clustering5.spatnet.RDS"), 
                                     names_to = "list_ID")
 
-
 ```
 
+
+# regroup the Treg 
+What if we instead think about all the Treg together? Would that give us more Treg that aren't already in the terminal phenotype?  It might recover more cells that were possibly misclassified. Maybe it would show phenotypic change in the Treg that are near CD8, sort of like an orthogonal way to recreate the cellProximityEnrichment analysis 
 ```{r volcano-plots-regrouped, fig.width=8}
 plot.volcano.icf(dt = icf.persample.regroup, receiver_cell = "TREG", sender_cell = "ACTIVATED_CD8")
 plot.volcano.icf(dt = icf.persample.regroup, receiver_cell = "ACTIVATED_CD8", sender_cell = "TREG")
-
+plot.volcano.icf(dt = icf.persample.regroup, receiver_cell = "TCF1_LO_TOX_HI_CD8", sender_cell = "TREG", key.feat = c("GZMB", "IFNG"))
+  # ggsave(filename = 'output/icf.tcflo-near-treg.volcano.pdf', height=4, width=5)
 plot.volcano.icf(dt = icf.persample.regroup, receiver_cell = "TREG", sender_cell = "TCF1_HI_TOX_HI_CD8")
-plot.volcano.icf(dt = icf.persample.regroup, receiver_cell = "TCF1_HI_TOX_HI_CD8", sender_cell = "TREG")
-plot.volcano.icf(dt = icf.persample.regroup, receiver_cell = "TCF1_LO_TOX_HI_CD8", sender_cell = "TREG")
-plot.volcano.icf(dt = icf.persample.regroup, receiver_cell = "TCF1_LO_TOX_HI_CD8", sender_cell = "PC")
-plot.volcano.icf(dt = icf.persample.regroup, receiver_cell = "PC", sender_cell = "TREG")
+plot.volcano.icf(dt = icf.persample.regroup, receiver_cell = "TCF1_HI_TOX_HI_CD8", sender_cell = "TREG", key.feat = c("GZMB", "IFNG"))
+  # ggsave(filename = 'output/icf.tcfhi-near-treg.volcano.pdf', height=4, width=5)
+plot.volcano.icf(dt = icf.persample.regroup, receiver_cell = "TCF1_HI_TOX_HI_CD8", sender_cell = "Tumor", key.feat = c("GZMB", "IFNG"))
+  # ggsave(filename = 'output/icf.tcfhi-near-tumor.volcano.pdf', height=4, width=5)
+plot.volcano.icf(dt = icf.persample.regroup, receiver_cell = "TCF1_LO_TOX_HI_CD8", sender_cell = "Tumor", key.feat = c("GZMB", "IFNG"))
+  # ggsave(filename = 'output/icf.tcflo-near-tumor.volcano.pdf', height=4, width=5)
 ```
 
+Still seeing membrane spillover effects, that didn't change. The CD8 adj to Treg again have lower GzmB and IFNg, esp in the Tcfhi CD8 subset. 
 
 ```{r heatmap-plots-regrouped, fig.width=8}
 index.cell = "TCF1_LO_TOX_HI_CD8"
@@ -267,8 +290,59 @@ Heatmap(  heatmap.matrix, name = "log2FC",
 
 
 ```
-```
 
+```{r for-each-Cell-type}
+# plot what is the effect of other sender celltypes on TCFlo for GzmB
+probe.subset <- "TCF1_LO_TOX_HI_CD8";  probe.feature <- "GZMB"
+dtable <- icf.persample.regroup[,.(list_ID, feats, log2fc, cell_type, int_cell_type, nr_select, int_nr_select)]  # simplify dtable
+dtable <- dtable[cell_type == probe.subset, .(mean_log2fc = mean(log2fc, na.rm = TRUE), 
+                                           p_value = t.test(log2fc, mu = 0)$p.value, 
+                                           Welch_t = t.test(log2fc, mu = 0)$statistic ),
+                                       by = .(feats, int_cell_type)  ] # calculate mean, pvalue, t stat
+dtable <- dtable[! int_cell_type %in% c("ARTIFACT", "CD4.outlier","CD8.outlier")]
+dtable[, p_adj := (p.adjust(p_value, method="fdr" )) ] # adjust p values using FDR method 
+dtable[, log.p_adj := -log10(p.adjust(p_value, method="fdr" )) ]  
+order <- dtable %>% arrange(mean_log2fc)
+order <- order[feats == probe.feature, .(unique(int_cell_type))]  
+dtable$int_cell_type <- factor(dtable$int_cell_type, levels=order$V1)  # factor to make graph display in order 
+ggplot(dtable[feats == probe.feature], aes(y = int_cell_type, x=mean_log2fc, size=log.p_adj)) +  
+  geom_point(pch=21, color='black', fill='black',stroke=0.5) + theme_classic() + 
+  ggtitle(paste0(probe.feature, " in ", probe.subset)) + 
+  theme(axis.title.y = element_blank())
+
+plot.icf.affectCells <- function( dt, probe.subset, probe.feature)
+{
+  dtable <- dt[,.(list_ID, feats, log2fc, cell_type, int_cell_type, nr_select, int_nr_select)] # simplify
+  dtable <- dtable[int_cell_type == probe.subset, .(mean_log2fc = mean(log2fc, na.rm = TRUE),
+                                             p_value = t.test(log2fc, mu = 0)$p.value, 
+                                             Welch_t = t.test(log2fc, mu = 0)$statistic ),
+                                         by = .(feats, cell_type)  ]  # statistically summarize after subgrouping
+  dtable <- dtable[! cell_type %in% c("ARTIFACT", "CD4.outlier","CD8.outlier")]
+  dtable[, p_adj := (p.adjust(p_value, method="fdr" )) ]  
+  dtable[, log.p_adj := -log10(p.adjust(p_value, method="fdr" )) ]  
+  order <- dtable %>% arrange(mean_log2fc)
+  order <- order[feats == probe.feature, .(unique(cell_type))]
+  dtable$cell_type <- factor(dtable$cell_type, levels=order$V1)  # this is a problem 
+  print(ggplot(dtable[feats == probe.feature], aes(y = cell_type, x=mean_log2fc, size=log.p_adj)) + 
+    geom_point(pch=21, color='white', fill='black',stroke=0.5) + theme_classic() + 
+    ggtitle(paste0(probe.subset, " affecting ", probe.feature)) + 
+    theme(axis.title.y = element_blank())
+  )
+  return(dtable[feats==probe.feature])
+  
+#      feats                                cell_type  mean_log2fc     p_value     Welch_t       p_adj  log.p_adj
+#    <char>                                   <fctr>        <num>       <num>       <num>       <num>      <num>
+# 1:   IFNG                           CD4_CD20_MIXED -0.061328114 0.066587619 -1.98917806 0.121424481 0.91569374
+# 2:   IFNG                                       PC -0.028835847 0.582465746 -0.56280971 0.682806484 0.16570236
+# 3:   IFNG MIXED_FOLLICULAR_AND_NONFOLLICULAR_BCELL  0.048100229 0.495967493  0.69905601 0.602503326 0.22004055
+}
+
+# now seeking to make the reverse, where you see what Treg's effects on GzmB are in receiver cells
+plot.icf.affectCells(dt = icf.persample.regroup, probe.subset = "TREG",  probe.feature = "GZMB")
+  ggsave(filename = 'output/icf.treg-effects-on-GZMB.across-celltypes.pdf', height=6, width=6)
+plot.icf.affectCells(dt = icf.persample.regroup, probe.subset = "TREG",  probe.feature = "IFNG")
+  ggsave(filename = 'output/icf.treg-effects-on-IFNg.across-celltypes.pdf', height=6, width=6)
+```
 
 
 
