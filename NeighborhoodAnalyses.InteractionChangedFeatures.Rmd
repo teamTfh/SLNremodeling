@@ -116,8 +116,7 @@ icf.persample <- purrr::list_rbind(readRDS(file="neighborhood.ICFlist.perSample.
 
 # make volcano plots 
 ```{r ICF-perSample-calculate-volcano, fig.width=6}
-# intxns <- findImportantInteractions( interaction.dt= interaction.byRecur, condition.exp="recur", condition.ctrl="no.recur", ef.threshold=1)[[1]]
-plot.volcano.icf <- function( dt, receiver_cell, sender_cell, key.feat = NULL, plot = T)
+plot.volcano.icf <- function( dt, receiver_cell, sender_cell, key.feat = NULL, plot = T, specific.title=NULL)
 {
   dt <- dt[int_cell_type == sender_cell & cell_type == receiver_cell]
   volcano.data <- dt[, .(mean_log2fc = mean(log2fc, na.rm = TRUE),
@@ -125,19 +124,23 @@ plot.volcano.icf <- function( dt, receiver_cell, sender_cell, key.feat = NULL, p
                                            Welch_t = t.test(log2fc, mu = 0)$statistic ),
                                        by = .(feats)  ]
   volcano.data[, p_adj := p.adjust(p_value, method="fdr" ) ] [order(p_adj, decreasing = T)]
+  volcano.data[, log.p_adj := -log10(p.adjust(p_value, method="fdr" )) ] [order(p_adj, decreasing = T)]
   volcano.data[, highlight.feat := "0"]
   volcano.data[feats %in% key.feat, highlight.feat := "1"]
-  annotateX.incr <- max(volcano.data$mean_log2fc)-0.2*max(volcano.data$mean_log2fc)
-  annotateX.decr <- min(volcano.data$mean_log2fc)+0.2*min(volcano.data$mean_log2fc)
+  annotateX.incr <- max(volcano.data$mean_log2fc)-0.2*max(volcano.data$mean_log2fc)  # place label 20% less than max log2fc
+  annotateX.decr <- min(volcano.data$mean_log2fc)+0.2*min(volcano.data$mean_log2fc)  # place other label 20% mroe than min log2fc
   annotateY.ylim <- max(-log10(volcano.data$p_adj))*1.1
+  ifelse(is.null(specific.title),   # is a title passed into plot 
+         yes= {title.of.plot=paste0(receiver_cell, " adjacent to ", sender_cell )} ,
+         no = {title.of.plot = specific.title})
   if (plot == T)
   {
     print(
-      ggplot(volcano.data, aes(y = -log10(p_adj), x=mean_log2fc, label = feats, color=highlight.feat)) + 
+      ggplot(volcano.data, aes(y = log.p_adj, x=mean_log2fc, label = feats, color=highlight.feat)) + 
         geom_hline(yintercept = -log10(0.05), color="grey60", linetype="dashed", linewidth=0.1)+
         geom_point(aes(fill = highlight.feat), shape=21, color="white",  size=3) +   #fill="black",
         ggrepel::geom_text_repel(max.overlaps = 20) + 
-        ggtitle(paste0(receiver_cell, " adjacent to ", sender_cell )) + 
+        ggtitle(title.of.plot) + 
         theme_classic()  + 
         scale_color_manual(values = c('black','red')) + scale_fill_manual(values = c('black','red'))+ 
         annotate("text", x = annotateX.incr, y = -0.15*annotateY.ylim, size = 3, label = "Increased expr") + 
@@ -145,14 +148,15 @@ plot.volcano.icf <- function( dt, receiver_cell, sender_cell, key.feat = NULL, p
         coord_cartesian(clip = 'off', ylim= c(0, annotateY.ylim)) + theme(legend.position = 'none')
       )
   }
-  return(volcano.data)
-#  
+  return(volcano.data[order(mean_log2fc)])
+}
+
+#  example of volcano.data  
 #      feats mean_log2fc      p_value    Welch_t        p_adj
 #    <char>       <num>        <num>      <num>        <num>
 # 1: HLA.DR  0.67395872 1.071667e-07  9.8895908 2.893501e-06
 # 2:   CD3E  0.02025484 5.118152e-01  0.6731441 5.757921e-01
 # 3:   ICOS -0.05803399 7.299591e-02 -1.9384811 1.159347e-01
-}
 
 plot.volcano.icf(dt = icf.persample, receiver_cell = "ACTIVATED_TREG", sender_cell = "ACTIVATED_CD8")
 plot.volcano.icf(dt = icf.persample, receiver_cell = "ACTIVATED_CD8", sender_cell = "ACTIVATED_TREG")
@@ -165,21 +169,8 @@ plot.volcano.icf(dt = icf.persample, receiver_cell = "MEMORY_CD4", sender_cell =
 
 This is curious. It's likely showing membrane spillover from the adjacent cell. All of the recipient cells have ICOS and Foxp3 which is likely coming from the ACTIVATED_TREG. 
 
-# calculate statistics 
-```{r plot-everything}
-
-dtable <- icf.persample[,.(list_ID, feats, log2fc, cell_type, int_cell_type, nr_select, int_nr_select)]
-volcano.dt <- dtable[cell_type == "ACTIVATED_TREG", .(mean_log2fc = mean(log2fc, na.rm = TRUE),
-                                           p_value = t.test(log2fc, mu = 0)$p.value, 
-                                           Welch_t = t.test(log2fc, mu = 0)$statistic ),
-                                       by = .(feats, int_cell_type)  ]
-volcano.dt <- volcano.dt[! int_cell_type %in% c("ARTIFACT", "CD4.outlier","CD8.outlier")]
-volcano.dt[, p_adj := p.adjust(p_value, method="fdr" ) ] [order(p_adj, decreasing = T)]
-
-```
-
 # heatmap of the ICF 
-```{r ICF-perSample-calculate-volcano-dupl, fig.width=8, eval=FALSE}
+```{r ICF-perSample-heatmap, fig.width=8}
 index.cell = "TCF1_LO_TOX_HI_CD8"
 interacting.cell = "ACTIVATED_TREG"
 df.for.plot <- icf.persample[int_cell_type == interacting.cell & cell_type == index.cell]
@@ -195,10 +186,11 @@ heatmap.matrix <- (heatmap.matrix %>% pivot_wider(names_from = feats, values_fro
 heatmap.matrix <- heatmap.matrix[rownames(annotation.df), ] %>% as.matrix()
 colors <- c("stage1" = "gray80", "stage3.no.recur" = "gray30", "stage3.recur" = "black")
 ht.annot <- HeatmapAnnotation(df = annotation.df, col = list(annot = colors), which = "row")
+col.fxn <- circlize::colorRamp2(c(min(as.vector(heatmap.matrix)), 0, max(as.vector(heatmap.matrix))), c("blue", "white", "red"))
 
 Heatmap(  heatmap.matrix, name = "log2FC",
   row_split = annotation.df$annot, left_annotation = ht.annot, rect_gp = gpar(col = "white", lwd = 1),
-  cluster_rows = TRUE, cluster_columns = TRUE, show_row_names = F, 
+  cluster_rows = TRUE, cluster_columns = TRUE, show_row_names = F, col = col.fxn, 
   row_names_gp = gpar(fontsize = 10),  column_names_gp = gpar(fontsize = 10), 
   column_title = (paste0(index.cell, " adjacent to ", interacting.cell)), row_title = " "
 ) 
@@ -345,8 +337,52 @@ plot.icf.affectCells(dt = icf.persample.regroup, probe.subset = "TREG",  probe.f
 ```
 
 
+# heatmap of the ICF 
+```{r ICF-perSample-heatmap-Treg-grouped, fig.width=6}
+index.cell = "TCF1_LO_TOX_HI_CD8"
+interacting.cell = "TREG"
+df.for.plot <- icf.persample.regroup[int_cell_type == interacting.cell & cell_type == index.cell]
+annotation.df <- data.frame(list_ID = c(stage1.subgroup, recur.subgroup, norecur.subgroup))
+annotation.df$annot <- c(rep("stage1", 5), rep("stage3.recur", length(recur.subgroup)), 
+                         rep("stage3.no.recur", length(norecur.subgroup))) 
+rownames(annotation.df) <- annotation.df$list_ID
+annotation.df$list_ID <- NULL
+heatmap.feats <- proteinsList # c("IFNG", "GZMB", "HLADR")
+heatmap.matrix <- df.for.plot[feats %in% heatmap.feats, .(log2fc, feats, list_ID)]
+heatmap.matrix <- (heatmap.matrix %>% pivot_wider(names_from = feats, values_from=log2fc, id_cols = list_ID)) %>% 
+   tibble::column_to_rownames("list_ID") 
+heatmap.matrix <- heatmap.matrix[rownames(annotation.df), c("GZMB","IFNG", "CD38", "CXCR5", "BCA1")] %>% as.matrix()
+colors <- c("stage1" = "gray80", "stage3.no.recur" = "gray30", "stage3.recur" = "black")
+ht.annot <- HeatmapAnnotation(df = annotation.df, col = list(annot = colors), which = "row")
+col.fxn <- circlize::colorRamp2(c(min(as.vector(heatmap.matrix)), 0, max(as.vector(heatmap.matrix))), c("blue", "white", "red"))
+
+Heatmap(  heatmap.matrix, name = "log2FC",
+  row_split = annotation.df$annot, left_annotation = ht.annot, rect_gp = gpar(col = "white", lwd = 1),
+  cluster_rows = TRUE, cluster_columns = TRUE, show_row_names = F, col = col.fxn, 
+  row_names_gp = gpar(fontsize = 10),  column_names_gp = gpar(fontsize = 10), 
+  column_title = (paste0(index.cell, " adjacent to ", interacting.cell, ": Log2FC")), row_title = " "
+) 
 
 
+```
+
+```{r split-volcano-by-recurrence}
+
+plot.volcano.icf(dt = icf.persample.regroup[list_ID %in% recur.subgroup], receiver_cell = "TCF1_LO_TOX_HI_CD8", 
+                      sender_cell = "TREG", specific.title = "RECUR: TCF1_LO_CD8 adjacent to TREG")
+plot.volcano.icf(dt = icf.persample.regroup[list_ID %in% norecur.subgroup], receiver_cell = "TCF1_LO_TOX_HI_CD8", 
+                      sender_cell = "TREG", specific.title = "NO.RECUR: TCF1_LO_CD8 adjacent to TREG")
+```
+
+Just not enough resolution to see differences in recurrence vs no.recurrence even when Treg are grouped this way. Probably due to a combination of # cells and # biological replicates. Probably this analysis needs at least several hundred interacting cell pairs and at least 5 biological replicates at minimum
+
+
+```{r find-the-treg}
+
+
+
+
+```
 
 
 
