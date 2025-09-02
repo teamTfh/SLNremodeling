@@ -59,15 +59,18 @@ saveRDS(md, file = "md.RDS")
 
 
 # calculate ICF 
-```{r ICF-perSample-calculateICF, fig.width=10}
+```{r ICF-perSample-calculateICF-setupvariables, fig.width=10}
 list_ID <- unique(md$list_ID)
 icf.persample <- list(); icf.persample.enrich <- list()
 proteinsList <- c("BCA1", "CD3E", "CD4","CD8" ,"CD11C" ,"CD27","CD38","CD39", "CD45RO","CXCR3","CXCR5",
                   "FOXP3" , "GZMB" ,"HLA.DR", "ICOS","IFNG","IL21","IRF4","IRF7","KI67", "LAG3",
                   "PD1","PDL1","STAT1","STAT3","TCF1","TOX" ) # "TBET","PMTOR","CD19","CD20" ,"CD21","MAC2/GAL3","PAX5","VIMENTIN"
 timeStamp <- format(Sys.time(), "%m%d.%H%M")
-enrich.celltypes <- c("ACTIVATED_TREG", "TCF1_LO_TOX_HI_CD8", "ACTIVATED_CD8") # make a version that keeps all of these cells 
+enrich.celltypes <- c("ACTIVATED_TREG", "TCF1_LO_TOX_HI_CD8", "ACTIVATED_CD8") # make a version that keeps all of these cells
+```
 
+
+```{r ICF-perSample-calculateICF-forLoop, fig.width=10}
 for (i in list_ID)
 {
   if( .Platform$OS.type != "windows")    {    cat(paste("Starting on: ", i, " on ", date(),"\n"), 
@@ -256,29 +259,29 @@ plot.volcano.icf(dt = icf.persample.regroup, receiver_cell = "TCF1_LO_TOX_HI_CD8
 Still seeing membrane spillover effects, that didn't change. The CD8 adj to Treg again have lower GzmB and IFNg, esp in the Tcfhi CD8 subset. 
 
 ```{r heatmap-plots-regrouped, fig.width=8}
-index.cell = "TCF1_LO_TOX_HI_CD8"
-interacting.cell = "TREG"
-df.for.plot <- plot.volcano.icf(dt = icf.persample.regroup, receiver_cell = index.cell, sender_cell = interacting.cell)
-
-annotation.df <- data.frame(list_ID = c(stage1.subgroup, recur.subgroup, norecur.subgroup))
-annotation.df$annot <- c(rep("stage1", 5), rep("stage3.recur", length(recur.subgroup)), 
-                         rep("stage3.no.recur", length(norecur.subgroup))) 
-rownames(annotation.df) <- annotation.df$list_ID
-annotation.df$list_ID <- NULL
-heatmap.feats <- proteinsList # c("IFNG", "GZMB", "HLADR")
-heatmap.matrix <- df.for.plot[feats %in% heatmap.feats, .(log2fc, feats, list_ID)]
-heatmap.matrix <- (heatmap.matrix %>% pivot_wider(names_from = feats, values_from=log2fc, id_cols = list_ID)) %>% 
-   tibble::column_to_rownames("list_ID") 
-heatmap.matrix <- heatmap.matrix[rownames(annotation.df), ] %>% as.matrix()
-colors <- c("stage1" = "gray80", "stage3.no.recur" = "gray30", "stage3.recur" = "black")
-ht.annot <- HeatmapAnnotation(df = annotation.df, col = list(annot = colors), which = "row")
-
-Heatmap(  heatmap.matrix, name = "log2FC",
-  row_split = annotation.df$annot, left_annotation = ht.annot, rect_gp = gpar(col = "white", lwd = 1),
-  cluster_rows = TRUE, cluster_columns = TRUE, show_row_names = F, 
-  row_names_gp = gpar(fontsize = 10),  column_names_gp = gpar(fontsize = 10), 
-  column_title = (paste0(index.cell, " adjacent to ", interacting.cell)), row_title = " "
-) 
+# index.cell = "TCF1_LO_TOX_HI_CD8"
+# interacting.cell = "TREG"
+# df.for.plot <- plot.volcano.icf(dt = icf.persample.regroup, receiver_cell = index.cell, sender_cell = interacting.cell)
+# 
+# annotation.df <- data.frame(list_ID = c(stage1.subgroup, recur.subgroup, norecur.subgroup))
+# annotation.df$annot <- c(rep("stage1", 5), rep("stage3.recur", length(recur.subgroup)), 
+#                          rep("stage3.no.recur", length(norecur.subgroup))) 
+# rownames(annotation.df) <- annotation.df$list_ID
+# annotation.df$list_ID <- NULL
+# heatmap.feats <- proteinsList # c("IFNG", "GZMB", "HLADR")
+# heatmap.matrix <- df.for.plot[feats %in% heatmap.feats, .(log2fc, feats, list_ID)]
+# heatmap.matrix <- (heatmap.matrix %>% pivot_wider(names_from = feats, values_from=log2fc, id_cols = list_ID)) %>% 
+#    tibble::column_to_rownames("list_ID") 
+# heatmap.matrix <- heatmap.matrix[rownames(annotation.df), ] %>% as.matrix()
+# colors <- c("stage1" = "gray80", "stage3.no.recur" = "gray30", "stage3.recur" = "black")
+# ht.annot <- HeatmapAnnotation(df = annotation.df, col = list(annot = colors), which = "row")
+# 
+# Heatmap(  heatmap.matrix, name = "log2FC",
+#   row_split = annotation.df$annot, left_annotation = ht.annot, rect_gp = gpar(col = "white", lwd = 1),
+#   cluster_rows = TRUE, cluster_columns = TRUE, show_row_names = F, 
+#   row_names_gp = gpar(fontsize = 10),  column_names_gp = gpar(fontsize = 10), 
+#   column_title = (paste0(index.cell, " adjacent to ", interacting.cell)), row_title = " "
+# ) 
 
 
 ```
@@ -309,7 +312,7 @@ plot.icf.affectCells <- function( dt, probe.subset, probe.feature)
                                              p_value = t.test(log2fc, mu = 0)$p.value, 
                                              Welch_t = t.test(log2fc, mu = 0)$statistic ),
                                          by = .(feats, cell_type)  ]  # statistically summarize after subgrouping
-  dtable <- dtable[! cell_type %in% c("ARTIFACT", "CD4.outlier","CD8.outlier")]
+  dtable <- dtable[! cell_type %in% c("ARTIFACT", "CD4.outlier","CD8.outlier","Tumor")]
   dtable[, p_adj := (p.adjust(p_value, method="fdr" )) ]  
   dtable[, log.p_adj := -log10(p.adjust(p_value, method="fdr" )) ]  
   order <- dtable %>% arrange(mean_log2fc)
@@ -356,14 +359,16 @@ colors <- c("stage1" = "gray80", "stage3.no.recur" = "gray30", "stage3.recur" = 
 ht.annot <- HeatmapAnnotation(df = annotation.df, col = list(annot = colors), which = "row")
 col.fxn <- circlize::colorRamp2(c(min(as.vector(heatmap.matrix)), 0, max(as.vector(heatmap.matrix))), c("blue", "white", "red"))
 
+
+# pdf('output/icf.selected.tcf1_lo-near-treg.heatmap.pdf', width=6, height=4)
+
 Heatmap(  heatmap.matrix, name = "log2FC",
   row_split = annotation.df$annot, left_annotation = ht.annot, rect_gp = gpar(col = "white", lwd = 1),
   cluster_rows = TRUE, cluster_columns = TRUE, show_row_names = F, col = col.fxn, 
   row_names_gp = gpar(fontsize = 10),  column_names_gp = gpar(fontsize = 10), 
   column_title = (paste0(index.cell, " adjacent to ", interacting.cell, ": Log2FC")), row_title = " "
 ) 
-
-
+# dev.off()
 ```
 
 ```{r split-volcano-by-recurrence}

@@ -61,7 +61,6 @@ gc()
 ```{r grant-example-images}
 keepCells <- subset(md, list_ID == "tumor.5" & y %in% c(10000:20000) )$cell_ID
 sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
-# leiden_colors <- getDistinctColors(length(unique(md$L2_annotations)))
 leiden_colors <- stableColorsL2
 names(leiden_colors) <- unique(md$L2_annotations)
 leiden_colors.focus <- leiden_colors 
@@ -1329,8 +1328,246 @@ ggplot(DT[variable == "ACTIVATED_TREG"], aes(x = Recurrence, y=Freq )) + # , fil
 ```
 
 
+# Histograms of feature expression for CD8 T cells given Treg
+```{r histogram-of-gzmB-expression-tcflo, plot.width=6}
+# neighborhoods <- defineNeighborhoods(annot.list = annot.k9)   # from chunk 15 or so  
+# gc()
+
+neighborhoods.grouped <- purrr::list_rbind(neighborhoods$raw.table, names_to = "list_ID")
+neighborhoods.grouped[, TREG := ACTIVATED_TREG + ICOS_LO_TREG + MIXED_TREG]
+neighborhoods.grouped
+
+TCFlo.CD8 <- neighborhoods.grouped[from_cell_type == "TCF1_LO_TOX_HI_CD8"]
+TCFhi.CD8 <- neighborhoods.grouped[from_cell_type == "TCF1_HI_TOX_HI_CD8"]
+
+# spatPlot2D(sln.sm, cell_color = 'L2_annotations', cell_color_code = leiden_colors, 
+#            point_size = 10, point_alpha=1, axis_text=10, point_border_col = 'black',
+#            point_border_stroke = 0.25, legend_text =10)
+
+target.cell <- TCFlo.CD8[TREG >=1]  # start with TREG neighbors
+val.1 <- Giotto::getExpression(gobject=sln, values='normalized')@exprMat['GZMB', target.cell$from] 
+target.cell <- TCFlo.CD8[TREG == 0]  # now with no TREG neighbors
+val.0 <- Giotto::getExpression(gobject=sln, values='normalized')@exprMat['GZMB', target.cell$from]
+
+dt <- data.table(data = c(val.0, val.1), 
+                 source = c(rep("No.Treg.Neighbors", length(val.0)), 
+                            rep("Treg.Neighbors", length(val.1)))
+                 )  # make a new dt where the expression values of FEAT can be plotted 
+ 
+permutation.test.neighborhoods <- function(num.perm = 10000, data.tbl, group.0, group.1)
+{
+  obs.diff <- mean(dt[source %in% group.0, data]) - mean(dt[source %in% group.1, data])  
+  print(paste0("Observed difference: ", round(obs.diff, 2)))  
+  permutation.diffs <- numeric(num.perm)  # now for a ridiculous number of permutations 
+  dt <- data.tbl
+  for (i in 1:num.perm) 
+  {
+    shuffled_source <- sample(dt$source)    # randomly shuffle the group labels.
+
+    # Calculate the difference in means for this random permutation.
+    # 1. mutate(): Replaces the original 'source' column with the 'shuffled_source' labels.
+    # 2. group_by(): Groups the data by the new, random source labels.
+    # 3. summarise(): Calculates the mean for each of the two groups.
+    # 4. pull(): Extracts the mean values as a vector.
+    # 5. diff(): Calculates the difference between the two means in the vector.
+    permutation.diffs[i] <- dt %>%
+      mutate(source = shuffled_source) %>%
+      group_by(source) %>%
+      summarise(mean = mean(data)) %>%
+      pull(mean) %>%
+      diff()
+  }
+  hist(permutation.diffs, breaks=100)
+  # The p-value is the proportion of permuted differences that were as extreme as (or more extreme than) our observed difference. 
+  # The 'abs()' function performs a two-tailed test. The logical operator yields T/F and then mean calculates the proportion 
+  pV <- mean(abs(permutation.diffs) >= abs(obs.diff))
+  print(paste0("P value is ", pV, ". Lowest possible P value for ",num.perm, " iterations is ", 1/num.perm))
+  return(pV)
+}
+p.val <- permutation.test.neighborhoods(data.tbl = dt, group.0 = "No.Treg.Neighbors", group.1 = "Treg.Neighbors", num.perm = 10000)
+
+dt %>% group_by(source) %>% rstatix::get_summary_stats(data, type = 'common')
+ggplot(dt, aes(x = data, fill = source)) + geom_histogram(binwidth = 0.25, alpha=0.6, position='identity') + 
+  scale_fill_manual(values = c('grey50','firebrick')) + 
+  annotate('text', x=12, y=1000, color='black', 
+           label= paste0("Mean Treg.Neighbors: ", round(mean(dt[source == 'Treg.Neighbors', data]), 2), 
+                         "\n",
+                         "Mean No.Treg.Neighbors: ", round(mean(dt[source == 'No.Treg.Neighbors', data]), 2),
+                         "\nPermutation test:  P < ", ifelse(p.val==0, 1/num.perm, p.val)),
+           hjust = 0, size=3) +
+  ggtitle("Expression for GZMB for TCF1_LO_TOX_HI_CD8") + xlim(c(0,28 ))+ 
+  xlab("GZMB expression") + ylab("Number of cells") +
+  theme_classic() + theme(legend.justification = c("right", "top"), legend.position = 'inside', 
+                          legend.title=element_blank()) 
+# ggsave(filename = 'output/hist.GzmB.TCF1loToxhiCD8.pdf', width=4,height=3)
 
 
+
+target.cell <- TCFlo.CD8[TREG >=1]  # start with TREG neighbors
+val.1 <- Giotto::getExpression(gobject=sln, values='normalized')@exprMat['IFNG', target.cell$from] 
+target.cell <- TCFlo.CD8[TREG == 0]  # now with no TREG neighbors
+val.0 <- Giotto::getExpression(gobject=sln, values='normalized')@exprMat['IFNG', target.cell$from]
+
+dt <- data.table(data = c(val.0, val.1), 
+                 source = c(rep("No.Treg.Neighbors", length(val.0)), 
+                            rep("Treg.Neighbors", length(val.1)))
+                 )  # make a new dt where the expression values of FEAT can be plotted 
+p.val <- permutation.test.neighborhoods(data.tbl = dt, group.0 = "No.Treg.Neighbors", group.1 = "Treg.Neighbors", num.perm = 10000)
+dt %>% group_by(source) %>% rstatix::get_summary_stats(data, type = 'common')
+ggplot(dt, aes(x = data, fill = source)) + geom_histogram(binwidth = 0.25, alpha=0.6, position='identity') + 
+  scale_fill_manual(values = c('grey50','firebrick')) + 
+  annotate('text', x=12, y=1000, color='black', 
+           label= paste0("Mean Treg.Neighbors: ", round(mean(dt[source == 'Treg.Neighbors', data]), 1), 
+                         "\n",
+                         "Mean No.Treg.Neighbors: ", round(mean(dt[source == 'No.Treg.Neighbors', data]), 1),
+                         "\nPermutation test:  P < ", ifelse(p.val==0, 1/num.perm, p.val)),
+           hjust = 0, size=3) +
+  ggtitle("Expression for IFNG for TCF1_LO_TOX_HI_CD8") + xlim(c(0,28 ))+ 
+  xlab("IFNg expression") + ylab("Number of cells") +
+  theme_classic() + theme(legend.justification = c("right", "top"), legend.position = 'inside', 
+                          legend.title=element_blank()) 
+# ggsave(filename = 'output/hist.IFNG.TCF1loToxhiCD8.pdf', width=4,height=3)
+```
+
+
+```{r histogram-of-gzmB-expression-tcfhi, plot.width=6}
+target.cell <- TCFhi.CD8[TREG >=1]  # start with TREG neighbors
+val.1 <- Giotto::getExpression(gobject=sln, values='normalized')@exprMat['GZMB', target.cell$from] 
+target.cell <- TCFhi.CD8[TREG == 0]  # now with no TREG neighbors
+val.0 <- Giotto::getExpression(gobject=sln, values='normalized')@exprMat['GZMB', target.cell$from]
+
+dt <- data.table(data = c(val.0, val.1), 
+                 source = c(rep("No.Treg.Neighbors", length(val.0)), 
+                            rep("Treg.Neighbors", length(val.1)))
+                 )  # make a new dt where the expression values of FEAT can be plotted 
+p.val <- permutation.test.neighborhoods(data.tbl = dt, group.0 = "No.Treg.Neighbors", group.1 = "Treg.Neighbors", num.perm = 10000)
+dt %>% group_by(source) %>% rstatix::get_summary_stats(data, type = 'common')
+ggplot(dt, aes(x = data, fill = source)) + geom_histogram(binwidth = 0.25, alpha=0.6, position='identity') + 
+  scale_fill_manual(values = c('grey50','firebrick')) + 
+  annotate('text', x=12, y=4000, color='black', 
+           label= paste0("Mean Treg.Neighbors: ", round(mean(dt[source == 'Treg.Neighbors', data]), 2), 
+                         "\n",
+                         "Mean No.Treg.Neighbors: ", round(mean(dt[source == 'No.Treg.Neighbors', data]), 2),
+                         "\nPermutation test:  P < ", ifelse(p.val==0, 1/num.perm, p.val)),
+           hjust = 0, size=3) +
+  ggtitle("Expression for GZMB for TCF1_HI_TOX_HI_CD8") + xlim(c(0,28 ))+ 
+  xlab("GZMB expression") + ylab("Number of cells") +
+  theme_classic() + theme(legend.justification = c("right", "top"), legend.position = 'inside', 
+                          legend.title=element_blank()) 
+# ggsave(filename = 'output/hist.GZMB.TCF1hiToxhiCD8.pdf', width=4,height=3)
+
+
+
+target.cell <- TCFhi.CD8[TREG >=1]  # start with TREG neighbors
+val.1 <- Giotto::getExpression(gobject=sln, values='normalized')@exprMat['IFNG', target.cell$from] 
+target.cell <- TCFhi.CD8[TREG == 0]  # now with no TREG neighbors
+val.0 <- Giotto::getExpression(gobject=sln, values='normalized')@exprMat['IFNG', target.cell$from]
+
+dt <- data.table(data = c(val.0, val.1), 
+                 source = c(rep("No.Treg.Neighbors", length(val.0)), 
+                            rep("Treg.Neighbors", length(val.1)))
+                 )  # make a new dt where the expression values of FEAT can be plotted 
+p.val <- permutation.test.neighborhoods(data.tbl = dt, group.0 = "No.Treg.Neighbors", group.1 = "Treg.Neighbors", num.perm = 10000)
+dt %>% group_by(source) %>% rstatix::get_summary_stats(data, type = 'common')
+ggplot(dt, aes(x = data, fill = source)) + geom_histogram(binwidth = 0.25, alpha=0.6, position='identity') + 
+  scale_fill_manual(values = c('grey50','firebrick')) + 
+  annotate('text', x=12, y=5000, color='black', 
+           label= paste0("Mean Treg.Neighbors: ", round(mean(dt[source == 'Treg.Neighbors', data]), 1), 
+                         "\n",
+                         "Mean No.Treg.Neighbors: ", round(mean(dt[source == 'No.Treg.Neighbors', data]), 1),
+                         "\nPermutation test:  P < ", ifelse(p.val==0, 1/num.perm, p.val)),
+           hjust = 0, size=3) +
+  ggtitle("Expression for IFNG for TCF1_HI_TOX_HI_CD8") + xlim(c(0,28 ))+ 
+  xlab("IFNg expression") + ylab("Number of cells") +
+  theme_classic() + theme(legend.justification = c("right", "top"), legend.position = 'inside', 
+                          legend.title=element_blank()) 
+# ggsave(filename = 'output/hist.IFNG.TCF1hiToxhiCD8.pdf', width=4,height=3)
+```
+
+# Dose response for Treg adjacency 
+```{r treg-effect-gzmb-doseResponse}
+
+target.cell <- TCFlo.CD8[TREG == 1]  # start with TREG neighbors
+val.1 <- Giotto::getExpression(gobject=sln, values='normalized')@exprMat['GZMB', target.cell$from] 
+target.cell <- TCFlo.CD8[TREG < 1]  # now with no TREG neighbors
+val.0 <- Giotto::getExpression(gobject=sln, values='normalized')@exprMat['GZMB', target.cell$from]
+val.2 <- Giotto::getExpression(gobject=sln, values='normalized')@exprMat['GZMB', TCFlo.CD8[TREG==2,from]] 
+val.3 <- Giotto::getExpression(gobject=sln, values='normalized')@exprMat['GZMB', TCFlo.CD8[TREG==3,from]] 
+val.4 <- Giotto::getExpression(gobject=sln, values='normalized')@exprMat['GZMB', TCFlo.CD8[TREG==4,from]] 
+val.5 <- Giotto::getExpression(gobject=sln, values='normalized')@exprMat['GZMB', TCFlo.CD8[TREG==5,from]] 
+val.6 <- Giotto::getExpression(gobject=sln, values='normalized')@exprMat['GZMB', TCFlo.CD8[TREG==6,from]] 
+
+
+dt <- data.table(data = c(val.0, val.1, val.2, val.3, val.4, val.5, val.6), 
+                 source = c(rep("No.Treg.Neighbors", length(val.0)), 
+                            rep("One.Treg.Neighbors", length(val.1)),                            
+                            rep("Two.Treg.Neighbors", length(val.2)),
+                            rep("Three.Treg.Neighbors", length(val.3)),
+                            rep("Four.Treg.Neighbors", length(val.4)),
+                            rep("Five.Treg.Neighbors", length(val.5)),
+                            rep("Six.Treg.Neighbors", length(val.6))
+                            )
+                 )  # make a new dt where the expression values of FEAT can be plotted 
+dt$source <- factor(dt$source, levels = c("No.Treg.Neighbors","One.Treg.Neighbors","Two.Treg.Neighbors", "Three.Treg.Neighbors",
+                                          "Four.Treg.Neighbors","Five.Treg.Neighbors", "Six.Treg.Neighbors"))
+dt %>% group_by(source) %>% rstatix::get_summary_stats(data, type = 'common')
+dt %>% rstatix::wilcox_test(formula = data ~ source)
+
+```
+
+Not clear if there is a dose-response effect. I think it gets complicated when there are <1000 cells. Probably this cannot be analyzed unless there are more data points to evaluate 
+
+# Find cells expressing GzmB and show in tissue 
+```{r draw-cell-interactions-in-silico, plot.width=6}
+
+make.subset.for.spatPlot <- function(target, select.row, meta.data)
+{
+  target <- target[select.row, from]  # pick the target cell by random, collect the cell ID 
+  print(target)
+  target <- meta.data[cell_ID == target]  
+  keepCells <- subset(meta.data, 
+                      list_ID == target$list_ID & 
+                        y %in% c((target$y-150):(target$y+150)) & 
+                        x %in% c((target$x-150):(target$x+150)) )$cell_ID  
+  return(keepCells)
+}
+
+plot.Feat.pairedVoroni <- function(target, select.row, feat.show, max.upper, subset.colors, meta.data, pass.title, g.object=sln)
+{
+  keepCells <- make.subset.for.spatPlot(target = target, select.row = select.row, meta.data = meta.data)
+  sln.small <- subsetGiotto(g.object, cell_ids = keepCells)
+  a <- spatPlot(sln.small, cell_color = 'L2_annotations', cell_color_code = subset.colors,  
+             point_shape = 'voronoi', vor_max_radius = 30, point_size = 1, point_alpha=0, vor_border_color='grey40', 
+             title = pass.title, return_plot=T)
+  b <- spatFeatPlot2D(sln.small, feats= feat.show, point_shape='voronoi', vor_max_radius = 30, vor_border_color = 'grey40', 
+                 gradient_midpoint = 2, expression_values = 'normalized', gradient_limits = c(-5, max.upper), 
+                 return_plot = T)
+  return(list(a,b))
+}
+
+target.cell <- TCFlo.CD8[TREG >=1]  # start with TREG neighbors
+expr.feat.1 <- Giotto::getExpression(gobject = sln, values = "normalized")@exprMat['GZMB', target.cell$from ]  # get all expr values
+mean.upperhalf <- expr.feat.1[which(expr.feat.1 > median(expr.feat.1))] %>% mean  # get the mean of the upper half of the expression values
+sel.1 <-  which.min(abs( expr.feat.1 - mean.upperhalf ) ) +1  # what is closest to the mean of the upper half plus one 
+plotting.cells <- make.subset.for.spatPlot(target.cell, select.row= sel.1, meta.data = md)  # give me what will be in the view port
+expr.feat.1 <- Giotto::getExpression(gobject = sln, values = "normalized")@exprMat['GZMB', plotting.cells ] %>% max  # get max expr values
+
+target.cell <- TCFlo.CD8[TREG == 0]  # now with no TREG neighbors
+expr.feat.0 <- Giotto::getExpression(gobject = sln, values = "normalized")@exprMat['GZMB', target.cell$from ]  # get all expr values
+mean.upperhalf <- expr.feat.0[which(expr.feat.0 > median(expr.feat.0))] %>% mean  # get the mean of the upper half of the expression values
+sel.0 <- which.min(abs( expr.feat.0 - mean.upperhalf ) )  + 7
+plotting.cells <- make.subset.for.spatPlot(target.cell, select.row= sel.0, meta.data = md)   
+expr.feat.0 <- Giotto::getExpression(gobject = sln, values = "normalized")@exprMat['GZMB', plotting.cells ] %>% max  
+
+target.cell <- TCFlo.CD8[TREG >=1]  
+a <- plot.Feat.pairedVoroni(target = target.cell, select.row = sel.1, feat.show='GZMB', max.upper= min(expr.feat.0, expr.feat.1), 
+                            subset.colors = stableColorsL2, meta.data = md, 
+                            pass.title = paste0("GZMB if 1+ Treg (", target.cell[sel,from],")"))
+target.cell <- TCFlo.CD8[TREG == 0]  
+b <- plot.Feat.pairedVoroni(target = target.cell, select.row = sel.0, feat.show='GZMB', max.upper=min(expr.feat.0, expr.feat.1), 
+                            subset.colors = stableColorsL2, meta.data = md, 
+                            pass.title = paste0("GZMB if 0 Treg (", target.cell[sel,from],")"))
+```
 
 
 
