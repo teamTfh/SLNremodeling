@@ -1546,7 +1546,7 @@ plot.Feat.pairedVoroni <- function(target, select.row, feat.show, max.upper, sub
                  return_plot = T)
   return(list(a,b))
 }
-
+# 39, 100
 expr.feat.1 <- Giotto::getExpression(gobject = sln, values = "normalized")@exprMat['GZMB', TCFlo.CD8[TREG >=1,from ]]  # get all expr 
 upperhalf <- expr.feat.1[which(expr.feat.1 > median(expr.feat.1))]   # get the upper half of the expression values
 sel.1 <-  R.utils::withSeed( expr = names(upperhalf[sample(upperhalf,1)]), seed = 100); print(expr.feat.1[sel.1])
@@ -1568,7 +1568,28 @@ target.cell <- TCFlo.CD8[TREG == 0]
 b <- plot.Feat.pairedVoroni(target = expr.feat.0, select.row = sel.0, feat.show='GZMB', max.upper= min(expr.feat.0.max, expr.feat.1.max),
                             subset.colors = stableColorsL2, meta.data = md, # voronoi.only = T,
                             pass.title = paste0("GZMB if 0 Treg (", sel.0, ")"))
- 
+
+tmp<-list()
+for(i in 1:1000){
+# expr.feat.1 <- Giotto::getExpression(gobject = sln, values = "normalized")@exprMat['GZMB', TCFlo.CD8[TREG >=1,from ]]  # get all expr 
+upperhalf <- expr.feat.1[which(expr.feat.1 > median(expr.feat.1))]   # get the upper half of the expression values
+sel.1 <-  R.utils::withSeed( expr = names(upperhalf[sample(upperhalf,1)]), seed = i); 
+# expr.feat.0 <- Giotto::getExpression(gobject = sln, values = "normalized")@exprMat['GZMB', TCFlo.CD8[TREG ==0,from ]]  # get all expr 
+upperhalf <- expr.feat.0[which(expr.feat.0 > median(expr.feat.0))]   # get the upper half of the expression values
+sel.0 <-  R.utils::withSeed( expr = names(upperhalf[sample(upperhalf,1)]), seed = i); 
+tmp[[i]] <- data.frame(expr.feat.1[sel.1], expr.feat.0[sel.0])
+# print(i)
+}
+tmp <- rbindlist(tmp)
+tmp[, index:= seq(1:nrow(tmp))]
+tmp.1 <- round(tmp[(expr.feat.1.sel.1. + 2 )< (expr.feat.0.sel.0. )],0)
+tmp.1[, diff:=expr.feat.0.sel.0. - expr.feat.1.sel.1.]
+tmp.1[diff %in% 3:6 & expr.feat.0.sel.0. %in% 8:13, index]
+
+  [1]  12  28  39  41  53  66  79 100 106 119 125 133 141 147 161 166 180 182 189 217 227 232 250 251 252 257 258 264 267 269 278 279
+ [33] 281 285 305 306 324 345 371 375 402 407 408 409 424 451 452 455 460 475 485 491 492 510 514 528 553 559 564 567 578 582 588 595
+ [65] 624 630 669 679 681 682 685 712 719 720 721 729 734 741 745 758 762 768 771 772 774 803 804 805 812 816 839 855 867 881 885 890
+ [97] 892 897 917 918 920 936 937 938 962 971 979 991 99
 
 ```
 
