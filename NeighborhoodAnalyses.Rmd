@@ -827,9 +827,6 @@ defineNeighborhoods <- function( annot.list)
     # 3. Divide each count column by the row_total to get the proportion
     #    We loop through the count columns and update them "by reference"
     working.dt[, (count_cols) := lapply(.SD, function(x) x / row_total), .SDcols = count_cols]
-    
-    # 4. (Optional) Remove the temporary 'row_total' column
-    working.dt[, row_total := NULL]
     res[[i]] <- working.dt
   } 
   return( list(prop.table=res, raw.table=copymatrix, list_ID=list_ID)) 
@@ -865,7 +862,11 @@ a <- exampleNeighborhoods.filter(neighborhoods, indexCluster = "ACTIVATED_TREG",
 # 4:   ctrl.1-ctrl.1_157997 TCF1_HI_TOX_HI_CD8          0.00          0.00                 0.20                    0      0.2000000
 # 5:   ctrl.1-ctrl.1_169239 TCF1_HI_TOX_HI_CD8          0.00          0.00                 0.00                    0      0.2000000
 
-
+tmp <- purrr::list_rbind(neighborhoods$prop.table, names_to = "list_ID") 
+ggplot(tmp, aes(x = row_total)) + geom_histogram(binwidth=0.25, position='identity', fill='grey70', color='black') + 
+  theme_classic() + ggtitle("All cells") + xlab("Number of neighbors")
+# ggsave(filename = 'output/hist.numbNeighbors.k9.pdf', width=2,height=3)
+rm(tmp)
 ```
 
 # plot average niche by stage for CD8 subsets 
@@ -1261,8 +1262,10 @@ niche.contrast(annot.table = annot.k9, indexCluster = 'LZ_BCELL', common.title='
                grouping.ctrl = stage1.subgroup, condition.exp = "stage3", condition.ctrl = 'stage1')
 
 a <- findImportantInteractions( interaction.dt= interaction.byStage.rad, condition.exp="stage3", condition.ctrl="stage1", ef.threshold=1)
-a <- findImportantInteractions( interaction.dt= interaction.byRecur.rad, condition.exp="recur", condition.ctrl="no.recur", ef.threshold=1)
-b <- findImportantInteractions( interaction.dt= interaction.byRecur, condition.exp="recur", condition.ctrl="no.recur", ef.threshold=1)
+a <- findImportantInteractions( interaction.dt= interaction.byRecur.rad, 
+                                condition.exp="recur", condition.ctrl="no.recur", ef.threshold=0)
+b <- findImportantInteractions( interaction.dt= interaction.byRecur, 
+                                condition.exp="recur", condition.ctrl="no.recur", ef.threshold=0)
 print(a$filteredggplot)
 gridExtra::grid.arrange(plot.Average.Niche.igraph(annot.table = annot.rad[norecur.subgroup], indexCluster = 'ACTIVATED_TREG',
                       title='ACTIVATED_TREG no recurrence'),
@@ -1286,17 +1289,18 @@ df.a <- df.a %>% select(unified_int, source, effect.size) %>%
 
 ggplot(df.a, aes(y = unified_int)) +
   geom_segment(aes(x = radius, xend = nearest.9, y = unified_int, yend = unified_int),
-      color = "grey80", linewidth = 1.5 ) + xlab("effect size") + 
-  geom_point(aes(x = radius), color = "#d6604d", size = 4) +  geom_point(aes(x = nearest.9), color = "#4393c3", size = 4) + 
-  annotate( "text", x = 2.1, y = 6, size = 5, label = "Method", fontface = "bold", ) +
-  annotate( "point", x = 1.6, y = 4, size = 5, color = "#d6604d" ) +
-  annotate( "text", x = 1.9, y = 4, size = 4, label = "radius", hjust = "left" ) +
-  annotate( "point", x = 1.6, y = 2, size = 5, color = "#4393c3" ) +
-  annotate( "text", x = 1.9, y = 2, size = 4, label = "Nearest 9", hjust = "left" ) +
-  theme_bw() + 
+      color = "grey80", linewidth = 0.5 ) + xlab("effect size") + ylab("Pairwise interaction") + 
+  geom_point(aes(x = radius), color = "#d6604d", size = 1) +  geom_point(aes(x = nearest.9), color = "#4393c3", size = 1) + 
+  annotate( "text", x = 2.1, y = 26, size = 5, label = "Method", fontface = "bold", ) +
+  annotate( "point", x = 1.6, y = 14, size = 5, color = "#d6604d" ) +
+  annotate( "text", x = 1.9, y = 14, size = 4, label = "Radius", hjust = "left" ) +
+  annotate( "point", x = 1.6, y = 6, size = 5, color = "#4393c3" ) +
+  annotate( "text", x = 1.9, y = 6, size = 4, label = "Nearest 9", hjust = "left" ) +
+  theme_bw() + ggtitle("Radius vs Nearest-9") + 
   theme(panel.grid.major.y = element_blank(), panel.grid.minor.x = element_line(color = "grey90", linetype = "dashed"), 
-        axis.text = element_text(color='black', size=6), axis.title.y = element_blank())
-# ggsave(filename = 'output/interaction.radius-vs-nearest9.pdf', height=9, width=8)
+        axis.text.y = element_blank(), axis.text.x = element_text(size=12), axis.title = element_text(size=12), 
+        title = element_text(size=12))
+# ggsave(filename = 'output/interaction.radius-vs-nearest9.pdf', height=8, width=4)
 
 
 DT <- dcast.data.table( data = md, formula = Recurrence + list_ID + SLN_Stage ~ L2_annotations )
@@ -1546,7 +1550,7 @@ plot.Feat.pairedVoroni <- function(target, select.row, feat.show, max.upper, sub
                  return_plot = T)
   return(list(a,b))
 }
-# 39, 100
+
 expr.feat.1 <- Giotto::getExpression(gobject = sln, values = "normalized")@exprMat['GZMB', TCFlo.CD8[TREG >=1,from ]]  # get all expr 
 upperhalf <- expr.feat.1[which(expr.feat.1 > median(expr.feat.1))]   # get the upper half of the expression values
 sel.1 <-  R.utils::withSeed( expr = names(upperhalf[sample(upperhalf,1)]), seed = 100); print(expr.feat.1[sel.1])
@@ -1569,34 +1573,89 @@ b <- plot.Feat.pairedVoroni(target = expr.feat.0, select.row = sel.0, feat.show=
                             subset.colors = stableColorsL2, meta.data = md, # voronoi.only = T,
                             pass.title = paste0("GZMB if 0 Treg (", sel.0, ")"))
 
-tmp<-list()
-for(i in 1:1000){
-# expr.feat.1 <- Giotto::getExpression(gobject = sln, values = "normalized")@exprMat['GZMB', TCFlo.CD8[TREG >=1,from ]]  # get all expr 
-upperhalf <- expr.feat.1[which(expr.feat.1 > median(expr.feat.1))]   # get the upper half of the expression values
-sel.1 <-  R.utils::withSeed( expr = names(upperhalf[sample(upperhalf,1)]), seed = i); 
-# expr.feat.0 <- Giotto::getExpression(gobject = sln, values = "normalized")@exprMat['GZMB', TCFlo.CD8[TREG ==0,from ]]  # get all expr 
-upperhalf <- expr.feat.0[which(expr.feat.0 > median(expr.feat.0))]   # get the upper half of the expression values
-sel.0 <-  R.utils::withSeed( expr = names(upperhalf[sample(upperhalf,1)]), seed = i); 
-tmp[[i]] <- data.frame(expr.feat.1[sel.1], expr.feat.0[sel.0])
-# print(i)
-}
-tmp <- rbindlist(tmp)
-tmp[, index:= seq(1:nrow(tmp))]
-tmp.1 <- round(tmp[(expr.feat.1.sel.1. + 2 )< (expr.feat.0.sel.0. )],0)
-tmp.1[, diff:=expr.feat.0.sel.0. - expr.feat.1.sel.1.]
-tmp.1[diff %in% 3:6 & expr.feat.0.sel.0. %in% 8:13, index]
-
-  [1]  12  28  39  41  53  66  79 100 106 119 125 133 141 147 161 166 180 182 189 217 227 232 250 251 252 257 258 264 267 269 278 279
- [33] 281 285 305 306 324 345 371 375 402 407 408 409 424 451 452 455 460 475 485 491 492 510 514 528 553 559 564 567 578 582 588 595
- [65] 624 630 669 679 681 682 685 712 719 720 721 729 734 741 745 758 762 768 771 772 774 803 804 805 812 816 839 855 867 881 885 890
- [97] 892 897 917 918 920 936 937 938 962 971 979 991 99
-
 ```
 
 
 
+Though these example images might come across as cherry-picked. It will be very hard to show a single cell-based example to compare unless it's only the mean being shown (but the mean is a poor descriptor for a skew population)
 
 
+# identify the distance to the nearest Treg 
+
+```{r cellproxEnrich-function-k50}
+tableResults.k50 <- list()
+annot.k50 <- list()
+for (i in list_ID)
+{
+  if( .Platform$OS.type != "windows")  {cat(paste("Starting on: ", i, " on ", date(),"\n"), 
+                                            file = paste0("progress.",timeStamp,".txt"), append = T)   }
+  keepCells <- subset(md, list_ID %in% i )$cell_ID
+  sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
+  sln.sm <- createSpatialKNNnetwork(sln.sm, k=50, verbose=T, name = "spatialknn.k50.persample")
+  annot.k50[[i]] <- annotateSpatialNetwork(sln.sm, cluster_column = "L2_annotations", spatial_network_name = 'spatialknn.k50.persample')
+  # tableResults.k50[[i]] <- cellProx.sim(sln.sm, cluster_column = 'L2_annotations', adjust_method = "fdr",
+  #                                      number_of_simulations = 200, spatial_network_name = "spatialknn.k50.persample")
+}
+saveRDS(list(annot.k50=annot.k50), file="neighborhood.annot.k50.sln.RDS")  # all data merged
+# saveRDS(list(annot.k50=annot.k50, tableResults.k50 = tableResults.k50), file="neighborhood.annot.k50.sln.RDS")  # all data merged
+
+# annot.k50 <- readRDS(file="neighborhood.annot.k50.sln.RDS")[["annot.k50"]]  # all data merged
+
+
+# Job ID: 6403353
+# Cluster: slurm_cluster
+# User/Group: heratr01/heratr01
+# State: COMPLETED (exit code 0)
+# Nodes: 1
+# Cores per node: 5
+# CPU Utilized: 01:19:20
+# CPU Efficiency: 28.08% of 04:42:30 core-walltime
+# Job Wall-clock time: 00:56:30
+# Memory Utilized: 135.58 GB
+# Memory Efficiency: 27.12% of 500.00 GB
+```
+
+
+```{r identify-distance-to-Treg}
+annot.k50 <- readRDS(file="neighborhood.annot.k50.sln.RDS")[["annot.k50"]]  # all data merged
+
+       #                   from                   to sdimx_begin sdimy_begin sdimx_end sdimy_end distance     weight
+       #                  <char>               <char>       <num>       <num>     <num>     <num>    <num>      <num>
+       # 1: ctrl.1-ctrl.1_100000  ctrl.1-ctrl.1_99994      9482.0      9320.0    9482.5    9305.0 15.00833 0.06246747
+       # 2: ctrl.1-ctrl.1_100000 ctrl.1-ctrl.1_100002      9482.0      9320.0    9500.0    9323.5 18.33712 0.05171401
+       # 3: ctrl.1-ctrl.1_100000 ctrl.1-ctrl.1_100004      9482.0      9320.0    9462.5    9333.0 23.43608 0.04092309
+       #                                to_cell_type                           from_cell_type type_int
+       #                                      <char>                                   <char>   <char>
+       # 1:                    TCF1_MIXED_TOX_HI_CD8                       TCF1_HI_TOX_HI_CD8   hetero
+       # 2:                           CD4_CD20_MIXED                       TCF1_HI_TOX_HI_CD8   hetero
+       # 3:                             CD8_PC_MIXED                       TCF1_HI_TOX_HI_CD8   hetero
+       #                                                    from_to                                              unified_int
+       #                                                     <char>                                                   <char>
+       # 1:                TCF1_HI_TOX_HI_CD8-TCF1_MIXED_TOX_HI_CD8                TCF1_HI_TOX_HI_CD8--TCF1_MIXED_TOX_HI_CD8
+       # 2:                       TCF1_HI_TOX_HI_CD8-CD4_CD20_MIXED                       CD4_CD20_MIXED--TCF1_HI_TOX_HI_CD8
+       # 3:                         TCF1_HI_TOX_HI_CD8-CD8_PC_MIXED                         CD8_PC_MIXED--TCF1_HI_TOX_HI_CD8
+
+
+
+sln.k1 <- createNearestNetwork(gobject = sln, k = 1)  # creates a network where each cell is connected to its single nearest neighbor
+spat.net <- getSpatialNetwork(sln.k1)   # Get the spatial network data
+md.k1 <- pDataDT(sln.k1)  # Get the cell metadata (cell types, etc.)
+
+
+colnames(md.k1)[1] <- 'from'  # Rename the cell ID column to be consistent for joining assuming the original column is 'cell_ID'
+
+treg.neighbors.tcfloCD8 <- spat.net %>%   #Filter for the specific interactions and join the data
+  filter(to %in% md.k1$cell_ID[md.k1$cell_type == 'Treg']) %>%
+  left_join(
+    md.k1 %>% select(from, from_cell_type = cell_type), 
+    by = 'from') %>%
+  filter(from_cell_type == 'TCF1_LO_TOX_HI_CD8')  # contains only CD8 T cell to nearest Treg interactions and corresponding distances
+
+print(treg.neighbors.tcfloCD8)
+ave.treg.tcfloCCD8 <- mean(treg.neighbors.tcfloCD8$distance, na.rm = TRUE)
+
+
+```
 
 
 # show stage 1 interactions
