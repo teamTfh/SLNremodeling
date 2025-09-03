@@ -1522,51 +1522,54 @@ Not clear if there is a dose-response effect. I think it gets complicated when t
 
 make.subset.for.spatPlot <- function(target, select.row, meta.data)
 {
-  target <- target[select.row, from]  # pick the target cell by random, collect the cell ID 
+  target <- names(target[select.row])  # pick the target cell, collect the cell ID 
   print(target)
   target <- meta.data[cell_ID == target]  
   keepCells <- subset(meta.data, 
                       list_ID == target$list_ID & 
-                        y %in% c((target$y-150):(target$y+150)) & 
-                        x %in% c((target$x-150):(target$x+150)) )$cell_ID  
+                        y %in% c((target$y-125):(target$y+125)) & 
+                        x %in% c((target$x-125):(target$x+125)) )$cell_ID  
   return(keepCells)
 }
 
-plot.Feat.pairedVoroni <- function(target, select.row, feat.show, max.upper, subset.colors, meta.data, pass.title, g.object=sln)
+plot.Feat.pairedVoroni <- function(target, select.row, feat.show, max.upper, subset.colors, meta.data, pass.title, 
+                                   voronoi.only = F, g.object=sln)
 {
   keepCells <- make.subset.for.spatPlot(target = target, select.row = select.row, meta.data = meta.data)
   sln.small <- subsetGiotto(g.object, cell_ids = keepCells)
   a <- spatPlot(sln.small, cell_color = 'L2_annotations', cell_color_code = subset.colors,  
              point_shape = 'voronoi', vor_max_radius = 30, point_size = 1, point_alpha=0, vor_border_color='grey40', 
-             title = pass.title, return_plot=T)
+             title = pass.title, legend_text = 6, legend_symbol_size=1, return_plot=T)
+  if(voronoi.only==T) return(a)
   b <- spatFeatPlot2D(sln.small, feats= feat.show, point_shape='voronoi', vor_max_radius = 30, vor_border_color = 'grey40', 
-                 gradient_midpoint = 2, expression_values = 'normalized', gradient_limits = c(-5, max.upper), 
+                 gradient_midpoint = 0, expression_values = 'normalized', gradient_limits = c(-5, max.upper), 
                  return_plot = T)
   return(list(a,b))
 }
 
-target.cell <- TCFlo.CD8[TREG >=1]  # start with TREG neighbors
-expr.feat.1 <- Giotto::getExpression(gobject = sln, values = "normalized")@exprMat['GZMB', target.cell$from ]  # get all expr values
-mean.upperhalf <- expr.feat.1[which(expr.feat.1 > median(expr.feat.1))] %>% mean  # get the mean of the upper half of the expression values
-sel.1 <-  which.min(abs( expr.feat.1 - mean.upperhalf ) ) +1  # what is closest to the mean of the upper half plus one 
-plotting.cells <- make.subset.for.spatPlot(target.cell, select.row= sel.1, meta.data = md)  # give me what will be in the view port
-expr.feat.1 <- Giotto::getExpression(gobject = sln, values = "normalized")@exprMat['GZMB', plotting.cells ] %>% max  # get max expr values
+expr.feat.1 <- Giotto::getExpression(gobject = sln, values = "normalized")@exprMat['GZMB', TCFlo.CD8[TREG >=1,from ]]  # get all expr 
+upperhalf <- expr.feat.1[which(expr.feat.1 > median(expr.feat.1))]   # get the upper half of the expression values
+sel.1 <-  R.utils::withSeed( expr = names(upperhalf[sample(upperhalf,1)]), seed = 100); print(expr.feat.1[sel.1])
+plotting.cells <- make.subset.for.spatPlot(target=expr.feat.1, select.row= sel.1, meta.data = md)  # give me what will be in the view port
+expr.feat.1.max <- Giotto::getExpression(gobject = sln, values = "normalized")@exprMat['GZMB', plotting.cells ] %>% max  # get max expr
 
-target.cell <- TCFlo.CD8[TREG == 0]  # now with no TREG neighbors
-expr.feat.0 <- Giotto::getExpression(gobject = sln, values = "normalized")@exprMat['GZMB', target.cell$from ]  # get all expr values
-mean.upperhalf <- expr.feat.0[which(expr.feat.0 > median(expr.feat.0))] %>% mean  # get the mean of the upper half of the expression values
-sel.0 <- which.min(abs( expr.feat.0 - mean.upperhalf ) )  + 7
-plotting.cells <- make.subset.for.spatPlot(target.cell, select.row= sel.0, meta.data = md)   
-expr.feat.0 <- Giotto::getExpression(gobject = sln, values = "normalized")@exprMat['GZMB', plotting.cells ] %>% max  
+# now with no TREG neighbors
+expr.feat.0 <- Giotto::getExpression(gobject = sln, values = "normalized")@exprMat['GZMB', TCFlo.CD8[TREG ==0,from ]]  # get all expr 
+upperhalf <- expr.feat.0[which(expr.feat.0 > median(expr.feat.0))]   # get the upper half of the expression values
+sel.0 <-  R.utils::withSeed( expr = names(upperhalf[sample(upperhalf,1)]), seed = 100); print(expr.feat.0[sel.0])
+plotting.cells <- make.subset.for.spatPlot(expr.feat.0, select.row= sel.0, meta.data = md)
+expr.feat.0.max <- Giotto::getExpression(gobject = sln, values = "normalized")@exprMat['GZMB', plotting.cells ] %>% max
 
 target.cell <- TCFlo.CD8[TREG >=1]  
-a <- plot.Feat.pairedVoroni(target = target.cell, select.row = sel.1, feat.show='GZMB', max.upper= min(expr.feat.0, expr.feat.1), 
-                            subset.colors = stableColorsL2, meta.data = md, 
-                            pass.title = paste0("GZMB if 1+ Treg (", target.cell[sel,from],")"))
+a <- plot.Feat.pairedVoroni(target = expr.feat.1, select.row = sel.1, feat.show='GZMB', max.upper= min(expr.feat.0.max, expr.feat.1.max),
+                            subset.colors = stableColorsL2, meta.data = md, # voronoi.only = T,
+                            pass.title = paste0("GZMB if 1+ Treg (", sel.1, ")"))
 target.cell <- TCFlo.CD8[TREG == 0]  
-b <- plot.Feat.pairedVoroni(target = target.cell, select.row = sel.0, feat.show='GZMB', max.upper=min(expr.feat.0, expr.feat.1), 
-                            subset.colors = stableColorsL2, meta.data = md, 
-                            pass.title = paste0("GZMB if 0 Treg (", target.cell[sel,from],")"))
+b <- plot.Feat.pairedVoroni(target = expr.feat.0, select.row = sel.0, feat.show='GZMB', max.upper= min(expr.feat.0.max, expr.feat.1.max),
+                            subset.colors = stableColorsL2, meta.data = md, # voronoi.only = T,
+                            pass.title = paste0("GZMB if 0 Treg (", sel.0, ")"))
+ 
+
 ```
 
 
