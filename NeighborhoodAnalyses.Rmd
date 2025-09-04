@@ -327,7 +327,7 @@ for (i in list_ID)
   tableResults.k5[[i]] <- cellProx.sim(sln.sm, cluster_column = 'L2_annotations', adjust_method = "fdr",
                                        number_of_simulations = 200, spatial_network_name = "spatialknn.k5.persample")
 }
-saveRDS(list(annot.k5=annot.k5, tableResults.k5 = tableResults.k5), file="neighborhood.annot.k5.sln.RDS")  # all data merged
+# saveRDS(list(annot.k5=annot.k5, tableResults.k5 = tableResults.k5), file="neighborhood.annot.k5.sln.RDS")  # all data merged
 # annot.k5 <- readRDS(file="neighborhood.annot.k5.sln.RDS")[["annot.k5"]]  # all data merged
 ```
 
@@ -348,7 +348,7 @@ for (i in list_ID)
                                        number_of_simulations = 200, spatial_network_name = "spatialknn.k9.persample")
 }
 
-saveRDS(list(annot.k9 = annot.k9, tableResults.k9 = tableResults.k9), file="neighborhood.annot.k9.sln.RDS")  # all data merged
+# saveRDS(list(annot.k9 = annot.k9, tableResults.k9 = tableResults.k9), file="neighborhood.annot.k9.sln.RDS")  # all data merged
 
 tableResults.k9 <- list()
 annot.k9 <- list()
@@ -367,14 +367,19 @@ for (i in list_ID)
 # pull example cell for study
 # annot.k9$tumor.5[from %like% 215265 | to %like% 215265] %>% write.csv("neighbors.of.tumor5.215265.csv")
 
-saveRDS(list(annot.k9 = annot.k9, tableResults.k9 = tableResults.k9), file="neighborhood.annot.k9.L3.sln.RDS")  # all data merged
-
-annot.k9 <- readRDS(file="neighborhood.annot.k9.sln.RDS")[['annot.k9']]  #  read in L2 annotations 
-dt <- purrr::list_rbind(readRDS(file="neighborhood.annot.k9.sln.RDS")[['tableResults.k9']], names_to = "id")
+# saveRDS(list(annot.k9 = annot.k9, tableResults.k9 = tableResults.k9), file="neighborhood.annot.k9.L3.sln.RDS")  # all data merged
+# annot.k9 <- readRDS(file="neighborhood.annot.k9.sln.RDS")[['annot.k9']]  #  read in L2 annotations 
+dt <- purrr::list_rbind(annot.k9[['tableResults.k9']], names_to = "id")
 ```
 
 Fails on k=10 on tumor.6  (2 million rows) with long vectors error 
 Works for k=9 for all samples 
+
+```{r read-in-annotk9, eval=FALSE}
+dt <- purrr::list_rbind(readRDS(file="neighborhood.annot.k9.sln.RDS")[['tableResults.k9']], names_to = "id")
+
+```
+
 
 # subgroup by specified metadata  
 ```{r custom-cellproxEnrich-function-subgroup}
@@ -420,9 +425,9 @@ for (i in seq_along(sampleList))
   perSampleInteraction[[i]]$name <- subset(dt, id %in% sampleList[i])$id[1]   # carry forward the sample name 
   names(perSampleInteraction)[i] <-  subset(dt, id %in% sampleList[i])$id[1]
 }
-saveRDS(perSampleInteraction, file="neighborhood.perSampleInteraction.RDS")  # all data merged 
 
-perSampleInteraction <- readRDS(file="neighborhood.perSampleInteraction.RDS")
+# saveRDS(perSampleInteraction, file="neighborhood.perSampleInteraction.RDS")  # all data merged 
+# perSampleInteraction <- readRDS(file="neighborhood.perSampleInteraction.RDS")
 
 perSampleInteraction.enrichm_res <- list()
 for (i in seq_along(perSampleInteraction))
@@ -464,17 +469,20 @@ for (i in list_ID)
   tableResults.rad[[i]] <- cellProx.sim(sln.sm, cluster_column = 'L2_annotations', adjust_method = "fdr",
                                        number_of_simulations = 200, spatial_network_name = "spatialknn.radius.persample")
 }
-saveRDS(list(annot.radius = annot.radius, tableResults.rad = tableResults.rad), file="neighborhood.annot.radius.sln.RDS")  # all data merged
-annot.rad <- readRDS(file="neighborhood.annot.radius.sln.RDS")[['annot.radius']]  #  read in L2 annotations 
-
+# saveRDS(list(annot.radius = annot.radius, tableResults.rad = tableResults.rad), 
+#         file="neighborhood.annot.radius.sln.RDS")  # all data merged
+# annot.rad <- readRDS(file="neighborhood.annot.radius.sln.RDS")[['annot.radius']]  #  read in L2 annotations 
+dt <- purrr::list_rbind(tableResults.rad, names_to = "id")
 
 ```
 
 
-```{r interaction-by-sample-radius}
-
+```{r interaction-by-sample-radius-loadData, eval=F}
 dt <- purrr::list_rbind(readRDS(file="neighborhood.annot.radius.sln.RDS")[['tableResults.rad']], names_to = "id")
+```
 
+
+```{r interaction-by-sample-radius-calculate}
 stage3 <- cellProx.subgroup(subset(dt, id %in% stage3.subgroup))
 stage1 <- cellProx.subgroup(subset(dt, id %in% stage1.subgroup ))
 
@@ -503,7 +511,7 @@ interaction.byStage.rad <- rbind(addLabels.fxn(perSampleInteraction.enrichm_res[
 interaction.byRecur.rad <- rbind(addLabels.fxn(perSampleInteraction.enrichm_res[recur.subgroup], label = "recur"),
              addLabels.fxn(perSampleInteraction.enrichm_res[norecur.subgroup], label = "no.recur") ) 
 rm(dt)
-gc()
+# gc()
 ```
 
 
@@ -1358,13 +1366,13 @@ dt <- data.table(data = c(val.0, val.1),
                             rep("Treg.Neighbors", length(val.1)))
                  )  # make a new dt where the expression values of FEAT can be plotted 
  
-permutation.test.neighborhoods <- function(num.perm = 10000, data.tbl, group.0, group.1)
+permutation.test.neighborhoods <- function(num.permutations = 10000, data.tbl, group.0, group.1)
 {
   obs.diff <- mean(dt[source %in% group.0, data]) - mean(dt[source %in% group.1, data])  
   print(paste0("Observed difference: ", round(obs.diff, 2)))  
-  permutation.diffs <- numeric(num.perm)  # now for a ridiculous number of permutations 
+  permutation.diffs <- numeric(num.permutations)  # now for a ridiculous number of permutations 
   dt <- data.tbl
-  for (i in 1:num.perm) 
+  for (i in 1:num.permutations) 
   {
     shuffled_source <- sample(dt$source)    # randomly shuffle the group labels.
 
@@ -1385,10 +1393,12 @@ permutation.test.neighborhoods <- function(num.perm = 10000, data.tbl, group.0, 
   # The p-value is the proportion of permuted differences that were as extreme as (or more extreme than) our observed difference. 
   # The 'abs()' function performs a two-tailed test. The logical operator yields T/F and then mean calculates the proportion 
   pV <- mean(abs(permutation.diffs) >= abs(obs.diff))
-  print(paste0("P value is ", pV, ". Lowest possible P value for ",num.perm, " iterations is ", 1/num.perm))
+  print(paste0("P value is ", pV, ". Lowest possible P value for ",num.permutations, " iterations is ", 1/num.permutations))
   return(pV)
 }
-p.val <- permutation.test.neighborhoods(data.tbl = dt, group.0 = "No.Treg.Neighbors", group.1 = "Treg.Neighbors", num.perm = 10000)
+num.perm = 10000
+p.val <- permutation.test.neighborhoods(data.tbl = dt, group.0 = "No.Treg.Neighbors", group.1 = "Treg.Neighbors", 
+                                        num.permutations = num.perm)
 
 dt %>% group_by(source) %>% rstatix::get_summary_stats(data, type = 'common')
 ggplot(dt, aes(x = data, fill = source)) + geom_histogram(binwidth = 0.25, alpha=0.6, position='identity') + 
@@ -1596,10 +1606,8 @@ for (i in list_ID)
   # tableResults.k50[[i]] <- cellProx.sim(sln.sm, cluster_column = 'L2_annotations', adjust_method = "fdr",
   #                                      number_of_simulations = 200, spatial_network_name = "spatialknn.k50.persample")
 }
-saveRDS(list(annot.k50=annot.k50), file="neighborhood.annot.k50.sln.RDS")  # all data merged
+# saveRDS(list(annot.k50=annot.k50), file="neighborhood.annot.k50.sln.RDS")  # all data merged
 # saveRDS(list(annot.k50=annot.k50, tableResults.k50 = tableResults.k50), file="neighborhood.annot.k50.sln.RDS")  # all data merged
-
-# annot.k50 <- readRDS(file="neighborhood.annot.k50.sln.RDS")[["annot.k50"]]  # all data merged
 
 
 # Job ID: 6403353
@@ -1616,10 +1624,13 @@ saveRDS(list(annot.k50=annot.k50), file="neighborhood.annot.k50.sln.RDS")  # all
 ```
 
 
-```{r identify-distance-to-Treg}
+```{r identify-distance-to-Treg-loadData, eval=FALSE}
 annot.k50 <- readRDS(file="neighborhood.annot.k50.sln.RDS")[["annot.k50"]]  # all data merged
+```
 
-       #                   from                   to sdimx_begin sdimy_begin sdimx_end sdimy_end distance     weight
+
+```{r identify-distance-to-Treg}
+#                   from                   to sdimx_begin sdimy_begin sdimx_end sdimy_end distance     weight
        #                  <char>               <char>       <num>       <num>     <num>     <num>    <num>      <num>
        # 1: ctrl.1-ctrl.1_100000  ctrl.1-ctrl.1_99994      9482.0      9320.0    9482.5    9305.0 15.00833 0.06246747
        # 2: ctrl.1-ctrl.1_100000 ctrl.1-ctrl.1_100002      9482.0      9320.0    9500.0    9323.5 18.33712 0.05171401
@@ -1634,173 +1645,207 @@ annot.k50 <- readRDS(file="neighborhood.annot.k50.sln.RDS")[["annot.k50"]]  # al
        # 1:                TCF1_HI_TOX_HI_CD8-TCF1_MIXED_TOX_HI_CD8                TCF1_HI_TOX_HI_CD8--TCF1_MIXED_TOX_HI_CD8
        # 2:                       TCF1_HI_TOX_HI_CD8-CD4_CD20_MIXED                       CD4_CD20_MIXED--TCF1_HI_TOX_HI_CD8
        # 3:                         TCF1_HI_TOX_HI_CD8-CD8_PC_MIXED                         CD8_PC_MIXED--TCF1_HI_TOX_HI_CD8
+# average of 20.5 million rows per tissue 
 
+neighborhoods.k50 <- defineNeighborhoods(annot.list = annot.k50)
+# then make histogram for # neighbors for clarity
+tmp <- purrr::list_rbind(neighborhoods.k50$prop.table, names_to = "list_ID")
+ggplot(tmp, aes(x = row_total)) + geom_histogram(binwidth=0.25, position='identity', fill='grey70', color='black') +
+  theme_classic() + ggtitle("All cells (k=50)") + xlab("Number of neighbors") + 
+  scale_x_continuous(limits = c(40,80), breaks = seq(40,80,10))
+# ggsave(filename = 'output/hist.numbNeighbors.k50.pdf', width=2,height=3)
+rm(tmp)
 
-
-sln.k1 <- createNearestNetwork(gobject = sln, k = 1)  # creates a network where each cell is connected to its single nearest neighbor
-spat.net <- getSpatialNetwork(sln.k1)   # Get the spatial network data
-md.k1 <- pDataDT(sln.k1)  # Get the cell metadata (cell types, etc.)
-
-
-colnames(md.k1)[1] <- 'from'  # Rename the cell ID column to be consistent for joining assuming the original column is 'cell_ID'
-
-treg.neighbors.tcfloCD8 <- spat.net %>%   #Filter for the specific interactions and join the data
-  filter(to %in% md.k1$cell_ID[md.k1$cell_type == 'Treg']) %>%
-  left_join(
-    md.k1 %>% select(from, from_cell_type = cell_type), 
-    by = 'from') %>%
-  filter(from_cell_type == 'TCF1_LO_TOX_HI_CD8')  # contains only CD8 T cell to nearest Treg interactions and corresponding distances
-
-print(treg.neighbors.tcfloCD8)
-ave.treg.tcfloCCD8 <- mean(treg.neighbors.tcfloCD8$distance, na.rm = TRUE)
-
-
-```
-
-
-# show stage 1 interactions
-```{r proximity-heatmap-stage1, fig.width=10, eval = FALSE}
-cellProximityHeatmap( sln, CPscore = stage1, scale = TRUE, order_cell_types = TRUE, color_breaks = NULL, color_names = NULL, )
-cellProximityNetwork(sln, CPscore = stage1)
-
-cellProximityHeatmap.retMatrix <- function(gobject, CPscore, scale = TRUE, order_cell_types = TRUE, color_breaks = NULL,
-                                           color_names = NULL, show_plot = NULL, return_plot = NULL, save_plot = NULL, 
-                                           save_param = list(), default_save_name = "cellProximityHeatmap") 
+annot.k50.filtered <- list()
+for(i in list_ID)
 {
-    enrich_res <- CPscore$enrichm_res
+  # first filter out most records but save anything CD8 or Treg
+  annot.k50.filtered[[i]] <- annot.k50[[i]][from_to %like% 'TREG' | from_to %like% 'TCF']
+  print(paste('Finished ', i))
+}  # down to 1.1 million rows per biological replicate
 
-    # data.table variables
-    first_type <- second_type <- unified_int <- NULL
+tmp <- purrr::list_rbind(annot.k50.filtered, names_to = "list_ID") 
 
-    enrich_res[, first_type := strsplit( x = as.character(unified_int), split = "--"    )[[1]][1],by = seq_len(nrow(enrich_res))]
-    enrich_res[, second_type := strsplit( x = as.character(unified_int), split = "--" )[[1]][2],by = seq_len(nrow(enrich_res)) ]
+   #    list_ID                   from                     to sdimx_begin sdimy_begin sdimx_end sdimy_end distance     weight
+   #     <char>                 <char>                 <char>       <num>       <num>     <num>     <num>    <num>      <num>
+   # 1:  ctrl.1   ctrl.1-ctrl.1_100000    ctrl.1-ctrl.1_99994      9482.0      9320.0    9482.5    9305.0 15.00833 0.06246747
+   # 2:  ctrl.1   ctrl.1-ctrl.1_100000   ctrl.1-ctrl.1_100002      9482.0      9320.0    9500.0    9323.5 18.33712 0.05171401
+   # 3:  ctrl.1   ctrl.1-ctrl.1_100000   ctrl.1-ctrl.1_100004      9482.0      9320.0    9462.5    9333.0 23.43608 0.04092309
+   #                     to_cell_type        from_cell_type type_int                                          from_to
+   #                           <char>                <char>   <char>                                           <char>
+   # 1:         TCF1_MIXED_TOX_HI_CD8    TCF1_HI_TOX_HI_CD8   hetero         TCF1_HI_TOX_HI_CD8-TCF1_MIXED_TOX_HI_CD8
+   # 2:                CD4_CD20_MIXED    TCF1_HI_TOX_HI_CD8   hetero                TCF1_HI_TOX_HI_CD8-CD4_CD20_MIXED
+   # 3:                  CD8_PC_MIXED    TCF1_HI_TOX_HI_CD8   hetero                  TCF1_HI_TOX_HI_CD8-CD8_PC_MIXED
+   #                                          unified_int
+   #                                               <char>
+   # 1:         TCF1_HI_TOX_HI_CD8--TCF1_MIXED_TOX_HI_CD8
+   # 2:                CD4_CD20_MIXED--TCF1_HI_TOX_HI_CD8
+   # 3:                  CD8_PC_MIXED--TCF1_HI_TOX_HI_CD8
+   # 
 
-    # create matrix
-    enrich_mat <- data.table::dcast.data.table( data = enrich_res, formula = first_type ~ second_type, value.var = "enrichm")
-    matrix_d <- as.matrix(enrich_mat[, -1])
-    rownames(matrix_d) <- as.vector(enrich_mat[[1]])
-    t_matrix_d <- t_flex(matrix_d)
+tmp <- tmp[!from_cell_type %in% c('ARTIFACT', 'CD4.outlier', 'CD8.outlier') ]
+filtered.k50 <- tmp[!to_cell_type %in% c('ARTIFACT', 'CD4.outlier', 'CD8.outlier') ]
+rm(tmp)
+ggplot(filtered.k50, aes(x = distance)) + geom_histogram(position='identity', binwidth=0.25) + 
+  scale_x_continuous(limits = c(0,150)) + theme_classic() + ggtitle("Filtered - distances between cells")
 
-    # fill in NAs based on values in upper and lower matrix triangle
-    t_matrix_d[upper.tri(t_matrix_d)][is.na(t_matrix_d[
-        upper.tri(t_matrix_d)
-    ])] <- matrix_d[upper.tri(matrix_d)][
-        is.na(t_matrix_d[upper.tri(t_matrix_d)])
-    ]
-    t_matrix_d[lower.tri(t_matrix_d)][is.na(t_matrix_d[
-        lower.tri(t_matrix_d)
-    ])] <- matrix_d[lower.tri(matrix_d)][
-        is.na(t_matrix_d[lower.tri(t_matrix_d)])
-    ]
-    t_matrix_d[is.na(t_matrix_d)] <- 0
-    final_matrix <- t_matrix_d
+# aveDist <- filtered.k50[, .(meanDist = mean(distance, na.rm=T), SDdist = sd(distance, na.rm=T), numb = length(distance)), 
+#                by=.(list_ID, from_cell_type, to_cell_type)]
 
-    # scale data
-    if (scale == TRUE) {
-        final_matrix <- t_flex(scale(t_flex(final_matrix)))
-        final_matrix <- t_flex(final_matrix)
-        final_matrix[lower.tri(final_matrix)] <- t_flex(final_matrix)[
-            lower.tri(final_matrix)
-        ]
-    }
+   #    list_ID                from_cell_type                  to_cell_type meanDist   SDdist  numb
+   #     <char>                        <char>                        <char>    <num>    <num> <int>
+   # 1:  ctrl.1            TCF1_HI_TOX_HI_CD8         TCF1_MIXED_TOX_HI_CD8 67.53681 82.40942   824
+   # 2:  ctrl.1            TCF1_HI_TOX_HI_CD8                CD4_CD20_MIXED 53.38692 17.50482  5140
+   # 3:  ctrl.1            TCF1_HI_TOX_HI_CD8                  CD8_PC_MIXED 60.57265 41.93290  1831
+   # 4:  ctrl.1            TCF1_HI_TOX_HI_CD8            CD4_CD8_CD20_MIXED 53.12021 17.87240   690
+   
+# goal is to compare phenotype of CD8 based on distance to Treg 
+# bin the CD8 subset based on proximity to Treg, then retrieve expression for GzmB for plot 
 
-    # order cell types
-    if (order_cell_types == TRUE) {
-        cordist <- stats::as.dist(1 - cor_flex(final_matrix))
-        clus <- stats::hclust(cordist)
-        myorder <- clus$order
-        mylabels <- clus$labels
-        names(mylabels) <- seq_along(mylabels)
-        sample_order <- mylabels[myorder]
-
-        final_matrix <- final_matrix[sample_order, sample_order]
-    }
-
-    # create custom colors or not
-    if (!is.null(color_breaks) & !is.null(color_names)) {
-        if (length(color_breaks) != 3 | !is.numeric(color_breaks)) {
-            stop("color_breaks needs to be a numerical vector of length 3")
-        }
-
-        if (length(color_names) != 3 | !is.character(color_names)) {
-            stop("color_names needs to be a character vector of length 3")
-        }
-
-        heatm <- ComplexHeatmap::Heatmap(matrix = final_matrix, cluster_rows = F, cluster_columns = F,
-                                         col = GiottoVisuals::colorRamp2( breaks = color_breaks, colors = color_names) )
-    } else {
-        heatm <- ComplexHeatmap::Heatmap( matrix = final_matrix, cluster_rows = FALSE, cluster_columns = FALSE )
-    }
-
-    return(  list(final_matrix=final_matrix, clus=clus) )
-}
+Treg.interactions <- filtered.k50[to_cell_type %like% "TREG"]
+Tumor.interactions <- filtered.k50[to_cell_type %like% "Tumor"]
+nearest.Treg <- Treg.interactions[, .(min.dist.Treg = min(distance)), by = .(list_ID, from, from_cell_type)]
+nearest.Tumor <- Tumor.interactions[, .(min.dist.Tumor = min(distance)), by = .(list_ID, from, from_cell_type)]
 
 
-```
-
-# show stage 3 interactions 
-```{r proximity-heatmap-stage3, fig.width=10, eval = FALSE}
-Giotto::cellProximityHeatmap( sln, CPscore = stage3, scale = F, order_cell_types = TRUE, return_plot = T)
-final_matrix <- cellProximityHeatmap.retMatrix( sln, CPscore = stage3, scale = TRUE, order_cell_types = T)$final_matrix
-clus <- cellProximityHeatmap.retMatrix( sln, CPscore = stage3, scale = TRUE, order_cell_types = T)$clus
-plot(clus)
-ComplexHeatmap::Heatmap(final_matrix)
-
-cellProximityNetwork(sln, CPscore = stage3 )
-write.csv(stage3$enrichm_res, file = "cellProximityHeatmap.stage3.csv")
-```
-
-
-
-
-```{r Interaction-changed-genes-byCircosPlot, fig.width=10, fig.retina=2, eval=FALSE}
-
-
-df.icg <- readRDS("neighborhood.ICGlist.s3.sln.clustering5.annot.spatnet.RDS")[[2]][['ICFscores']] # ICGscores.L2
-df.icg.fil <- df.icg[ p.adj<0.01 & cell_type == 'CD8TOXHI_TCF1_HI_TOX_HI_CD8']
-
-pair_counts <- df.icg[p.adj < 0.1, .N, by = .(cell_type, int_cell_type)] # .N is a special data.table symbol that gives the number of rows in each group
-pair_counts <- pair_counts[N > 1]
-single.space <- c(rep(1, length(unique(pair_counts$cell_type)))); names(single.space) <- unique(pair_counts$cell_type)
-grid.col = getDistinctColors(n = length(unique(pair_counts$cell_type))); names(grid.col) <- names(single.space)
-# circos.par(gap.after = single.space)
-circlize::chordDiagram(pair_counts[1:30], direction.type = c('arrows','diffHeight'), directional=-1, transparency = 0,
-                       grid.col = grid.col, diffHeight = -mm_h(2), 
-                       annotationTrack = "grid", preAllocateTracks = list(track.height = max(strwidth(unlist(dimnames(pair_counts))))),
-                       # big.gap=20
-                       # link.arr.type = "big.arrow"
-                       ) # negative direction to show direction of the effect, e.g. target is modified for x many features because of source
-
-# we go back to the first track and customize sector labels
-circos.track(track.index = 1, panel.fun = function(x, y) {
-    circos.text(CELL_META$xcenter, CELL_META$ylim[1], CELL_META$sector.index, 
-        facing = "clockwise", niceFacing = TRUE, adj = c(0, 0.5))
-}, bg.border = NA) # here set bg.border to NA is important
-title("interaction changed features - first 30")
-
-```
-
-# stop evaluation here 
-```{r Interaction-changed-genes-multitrackCircos, eval=FALSE}
-# what about showing a multi-track chordDiagram where the proteins changed the most are indicated 
-# would have to filter the protein list to exclude things like DAPI which aren't meaningful 
-chordDiagram(pair_counts[1:30], direction.type = c('arrows','diffHeight'), directional=-1, transparency = 0,
-                       grid.col = grid.col, diffHeight = -mm_h(2), 
-                       # link.arr.type = "big.arrow"
-                       ) # negative direction to show direction of the effect, e.g. target is modified for x many features because of source
-circos.track(track.index = 1, panel.fun = function(x, y) {
-  circos.text(CELL_META$xcenter, CELL_META$ylim[1], CELL_META$sector.index, 
-              facing = "clockwise", niceFacing = TRUE, adj = c(0, 0.5))
-  }, bg.border = NA) # here set bg.border to NA is important
-
-prots <- data.table(fDataDT(sln)$feat_ID)
-prots <- prots[ !V1 %in% c("DAPI-01", "IL21", "CXCR3", "CD45", "TBET", "MART1", "GP100", "PAN.CYTO","MAC2/GAL3","VIMENTIN") ]
-df.icg.fil <- df.icg.fil[ feats %in% prots$V1]
+#  ***** TCF1_LO *****
+spec.prot = 'GZMB'; subset = "TCF1_LO_TOX_HI_CD8"; num.perm = 1000; radius = 15; 
+lab.more = paste0(">",radius); lab.less = paste0("<=",radius)
+nearest.Treg.test <- nearest.Treg[from_cell_type == subset]
+max.dist <- max(nearest.Treg.test$min.dist.Treg)
+nearest.Treg.test <- nearest.Treg.test[, dist.bin := cut(min.dist.Treg, breaks = c(0,radius,Inf), labels= c(lab.less,lab.more),
+                                                           right=T, include_lowest=T)]  # break into bins 
+prot.data <- Giotto::getExpression(gobject = sln, values = "normalized")@exprMat[spec.prot, nearest.Treg.test$from ]
+nearest.Treg.test <- merge(nearest.Treg.test, data.frame(from = names(prot.data), data = prot.data), by='from')
+nearest.Treg.test %>% group_by(dist.bin) %>% select(data) %>% rstatix::get_summary_stats(type = 'common')
+dt <- nearest.Treg.test[,.(source = dist.bin, data=data)]
+p.val <- permutation.test.neighborhoods(dt, group.0 = lab.more, group.1 = lab.less, num.permutations = num.perm)
+ypos = max(dt$data) * 0.85
+ggplot(dt, aes(x = source, y=data)) + 
+  geom_violin(fill='grey80', draw_quantiles = c(0.5)) + ggtitle(subset) + 
+  xlab("Distance to nearest Treg") + ylab(spec.prot) + 
+  annotate('text', x=0.5, y=ypos, color='black', 
+           label= paste0("Mean ", lab.less, ": ", round(mean(dt[source == lab.less, data]), 1), 
+                       "\n",
+                       "Mean ", lab.more,": ", round(mean(dt[source == lab.more, data]), 1),
+                       "\nPermutation test: P=", ifelse(p.val==0, 1/num.perm, p.val)),
+           hjust = 0, size=3) +
+  theme_classic() + theme(legend.position = 'none', axis.text = element_text(size=12), 
+                          axis.text.x = element_text(size=12, hjust=1, vjust=1, angle=45)) 
+# ggsave(filename = 'output/dist.to.Treg.GZMB.TCFloCD8.pdf', width=3, height=3)
 
 
+#  ***** TCF1_LO *****
+spec.prot = 'IFNG'; subset = "TCF1_LO_TOX_HI_CD8"; num.perm = 1000; radius = 15; 
+lab.more = paste0(">",radius); lab.less = paste0("<=",radius)
+nearest.Treg.test <- nearest.Treg[from_cell_type == subset]
+max.dist <- max(nearest.Treg.test$min.dist.Treg)
+nearest.Treg.test <- nearest.Treg.test[, dist.bin := cut(min.dist.Treg, breaks = c(0,radius,Inf), labels= c(lab.less,lab.more),
+                                                           right=T, include_lowest=T)]  # break into bins 
+prot.data <- Giotto::getExpression(gobject = sln, values = "normalized")@exprMat[spec.prot, nearest.Treg.test$from ]
+nearest.Treg.test <- merge(nearest.Treg.test, data.frame(from = names(prot.data), data = prot.data), by='from')
+nearest.Treg.test %>% group_by(dist.bin) %>% select(data) %>% rstatix::get_summary_stats(type = 'common')
+dt <- nearest.Treg.test[,.(source = dist.bin, data=data)]
+p.val <- permutation.test.neighborhoods(dt, group.0 = lab.more, group.1 = lab.less, num.permutations = num.perm)
+ypos = max(dt$data) * 0.85
+ggplot(dt, aes(x = source, y=data)) + 
+  geom_violin(fill='grey80', draw_quantiles = c(0.5)) + ggtitle(subset) + 
+  xlab("Distance to nearest Treg") + ylab(spec.prot) + 
+  annotate('text', x=0.5, y=ypos, color='black', 
+           label= paste0("Mean ", lab.less, ": ", round(mean(dt[source == lab.less, data]), 1), 
+                       "\n",
+                       "Mean ", lab.more,": ", round(mean(dt[source == lab.more, data]), 1),
+                       "\nPermutation test: P=", ifelse(p.val==0, 1/num.perm, p.val)),
+           hjust = 0, size=3) +
+  theme_classic() + theme(legend.position = 'none', axis.text = element_text(size=12), 
+                          axis.text.x = element_text(size=12, hjust=1, vjust=1, angle=45)) 
+ggsave(filename = 'output/dist.to.Treg.IFNG.TCFloCD8.pdf', width=3, height=3)
 
-date()
 
+#  ***** TCF1_HI *****
+spec.prot = 'GZMB'; subset = "TCF1_HI_TOX_HI_CD8"; num.perm = 1000; radius = 15; 
+lab.more = paste0(">",radius); lab.less = paste0("<=",radius)
+nearest.Treg.test <- nearest.Treg[from_cell_type == subset]
+max.dist <- max(nearest.Treg.test$min.dist.Treg)
+nearest.Treg.test <- nearest.Treg.test[, dist.bin := cut(min.dist.Treg, breaks = c(0,radius,Inf), labels= c(lab.less,lab.more),
+                                                           right=T, include_lowest=T)]  # break into bins 
+prot.data <- Giotto::getExpression(gobject = sln, values = "normalized")@exprMat[spec.prot, nearest.Treg.test$from ]
+nearest.Treg.test <- merge(nearest.Treg.test, data.frame(from = names(prot.data), data = prot.data), by='from')
+nearest.Treg.test %>% group_by(dist.bin) %>% select(data) %>% rstatix::get_summary_stats(type = 'common')
+dt <- nearest.Treg.test[,.(source = dist.bin, data=data)]
+p.val <- permutation.test.neighborhoods(dt, group.0 = lab.more, group.1 = lab.less, num.permutations = num.perm)
+ypos = max(dt$data) * 0.85
+ggplot(dt, aes(x = source, y=data)) + 
+  geom_violin(fill='grey80', draw_quantiles = c(0.5)) + ggtitle(subset) + 
+  xlab("Distance to nearest Treg") + ylab(spec.prot) + 
+  annotate('text', x=0.5, y=ypos, color='black', 
+           label= paste0("Mean ", lab.less, ": ", round(mean(dt[source == lab.less, data]), 1), 
+                       "\n",
+                       "Mean ", lab.more,": ", round(mean(dt[source == lab.more, data]), 1),
+                       "\nPermutation test: P=", ifelse(p.val==0, 1/num.perm, p.val)),
+           hjust = 0, size=3) +
+  theme_classic() + theme(legend.position = 'none', axis.text = element_text(size=12), 
+                          axis.text.x = element_text(size=12, hjust=1, vjust=1, angle=45)) 
+# ggsave(filename = 'output/dist.to.Treg.GZMB.TCFhiCD8.pdf', width=3, height=3)
+
+
+
+
+#  ***** Tumor *****
+spec.prot = 'GZMB'; subset = "TCF1_LO_TOX_HI_CD8"; num.perm = 1000; radius = 15; 
+lab.more = paste0(">",radius); lab.less = paste0("<=",radius)
+nearest.Treg.test <- nearest.Tumor[from_cell_type == subset]
+max.dist <- max(nearest.Treg.test$min.dist.Treg)
+nearest.Treg.test <- nearest.Treg.test[, dist.bin := cut(min.dist.Tumor, breaks = c(0,radius,Inf), labels= c(lab.less,lab.more),
+                                                           right=T, include_lowest=T)]  # break into bins 
+prot.data <- Giotto::getExpression(gobject = sln, values = "normalized")@exprMat[spec.prot, nearest.Treg.test$from ]
+nearest.Treg.test <- merge(nearest.Treg.test, data.frame(from = names(prot.data), data = prot.data), by='from')
+nearest.Treg.test %>% group_by(dist.bin) %>% select(data) %>% rstatix::get_summary_stats(type = 'common')
+dt <- nearest.Treg.test[,.(source = dist.bin, data=data)]
+p.val <- permutation.test.neighborhoods(dt, group.0 = lab.more, group.1 = lab.less, num.permutations = num.perm)
+ypos = max(dt$data) * 1.15
+ggplot(dt, aes(x = source, y=data)) + 
+  geom_violin(fill='grey80', draw_quantiles = c(0.5)) + ggtitle(subset) + 
+  xlab("Distance to nearest Tumor cell") + ylab(spec.prot) + 
+  annotate('text', x=0.5, y=ypos, color='black', 
+           label= paste0("Mean ", lab.less, ": ", round(mean(dt[source == lab.less, data]), 1), 
+                       "\n",
+                       "Mean ", lab.more,": ", round(mean(dt[source == lab.more, data]), 1),
+                       "\nPermutation test: P=", ifelse(p.val==0, 1/num.perm, p.val)),
+           hjust = 0, size=3) +
+  theme_classic() + theme(legend.position = 'none', axis.text = element_text(size=12), 
+                          axis.text.x = element_text(size=12, hjust=1, vjust=1, angle=45)) + 
+  scale_y_continuous(limits = c(0,34))
+# ggsave(filename = 'output/dist.to.Tumor.GZMB.TCFloCD8.pdf', width=3, height=3)
+
+
+spec.prot = 'IFNG'; subset = "TCF1_LO_TOX_HI_CD8"; num.perm = 1000; radius = 15; 
+lab.more = paste0(">",radius); lab.less = paste0("<=",radius)
+nearest.Treg.test <- nearest.Tumor[from_cell_type == subset]
+max.dist <- max(nearest.Treg.test$min.dist.Treg)
+nearest.Treg.test <- nearest.Treg.test[, dist.bin := cut(min.dist.Tumor, breaks = c(0,radius,Inf), labels= c(lab.less,lab.more),
+                                                           right=T, include_lowest=T)]  # break into bins 
+prot.data <- Giotto::getExpression(gobject = sln, values = "normalized")@exprMat[spec.prot, nearest.Treg.test$from ]
+nearest.Treg.test <- merge(nearest.Treg.test, data.frame(from = names(prot.data), data = prot.data), by='from')
+nearest.Treg.test %>% group_by(dist.bin) %>% select(data) %>% rstatix::get_summary_stats(type = 'common')
+dt <- nearest.Treg.test[,.(source = dist.bin, data=data)]
+p.val <- permutation.test.neighborhoods(dt, group.0 = lab.more, group.1 = lab.less, num.permutations = num.perm)
+ypos = max(dt$data) * 1
+ggplot(dt, aes(x = source, y=data)) + 
+  geom_violin(fill='grey80', draw_quantiles = c(0.5)) + ggtitle(subset) + 
+  xlab("Distance to nearest Tumor cell") + ylab(spec.prot) + 
+  annotate('text', x=0.5, y=ypos, color='black', 
+           label= paste0("Mean ", lab.less, ": ", round(mean(dt[source == lab.less, data]), 1), 
+                       "\n",
+                       "Mean ", lab.more,": ", round(mean(dt[source == lab.more, data]), 1),
+                       "\nPermutation test: P=", ifelse(p.val==0, 1/num.perm, p.val)),
+           hjust = 0, size=3) +
+  theme_classic() + theme(legend.position = 'none', axis.text = element_text(size=12), 
+                          axis.text.x = element_text(size=12, hjust=1, vjust=1, angle=45)) + 
+  scale_y_continuous(limits = c(0,40))
+# ggsave(filename = 'output/dist.to.Tumor.IFNG.TCFloCD8.pdf', width=3, height=3)
+
+rm(annot.k50)
 ```
 
 
@@ -1821,404 +1866,4 @@ Memory Efficiency: 65.93% of 500.00 GB
 
 
 
-
-
-
-
-
-
-
-
-# original function for cellProximityEnrichment from github
-cellProxEnrich.orig <- function(gobject,
-    spat_unit = NULL,
-    feat_type = NULL,
-    spatial_network_name = "Delaunay_network",
-    cluster_column,
-    number_of_simulations = 1000,
-    adjust_method = c(
-        "none", "fdr", "bonferroni", "BH",
-        "holm", "hochberg", "hommel",
-        "BY"
-    ),
-    set_seed = TRUE,
-    seed_number = 1234) 
-{
-    # Set feat_type and spat_unit
-    spat_unit <- set_default_spat_unit(
-        gobject = gobject,
-        spat_unit = spat_unit
-    )
-    feat_type <- set_default_feat_type(
-        gobject = gobject,
-        spat_unit = spat_unit,
-        feat_type = feat_type
-    )
-
-    # p.adj test
-    sel_adjust_method <- match.arg(adjust_method, choices = c(
-        "none", "fdr", "bonferroni", "BH",
-        "holm", "hochberg", "hommel",
-        "BY"
-    ))
-
-    spatial_network_annot <- annotateSpatialNetwork(
-        gobject = gobject,
-        feat_type = feat_type,
-        spat_unit = spat_unit,
-        spatial_network_name = spatial_network_name,
-        cluster_column = cluster_column
-    )
-
-    # remove double edges between same cells #
-    # a simplified network does not have double edges between cells #
-
-    # data.table variables
-    unified_cells <- type_int <- N <- NULL
-
-    spatial_network_annot <- GiottoUtils:::dt_sort_combine_two_columns(
-        spatial_network_annot, "to", "from", "unified_cells"
-    )
-    spatial_network_annot <- spatial_network_annot[!duplicated(unified_cells)]
-
-    sample_dt <- Giotto:::make_simulated_network(
-        gobject = gobject,
-        spat_unit = spat_unit,
-        feat_type = feat_type,
-        spatial_network_name = spatial_network_name,
-        cluster_column = cluster_column,
-        number_of_simulations = number_of_simulations,
-        set_seed = set_seed,
-        seed_number = seed_number
-    )
-
-    # combine original and simulated network
-    table_sim_results <- sample_dt[, .N, by = c(
-        "unified_int", "type_int", "round"
-    )]
-
-    ## create complete simulations
-    ## add 0 if no single interaction was found
-    unique_ints <- unique(table_sim_results[, .(unified_int, type_int)])
-
-    # data.table with 0's for all interactions
-    minimum_simulations <- unique_ints[rep(
-        seq_len(nrow(unique_ints)), number_of_simulations
-    ), ]
-    minimum_simulations[, round := rep(
-        paste0("sim", seq_len(number_of_simulations)),
-        each = nrow(unique_ints)
-    )]
-    minimum_simulations[, N := 0]
-
-    table_sim_minimum_results <- rbind(table_sim_results, minimum_simulations)
-    table_sim_minimum_results[, V1 := sum(N), by = c(
-        "unified_int", "type_int", "round"
-    )]
-    table_sim_minimum_results <- unique(
-        table_sim_minimum_results[, .(unified_int, type_int, round, V1)]
-    )
-    table_sim_results <- table_sim_minimum_results
-
-
-    # data.table variables
-    orig <- unified_int <- V1 <- original <- enrichm <- simulations <- NULL
-
-    table_sim_results[, orig := "simulations"]
-    spatial_network_annot[, round := "original"]
-
-    table_orig_results <- spatial_network_annot[, .N, by = c(
-        "unified_int", "type_int", "round"
-    )]
-    table_orig_results[, orig := "original"]
-    data.table::setnames(table_orig_results, old = "N", new = "V1")
-
-    table_results <- rbind(table_orig_results, table_sim_results)
-
-
-
-    # add missing combinations from original or simulations
-    # probably not needed anymore
-    all_simulation_ints <- as.character(unique(table_results[
-        orig == "simulations"
-    ]$unified_int))
-    all_original_ints <- as.character(unique(table_results[
-        orig == "original"
-    ]$unified_int))
-    missing_in_original <- all_simulation_ints[
-        !all_simulation_ints %in% all_original_ints
-    ]
-    missing_in_simulations <- all_original_ints[
-        !all_original_ints %in% all_simulation_ints
-    ]
-    create_missing_for_original <- table_results[
-        unified_int %in% missing_in_original
-    ]
-    create_missing_for_original <- unique(create_missing_for_original[
-        , c("orig", "V1") := list("original", 0)
-    ])
-    create_missing_for_simulations <- table_results[
-        unified_int %in% missing_in_simulations
-    ]
-    create_missing_for_simulations <- unique(
-        create_missing_for_simulations[, c("orig", "V1") := list(
-            "simulations", 0
-        )]
-    )
-
-    table_results <- do.call(
-        "rbind",
-        list(
-            table_results, create_missing_for_original,
-            create_missing_for_simulations
-        )
-    )
-
-
-    ## p-values
-    combo_list <- rep(NA, length = length(unique(table_results$unified_int)))
-    p_high <- rep(NA, length = length(unique(table_results$unified_int)))
-    p_low <- rep(NA, length = length(unique(table_results$unified_int)))
-
-    for (int_combo in seq_along(unique(table_results$unified_int))) {
-        this_combo <- as.character(unique(table_results$unified_int)[int_combo])
-
-        sub <- table_results[unified_int == this_combo]
-
-        orig_value <- sub[orig == "original"]$V1
-        sim_values <- sub[orig == "simulations"]$V1
-
-        length_simulations <- length(sim_values)
-        if (length_simulations != number_of_simulations) {
-            additional_length_needed <- number_of_simulations -
-                length_simulations
-            sim_values <- c(sim_values, rep(0, additional_length_needed))
-        }
-
-        p_orig_higher <- 1 - (sum((orig_value + 1) > (sim_values + 1)) /
-            number_of_simulations)
-        p_orig_lower <- 1 - (sum((orig_value + 1) < (sim_values + 1)) /
-            number_of_simulations)
-
-        combo_list[[int_combo]] <- this_combo
-        p_high[[int_combo]] <- p_orig_higher
-        p_low[[int_combo]] <- p_orig_lower
-    }
-    res_pvalue_DT <- data.table::data.table(
-        unified_int = as.vector(combo_list),
-        p_higher_orig = p_high,
-        p_lower_orig = p_low
-    )
-
-
-    # depletion or enrichment in barplot format
-    table_mean_results <- table_results[, .(mean(V1)), by = c(
-        "orig", "unified_int", "type_int"
-    )]
-    table_mean_results_dc <- data.table::dcast.data.table(
-        data = table_mean_results, formula = type_int + unified_int ~ orig,
-        value.var = "V1"
-    )
-    table_mean_results_dc[, original := ifelse(is.na(original), 0, original)]
-    table_mean_results_dc[, enrichm := log2((original + 1) / (simulations + 1))]
-
-
-    table_mean_results_dc <- merge(
-        table_mean_results_dc, res_pvalue_DT,
-        by = "unified_int"
-    )
-    data.table::setorder(table_mean_results_dc, enrichm)
-    table_mean_results_dc[, unified_int := factor(unified_int, unified_int)]
-
-    # adjust p-values for mht
-
-    # data.table variables
-    p.adj_higher <- p.adj_lower <- p_lower_orig <- p_higher_orig <-
-        PI_value <- int_ranking <- NULL
-
-    table_mean_results_dc[, p.adj_higher := stats::p.adjust(
-        p_higher_orig,
-        method = sel_adjust_method
-    )]
-    table_mean_results_dc[, p.adj_lower := stats::p.adjust(
-        p_lower_orig,
-        method = sel_adjust_method
-    )]
-
-
-    table_mean_results_dc[, PI_value := ifelse(p.adj_higher <= p.adj_lower,
-        -log10(p.adj_higher + (1 / number_of_simulations)) * enrichm,
-        -log10(p.adj_lower + (1 / number_of_simulations)) * enrichm
-    )]
-    data.table::setorder(table_mean_results_dc, PI_value)
-
-    # order
-    table_mean_results_dc <- table_mean_results_dc[order(-PI_value)]
-    table_mean_results_dc[, int_ranking := seq_len(.N)]
-
-    return(list(
-        raw_sim_table = table_results,
-        enrichm_res = table_mean_results_dc
-    ))
-}
-
-
-
-
-
-
-
-findInteractionChangedFeats <- function(gobject,
-    feat_type = NULL,
-    spat_unit = NULL,
-    expression_values = "normalized",
-    selected_feats = NULL,
-    cluster_column,
-    spatial_network_name = "Delaunay_network",
-    minimum_unique_cells = 1,
-    minimum_unique_int_cells = 1,
-    diff_test = c("permutation", "limma", "t.test", "wilcox"),
-    mean_method = c("arithmic", "geometric"),
-    offset = 0.1,
-    adjust_method = c(
-        "bonferroni", "BH", "holm", "hochberg", "hommel",
-        "BY", "fdr", "none"
-    ),
-    nr_permutations = 1000,
-    exclude_selected_cells_from_test = TRUE,
-    do_parallel = TRUE,
-    set_seed = TRUE,
-    seed_number = 1234) {
-    # Set feat_type and spat_unit
-    spat_unit <- set_default_spat_unit(
-        gobject = gobject,
-        spat_unit = spat_unit
-    )
-    feat_type <- set_default_feat_type(
-        gobject = gobject,
-        spat_unit = spat_unit,
-        feat_type = feat_type
-    )
-
-    # expression values to be used
-    values <- match.arg(
-        expression_values,
-        unique(c("normalized", "scaled", "custom", expression_values))
-    )
-    expr_values <- getExpression(
-        gobject = gobject,
-        spat_unit = spat_unit,
-        feat_type = feat_type,
-        values = values,
-        output = "matrix"
-    ) # as matrix (never set back)
-
-    ## test selected feats ##
-    if (!is.null(selected_feats)) {
-        expr_values <- expr_values[rownames(expr_values) %in% selected_feats, ]
-    }
-
-    ## stop test selected feats ##
-
-    # difference test
-    diff_test <- match.arg(
-        diff_test,
-        choices = c("permutation", "limma", "t.test", "wilcox")
-    )
-
-    # p.adj test
-    adjust_method <- match.arg(adjust_method, choices = c(
-        "bonferroni", "BH", "holm", "hochberg", "hommel",
-        "BY", "fdr", "none"
-    ))
-    # how to calculate mean
-    mean_method <- match.arg(mean_method, choices = c("arithmic", "geometric"))
-
-    ## metadata
-    cell_metadata <- pDataDT(
-        gobject,
-        spat_unit = spat_unit, feat_type = feat_type
-    )
-
-
-    ## annotated spatial network
-    annot_spatnetwork <- annotateSpatialNetwork(gobject,
-        feat_type = feat_type,
-        spat_unit = spat_unit,
-        spatial_network_name = spatial_network_name,
-        cluster_column = cluster_column
-    )
-
-    all_interactions <- unique(annot_spatnetwork$unified_int)
-
-    ## prepare function
-    fcp_feats_per_i <- function(x) {
-        .findCellProximityFeats_per_interaction(
-            expr_values = expr_values,
-            cell_metadata = cell_metadata,
-            annot_spatnetwork = annot_spatnetwork,
-            minimum_unique_cells = minimum_unique_cells,
-            minimum_unique_int_cells = minimum_unique_int_cells,
-            sel_int = x,
-            cluster_column = cluster_column,
-            exclude_selected_cells_from_test = exclude_selected_cells_from_test,
-            diff_test = diff_test,
-            mean_method = mean_method,
-            offset = offset,
-            adjust_method = adjust_method,
-            nr_permutations = nr_permutations,
-            set_seed = set_seed,
-            seed_number = seed_number
-        )
-    }
-
-    if (isTRUE(do_parallel)) { # parallel
-        fin_result <- lapply_flex(
-            X = all_interactions, future.seed = TRUE, FUN = fcp_feats_per_i
-        )
-    } else { # sequential
-        fin_result <- list()
-
-        for (i in seq_along(all_interactions)) {
-            x <- all_interactions[i]
-            tempres <- fcp_feats_per_i(x)
-            fin_result[[i]] <- tempres
-        }
-    }
-
-    final_result <- do.call("rbind", fin_result)
-
-    # NSE variables
-    spec_int <- cell_type <- int_cell_type <- type_int <- NULL
-
-    final_result[, spec_int := paste0(cell_type, "--", int_cell_type)]
-    final_result[, type_int := ifelse(
-        cell_type == int_cell_type, "homo", "hetero"
-    )]
-
-    permutation_test <- ifelse(
-        diff_test == "permutation", nr_permutations, "no permutations"
-    )
-
-    icfObject <- structure(
-        .Data = list(
-            ICFscores = final_result,
-            Giotto_info = list(
-                "values" = values,
-                "cluster" = cluster_column,
-                "spatial network" = spatial_network_name
-            ),
-            test_info = list(
-                "test" = diff_test,
-                "p.adj" = adjust_method,
-                "min cells" = minimum_unique_cells,
-                "min interacting cells" = minimum_unique_int_cells,
-                "exclude selected cells" = exclude_selected_cells_from_test,
-                "perm" = permutation_test
-            )
-        ),
-        class = "icfObject"
-    )
-    return(icfObject)
-}
 
