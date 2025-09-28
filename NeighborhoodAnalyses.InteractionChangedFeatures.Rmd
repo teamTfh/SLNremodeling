@@ -141,11 +141,11 @@ plot.volcano.icf <- function( dt, receiver_cell, sender_cell, key.feat = NULL, p
     print(
       ggplot(volcano.data, aes(y = log.p_adj, x=mean_log2fc, label = feats, color=highlight.feat)) + 
         geom_hline(yintercept = -log10(0.05), color="grey60", linetype="dashed", linewidth=0.1)+
-        geom_point(aes(fill = highlight.feat), shape=21, color="white",  size=3) +   #fill="black",
-        ggrepel::geom_text_repel(max.overlaps = 20) + 
+        geom_point(aes(fill = highlight.feat), shape=21, color="white",  size=3, alpha=0.6) +   #fill="black",
+        ggrepel::geom_text_repel(max.overlaps = 25) + 
         ggtitle(title.of.plot) + 
         theme_classic()  + 
-        scale_color_manual(values = c('black','red')) + scale_fill_manual(values = c('black','red'))+ 
+        scale_color_manual(values = c('black','firebrick')) + scale_fill_manual(values = c('black','firebrick'))+ 
         annotate("text", x = annotateX.incr, y = -0.15*annotateY.ylim, size = 3, label = "Increased expr") + 
         annotate("text", x = annotateX.decr, y = -0.15*annotateY.ylim, size = 3, label = "Reduced expr")  +
         coord_cartesian(clip = 'off', ylim= c(0, annotateY.ylim)) + theme(legend.position = 'none')
