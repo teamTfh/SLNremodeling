@@ -356,3 +356,15 @@ Just not enough resolution to see differences in recurrence vs no.recurrence eve
 
 
 
+
+Job ID: 6564546
+Cluster: slurm_cluster
+User/Group: heratr01/heratr01
+State: COMPLETED (exit code 0)
+Nodes: 1
+Cores per node: 5
+CPU Utilized: 00:58:48
+CPU Efficiency: 5.67% of 17:16:40 core-walltime
+Job Wall-clock time: 03:27:20
+Memory Utilized: 83.83 GB
+Memory Efficiency: 16.77% of 500.00 GB

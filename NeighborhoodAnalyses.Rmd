@@ -20,7 +20,7 @@ img {
  
  
 ```{r call-libraries} 
-date()
+date();  timeStamp <- strftime(Sys.time() , "%Y%m%d.%H%M%S")
 library(Giotto)
 library(future); if(parallelly::availableCores() > 2 )  # & .Platform$OS.type == "windows")  
   {plan('multisession', workers = parallelly::availableCores()-2)}
@@ -49,6 +49,11 @@ sln <- readRDS("sln.clustering5.annot.spatnet.20250617.160512.RDS")
 gc()
 md <- pDataDT(sln)
 stableColorsL2 <- getDistinctColors(length(unique(md$L2_annotations)));  names(stableColorsL2) <- unique(md$L2_annotations)
+classifier_label_colors <- c('B Cell Follicle'='#107BDA','GC'='#EE6710', 'T/B Mixed'='yellow', 'T Cell Zone'='#FF0096',
+                             'Tumor'='limegreen')
+name_mapping <- c('ctrl.1' = '101', 'ctrl.2' = '102', 'ctrl.3' = '103', 'ctrl.4' = '104', 'ctrl.5' = '105',
+                  'tumor.1' = '301', 'tumor.2' = '302', 'tumor.3' = '303', 'tumor.4' = '304', 'tumor.5' = '305',
+                  'tumor.6' = '306', 'tumor.7' = '307','tumor.8' = '308','tumor.9' = '309', 'tumor.10' = '310' )
 stage3.subgroup <- c("tumor.1","tumor.2","tumor.3","tumor.4","tumor.5","tumor.6","tumor.7", "tumor.8",
                                                  "tumor.9","tumor.10")
 stage1.subgroup <- c("ctrl.1","ctrl.2","ctrl.3","ctrl.4","ctrl.5")
@@ -350,26 +355,28 @@ for (i in list_ID)
 
 # saveRDS(list(annot.k9 = annot.k9, tableResults.k9 = tableResults.k9), file="neighborhood.annot.k9.sln.RDS")  # all data merged
 
-tableResults.k9 <- list()
-annot.k9 <- list()
-for (i in list_ID)
-{
-  print(i)
-  keepCells <- subset(md, list_ID %in% i )$cell_ID
-  sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
-  sln.sm <- createSpatialKNNnetwork(sln.sm, k=9, verbose=T, name = "spatialknn.k9.persample") 
-  print("made spatialKNN")
-  annot.k9[[i]] <- annotateSpatialNetwork(sln.sm, cluster_column = "L3_annotations", spatial_network_name = 'spatialknn.k9.persample')
-  tableResults.k9[[i]] <- cellProx.sim(sln.sm, cluster_column = 'L3_annotations', adjust_method = "fdr",
-                                       number_of_simulations = 200, spatial_network_name = "spatialknn.k9.persample")
-}
+
+# ******* L3 annotations proximity enrichment ***********
+# tableResults.k9 <- list()
+# annot.k9 <- list()
+# for (i in list_ID)
+# {
+#   print(i)
+#   keepCells <- subset(md, list_ID %in% i )$cell_ID
+#   sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
+#   sln.sm <- createSpatialKNNnetwork(sln.sm, k=9, verbose=T, name = "spatialknn.k9.persample") 
+#   print("made spatialKNN")
+#   annot.k9[[i]] <- annotateSpatialNetwork(sln.sm, cluster_column = "L3_annotations", spatial_network_name = 'spatialknn.k9.persample')
+#   tableResults.k9[[i]] <- cellProx.sim(sln.sm, cluster_column = 'L3_annotations', adjust_method = "fdr",
+#                                        number_of_simulations = 200, spatial_network_name = "spatialknn.k9.persample")
+# }
 
 # pull example cell for study
 # annot.k9$tumor.5[from %like% 215265 | to %like% 215265] %>% write.csv("neighbors.of.tumor5.215265.csv")
 
 # saveRDS(list(annot.k9 = annot.k9, tableResults.k9 = tableResults.k9), file="neighborhood.annot.k9.L3.sln.RDS")  # all data merged
-# annot.k9 <- readRDS(file="neighborhood.annot.k9.sln.RDS")[['annot.k9']]  #  read in L2 annotations 
-dt <- purrr::list_rbind(annot.k9[['tableResults.k9']], names_to = "id")
+#  
+dt <- purrr::list_rbind(tableResults.k9, names_to = "id")
 ```
 
 Fails on k=10 on tumor.6  (2 million rows) with long vectors error 
@@ -377,7 +384,7 @@ Works for k=9 for all samples
 
 ```{r read-in-annotk9, eval=FALSE}
 dt <- purrr::list_rbind(readRDS(file="neighborhood.annot.k9.sln.RDS")[['tableResults.k9']], names_to = "id")
-
+annot.k9 <- readRDS(file="neighborhood.annot.k9.sln.RDS")[['annot.k9']]  #  read in L2 annotations
 ```
 
 
@@ -458,20 +465,20 @@ interaction.byRecur <- rbind(addLabels.fxn(perSampleInteraction.enrichm_res[recu
 gc()
 
 tableResults.rad <- list()
-annot.radius <- list()
+annot.rad <- list()  # annot.radius
 for (i in list_ID)
 {
   print(i)
   keepCells <- subset(md, list_ID %in% i )$cell_ID
   sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
   sln.sm <- createSpatialKNNnetwork(sln.sm, k=50, maximum_distance = 15, verbose=T, name = "spatialknn.radius.persample")
-  annot.radius[[i]] <- annotateSpatialNetwork(sln.sm, cluster_column = "L2_annotations", spatial_network_name = 'spatialknn.radius.persample')
+  annot.rad[[i]] <- annotateSpatialNetwork(sln.sm, cluster_column = "L2_annotations", spatial_network_name = 'spatialknn.radius.persample')
   tableResults.rad[[i]] <- cellProx.sim(sln.sm, cluster_column = 'L2_annotations', adjust_method = "fdr",
                                        number_of_simulations = 200, spatial_network_name = "spatialknn.radius.persample")
 }
-# saveRDS(list(annot.radius = annot.radius, tableResults.rad = tableResults.rad), 
+# saveRDS(list(annot.rad = annot.rad, tableResults.rad = tableResults.rad), 
 #         file="neighborhood.annot.radius.sln.RDS")  # all data merged
-# annot.rad <- readRDS(file="neighborhood.annot.radius.sln.RDS")[['annot.radius']]  #  read in L2 annotations 
+# annot.rad <- readRDS(file="neighborhood.annot.radius.sln.RDS")[['annot.rad']]  #  read in L2 annotations 
 dt <- purrr::list_rbind(tableResults.rad, names_to = "id")
 
 ```
@@ -1252,7 +1259,38 @@ plot.enrichm.interaction(interaction.dt = interaction.byRecur, probeSubset = "AC
 
 plot.enrichm.interaction(interaction.dt = interaction.byRecur, probeSubset = "ACTIVATED_CD8--ACTIVATED_TREG", colorList = a$colorScheme, title="ACTIVATED_CD8--\nACTIVATED_TREG")
 # ggsave(filename = 'output/ACTIVATED_CD8--ACTIVATED_TREG.recur.boxplot.pdf', width=2.5,height=3)
+```
 
+
+```{r determine-LOD, fig.width=8, fig.height=8}
+interaction.byRecur[,.(original)] %>% rstatix::get_summary_stats(type = 'common') 
+
+plot.enrichm.interaction(interaction.dt = interaction.byStage, probeSubset = "ACTIVATED_TREG--TCF1_HI_TOX_HI_CD8", colorList = a$colorScheme, title="ACTIVATED_TREG--\nTCF1_HI_TOX_HI_CD8")
+
+# define limit of detection
+# what is background rate in stage 1 where no effect is present 
+
+stats <- interaction.byStage[ unified_int == "ACTIVATED_TREG--TCF1_HI_TOX_HI_CD8" & condition == 'stage1' , .(original)] %>% rstatix::get_summary_stats(type = 'common')
+print(stats)
+print(paste0('2*SD + mean = ', 2*stats$sd + stats$mean) )
+
+# need the negative results, first take all of the non-significant interactions 
+# need to find the null distribution for specific A-B interaction pair
+
+dt <- purrr::list_rbind(readRDS(file="neighborhood.annot.k9.sln.RDS")[['tableResults.k9']], names_to = "id")
+dt.subs <- dt[unified_int == "ACTIVATED_TREG--TCF1_HI_TOX_HI_CD8"   & 
+                id %in% norecur.subgroup   & 
+                orig == 'simulations']
+dt.subs[, .(V1)] %>% rstatix::get_summary_stats(type = 'quantile',probs = 0.95) 
+dt.subs[order(V1, decreasing=T), by=id]  # sort highest to lowest, do it by sample, look for 20th value (given 1/200 sims = 0.005 and 95% percentile is #20 in list from largest to smallest) 
+result <- dt.subs %>% group_by(id) %>% rstatix::get_summary_stats(type = 'quantile', probs=0.95)
+
+result$`95%` %>% mean
+
+# so effective limit of detection was 249 pairings 
+num.row.norecur <- md[list_ID %in% norecur.subgroup] %>% nrow
+print(paste0("LOD: ", result$`95%` %>% mean / num.row.norecur, " interactions per 1e6 cells"))
+rm(c(result, num.row.norecur, dt.subs))
 
 ```
 
@@ -1590,6 +1628,87 @@ b <- plot.Feat.pairedVoroni(target = expr.feat.0, select.row = sel.0, feat.show=
 Though these example images might come across as cherry-picked. It will be very hard to show a single cell-based example to compare unless it's only the mean being shown (but the mean is a poor descriptor for a skew population)
 
 
+```{r region-given-pairings}
+
+tmp <- neighborhoods$raw.table
+tmp <- purrr::list_rbind(tmp, names_to='list_ID')
+tmp <- merge(y=tmp, x=md, by.y='from', by.x='cell_ID', all.x=T)
+# find all rows representing pairings of Activated Treg with CD8, then display graph of spatial region
+
+pairings <- tmp[from_cell_type %like% 'TCF1' & ACTIVATED_TREG >0]
+
+# table(pairings$Classifier.Label, pairings$list_ID.x)
+#                 ctrl.1 ctrl.2 ctrl.3 ctrl.4 ctrl.5 tumor.1 tumor.10 tumor.2 tumor.3 tumor.4 tumor.5 tumor.6 tumor.7 tumor.8 tumor.9
+# B Cell Follicle    294     32     87    145     21      19       91      19      40      78     317     229     295     123     187
+# GC                   0      0      0      0      0      10        0       0       0       0       0       1       1       1       0
+# T Cell Zone        122    505     97   1284     65       4       37      25     308     104    1401    2121     138     446    1105
+# T/B Mixed          684    276    143    698     68       2      125      14      95      31    1491    1838      50     392     920
+# Tumor                5      0      0      0      3       0        2       0       0       6      28      18       7       0       1
+
+res.table <- as.data.table(table(pairings$Classifier.Label, pairings$list_ID.x, pairings$from_cell_type) )
+res.table[, sample.labels := name_mapping[V2] ]
+res.table[, prop.N := proportions(N), by = c('V2', 'V3')]
+res.table[, ave := mean(prop.N), by=c('V1','V3')]
+res.table[, sd := sd(prop.N), by=c('V1', 'V3')]
+for.factoring <- res.table[V1 == 'T/B Mixed' & V3 == 'TCF1_HI_TOX_HI_CD8']; setorder(for.factoring, -prop.N)
+res.table.plot <- res.table[V3 == 'TCF1_HI_TOX_HI_CD8']
+res.table.plot[, V2 := factor(res.table.plot$V2, levels = for.factoring$V2)]
+ggplot(data = res.table.plot, aes(y = prop.N, x=V2, fill=V1)) + geom_bar(position='fill', stat='identity') + theme_classic() +
+  ggtitle("Location of Treg interactions - TCF1_HI_TOX_HI_CD8") + ylab("Proportion of all regions") + labs(fill = "Region") + 
+  theme(axis.title.x = element_blank(), axis.text.x = element_blank()) + 
+  scale_fill_manual(values = classifier_label_colors) # + scale_x_discrete(labels = res.table.plot$sample.labels)
+# ggsave('output/locate.Treg.TCFhiCD8.stackedbar.pdf', width=5,height=5)
+for.factoring <- res.table[V1 == 'T/B Mixed' & V3 == 'TCF1_LO_TOX_HI_CD8']; setorder(for.factoring, -prop.N)
+res.table.plot <- res.table[V3 == 'TCF1_LO_TOX_HI_CD8']
+res.table.plot[, V2 := factor(res.table.plot$V2, levels = for.factoring$V2)]
+ggplot(data = res.table.plot, aes(y = prop.N, x=V2, fill=V1)) + geom_bar(position='fill', stat='identity') + theme_classic() +
+  ggtitle("Location of Treg interactions - TCF1_LO_TOX_HI_CD8") + ylab("Proportion of all regions") + labs(fill = "Region") + 
+  theme(axis.title.x = element_blank(), axis.text.x = element_blank()) + 
+  scale_fill_manual(values = classifier_label_colors)
+# ggsave('output/locate.Treg.TCFloCD8.stackedbar.pdf', width=5,height=5)
+rm(pairings); rm(res.table); rm(tmp); rm(res.table.plot)
+
+```
+
+```{r explore-B-cell-interactions}
+a <- findImportantInteractions( interaction.dt= interaction.byRecur, condition.exp="recur", condition.ctrl="no.recur", ef.threshold=1)
+a$df[unified_int %like% 'BCELL']
+proteinsList <- c("BCA1", "CD11C" ,"CD19","CD20","HLA.DR", "PD1")
+                  # "CD3E", "CD4","CD8" ,,"CD27","CD38","CD39", "CD45RO","CXCR3","CXCR5",
+                  # "FOXP3" , "GZMB" , "ICOS","IFNG","IRF4","IRF7","KI67", "LAG3",
+                  # "IL21","PDL1","STAT1","STAT3","TCF1","TOX" ) # "TBET","PMTOR" ,"CD21","MAC2/GAL3","PAX5","VIMENTIN"
+# TCELL_BCELL_MYELOID_MIXED
+# BCELL_MYELOID_MIXED
+# MIXED_FOLLICULAR_BCELL
+retrieve.subset <- md[sample(11e6, 1e4,replace = F), cell_ID]  # L2_annotations == probe.subset
+features <- as.data.table(t(as.matrix(Giotto::getExpression(sln, output="matrix")[, retrieve.subset] )), keep.rownames="cell_ID")
+features <- inner_join(features, md, by='cell_ID')
+
+
+probe.subset <- 'NAIVE_CD8'
+retrieve.subset <- md[, cell_ID]  # L2_annotations == probe.subset
+features <- as.data.table(t(as.matrix(Giotto::getExpression(sln, output="matrix")[, retrieve.subset] )), keep.rownames="cell_ID")
+features <- melt(features, id.vars = 'cell_ID')
+features <- features[variable %in% proteinsList]
+a <- ggplot(features, aes(x = value, y= variable, fill = variable)) +  
+  ggridges::geom_density_ridges(    stat = "binline",  bins = 2000, # Use the "binline" stat for a histogram appearance
+    scale = 3,  alpha = 0.8, draw_baseline = FALSE, color='gray20', linewidth=0.2 ) + 
+  theme_classic() + scale_x_sqrt( breaks = seq(0,100,10), limits=c(0,100))+ ggtitle(probe.subset)
+probe.subset <- 'BCELL_MYELOID_MIXED'
+retrieve.subset <- md[L2_annotations == probe.subset, cell_ID]
+features <- as.data.table(t(as.matrix(Giotto::getExpression(sln, output="matrix")[, retrieve.subset] )), keep.rownames="cell_ID")
+features <- melt(features, id.vars = 'cell_ID')
+features <- features[variable %in% proteinsList]
+b<- ggplot(features, aes(x = value, y= variable, fill = variable)) +  
+  ggridges::geom_density_ridges(    stat = "binline",  bins = 2000, # Use the "binline" stat for a histogram appearance
+    scale = 3,  alpha = 0.8, draw_baseline = FALSE, color='gray20', linewidth=0.2  ) + # Removes the horizontal line at the bottom of each plot
+  theme_classic() + scale_x_sqrt( breaks = seq(0,100,10), limits=c(0,100)) + ggtitle(probe.subset)
+gridExtra::grid.arrange(a,b, nrow=1) 
+
+```
+
+
+
 # identify the distance to the nearest Treg 
 
 ```{r cellproxEnrich-function-k50}
@@ -1849,21 +1968,17 @@ rm(annot.k50)
 ```
 
 
-
-
-seff 233115
-Job ID: 233115
+Job ID: 6784618
 Cluster: slurm_cluster
 User/Group: heratr01/heratr01
 State: COMPLETED (exit code 0)
 Nodes: 1
-Cores per node: 10
-CPU Utilized: 08:33:29
-CPU Efficiency: 11.46% of 3-02:42:10 core-walltime
-Job Wall-clock time: 07:28:13
-Memory Utilized: 329.63 GB
-Memory Efficiency: 65.93% of 500.00 GB
-
+Cores per node: 5
+CPU Utilized: 05:28:57
+CPU Efficiency: 26.30% of 20:50:55 core-walltime
+Job Wall-clock time: 04:10:11
+Memory Utilized: 317.18 GB
+Memory Efficiency: 63.44% of 500.00 GB
 
 
 
