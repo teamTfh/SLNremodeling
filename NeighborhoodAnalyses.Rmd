@@ -39,7 +39,6 @@ sessionInfo()
 
 #  ****** libraries to install 
 # library(factoextra)
-
 ```
 
 # read in data object 
@@ -484,7 +483,7 @@ dt <- purrr::list_rbind(tableResults.rad, names_to = "id")
 ```
 
 
-```{r interaction-by-sample-radius-loadData, eval=F}
+```{r interaction-by-sample-radius-loadData, eval=FALSE}
 dt <- purrr::list_rbind(readRDS(file="neighborhood.annot.radius.sln.RDS")[['tableResults.rad']], names_to = "id")
 ```
 
@@ -1390,29 +1389,15 @@ neighborhoods.grouped
 TCFlo.CD8 <- neighborhoods.grouped[from_cell_type == "TCF1_LO_TOX_HI_CD8"]
 TCFhi.CD8 <- neighborhoods.grouped[from_cell_type == "TCF1_HI_TOX_HI_CD8"]
 
-# spatPlot2D(sln.sm, cell_color = 'L2_annotations', cell_color_code = leiden_colors, 
-#            point_size = 10, point_alpha=1, axis_text=10, point_border_col = 'black',
-#            point_border_stroke = 0.25, legend_text =10)
 
-target.cell <- TCFlo.CD8[TREG >=1]  # start with TREG neighbors
-val.1 <- Giotto::getExpression(gobject=sln, values='normalized')@exprMat['GZMB', target.cell$from] 
-target.cell <- TCFlo.CD8[TREG == 0]  # now with no TREG neighbors
-val.0 <- Giotto::getExpression(gobject=sln, values='normalized')@exprMat['GZMB', target.cell$from]
-
-dt <- data.table(data = c(val.0, val.1), 
-                 source = c(rep("No.Treg.Neighbors", length(val.0)), 
-                            rep("Treg.Neighbors", length(val.1)))
-                 )  # make a new dt where the expression values of FEAT can be plotted 
- 
 permutation.test.neighborhoods <- function(num.permutations = 10000, data.tbl, group.0, group.1)
 {
-  obs.diff <- mean(dt[source %in% group.0, data]) - mean(dt[source %in% group.1, data])  
+  obs.diff <- mean(data.tbl[source %in% group.0, data]) - mean(data.tbl[source %in% group.1, data])  
   print(paste0("Observed difference: ", round(obs.diff, 2)))  
   permutation.diffs <- numeric(num.permutations)  # now for a ridiculous number of permutations 
-  dt <- data.tbl
   for (i in 1:num.permutations) 
   {
-    shuffled_source <- sample(dt$source)    # randomly shuffle the group labels.
+    shuffled_source <- sample(data.tbl$source)    # randomly shuffle the group labels.
 
     # Calculate the difference in means for this random permutation.
     # 1. mutate(): Replaces the original 'source' column with the 'shuffled_source' labels.
@@ -1420,7 +1405,7 @@ permutation.test.neighborhoods <- function(num.permutations = 10000, data.tbl, g
     # 3. summarise(): Calculates the mean for each of the two groups.
     # 4. pull(): Extracts the mean values as a vector.
     # 5. diff(): Calculates the difference between the two means in the vector.
-    permutation.diffs[i] <- dt %>%
+    permutation.diffs[i] <- data.tbl %>%
       mutate(source = shuffled_source) %>%
       group_by(source) %>%
       summarise(mean = mean(data)) %>%
@@ -1434,107 +1419,139 @@ permutation.test.neighborhoods <- function(num.permutations = 10000, data.tbl, g
   print(paste0("P value is ", pV, ". Lowest possible P value for ",num.permutations, " iterations is ", 1/num.permutations))
   return(pV)
 }
-num.perm = 10000
-p.val <- permutation.test.neighborhoods(data.tbl = dt, group.0 = "No.Treg.Neighbors", group.1 = "Treg.Neighbors", 
-                                        num.permutations = num.perm)
 
-dt %>% group_by(source) %>% rstatix::get_summary_stats(data, type = 'common')
-ggplot(dt, aes(x = data, fill = source)) + geom_histogram(binwidth = 0.25, alpha=0.6, position='identity') + 
-  scale_fill_manual(values = c('grey50','firebrick')) + 
-  annotate('text', x=12, y=1000, color='black', 
-           label= paste0("Mean Treg.Neighbors: ", round(mean(dt[source == 'Treg.Neighbors', data]), 2), 
-                         "\n",
-                         "Mean No.Treg.Neighbors: ", round(mean(dt[source == 'No.Treg.Neighbors', data]), 2),
-                         "\nPermutation test:  P < ", ifelse(p.val==0, 1/num.perm, p.val)),
-           hjust = 0, size=3) +
-  ggtitle("Expression for GZMB for TCF1_LO_TOX_HI_CD8") + xlim(c(0,28 ))+ 
-  xlab("GZMB expression") + ylab("Number of cells") +
-  theme_classic() + theme(legend.justification = c("right", "top"), legend.position = 'inside', 
-                          legend.title=element_blank()) 
+neighbors.histogram <- function(target.cell, interacting.type, feature, title, xlab, binwidth=0.25, permutations=10000, 
+                                annotate.location = c(12,5000))
+{
+  target.subset <- target.cell[get(interacting.type) >= 1]  # start with interacting.type neighbors
+  val.1 <- Giotto::getExpression(gobject=sln, values='normalized')@exprMat[feature, target.subset$from]    # get specific expression data
+  target.subset <- target.cell[get(interacting.type) == 0]  # now with no interacting.type neighbors
+  val.0 <- Giotto::getExpression(gobject=sln, values='normalized')@exprMat[feature, target.subset$from]    # get specific expression data
+  dt <- data.table(data = c(val.0, val.1), 
+                   source = c(rep("No.Neighbors", length(val.0)), 
+                              rep("Neighbors", length(val.1))) )  # make a new dt where the expression values of FEAT can be plotted 
+  p.val <- permutation.test.neighborhoods(data.tbl = dt, group.0 = "No.Neighbors", group.1 = "Neighbors", num.perm = permutations)
+  dt %>% group_by(source) %>% rstatix::get_summary_stats(data, type = 'common')
+  num.NoNeighbors <- dt[source == 'No.Neighbors', .N]
+  num.Neighbors <- dt[source == 'Neighbors', .N]
+  if(num.NoNeighbors > num.Neighbors)        {   dt$source <- factor(dt$source, levels = c("No.Neighbors","Neighbors"))  } 
+    else {     dt$source <- factor(dt$source, levels = c("Neighbors","No.Neighbors"))  }
+  plot <- ggplot(dt, aes(x = data, fill = source)) + geom_histogram(binwidth = binwidth, alpha=0.6, position='identity') + 
+    scale_fill_manual(values = c('grey50','firebrick')) + 
+    annotate('text', x=annotate.location[1], y=annotate.location[2], color='black', 
+             label= paste0("Mean Neighbors: ", round(mean(dt[source == 'Neighbors', data]), 1), 
+                           "\n",
+                           "Mean No.Neighbors: ", round(mean(dt[source == 'No.Neighbors', data]), 1),
+                           "\nPermutation test:  P <= ", ifelse(p.val==0, 1/permutations, p.val)),
+             hjust = 0, size=3) +
+    ggtitle(title) + xlim(c(0,28 ))+ 
+    xlab(xlab) + ylab("Number of cells") +
+    theme_classic() + theme(legend.justification = c("right", "top"), legend.position = 'inside', 
+                            legend.title=element_blank()) 
+  return(list(plot, dt, p.val))
+}
+
+neighbors.histogram(target.cell = TCFlo.CD8, interacting.type = 'TREG', feature='GZMB', 
+                    title = 'GZMB in TCF1_LO_TOX_HI_CD8 due to Treg', xlab='GZMB expression', binwidth=0.25, permutations=10000,
+                    annotate.location = c(20,1000))
 # ggsave(filename = 'output/hist.GzmB.TCF1loToxhiCD8.pdf', width=4,height=3)
 
-
-
-target.cell <- TCFlo.CD8[TREG >=1]  # start with TREG neighbors
-val.1 <- Giotto::getExpression(gobject=sln, values='normalized')@exprMat['IFNG', target.cell$from] 
-target.cell <- TCFlo.CD8[TREG == 0]  # now with no TREG neighbors
-val.0 <- Giotto::getExpression(gobject=sln, values='normalized')@exprMat['IFNG', target.cell$from]
-
-dt <- data.table(data = c(val.0, val.1), 
-                 source = c(rep("No.Treg.Neighbors", length(val.0)), 
-                            rep("Treg.Neighbors", length(val.1)))
-                 )  # make a new dt where the expression values of FEAT can be plotted 
-p.val <- permutation.test.neighborhoods(data.tbl = dt, group.0 = "No.Treg.Neighbors", group.1 = "Treg.Neighbors", num.perm = 10000)
-dt %>% group_by(source) %>% rstatix::get_summary_stats(data, type = 'common')
-ggplot(dt, aes(x = data, fill = source)) + geom_histogram(binwidth = 0.25, alpha=0.6, position='identity') + 
-  scale_fill_manual(values = c('grey50','firebrick')) + 
-  annotate('text', x=12, y=1000, color='black', 
-           label= paste0("Mean Treg.Neighbors: ", round(mean(dt[source == 'Treg.Neighbors', data]), 1), 
-                         "\n",
-                         "Mean No.Treg.Neighbors: ", round(mean(dt[source == 'No.Treg.Neighbors', data]), 1),
-                         "\nPermutation test:  P < ", ifelse(p.val==0, 1/num.perm, p.val)),
-           hjust = 0, size=3) +
-  ggtitle("Expression for IFNG for TCF1_LO_TOX_HI_CD8") + xlim(c(0,28 ))+ 
-  xlab("IFNg expression") + ylab("Number of cells") +
-  theme_classic() + theme(legend.justification = c("right", "top"), legend.position = 'inside', 
-                          legend.title=element_blank()) 
+neighbors.histogram(target.cell = TCFlo.CD8, interacting.type = 'TREG', feature='IFNG', 
+                    title = 'IFNG in TCF1_LO_TOX_HI_CD8 due to Treg', xlab='IFNg expression', binwidth=0.25, permutations=10000,
+                    annotate.location = c(20,1000))
 # ggsave(filename = 'output/hist.IFNG.TCF1loToxhiCD8.pdf', width=4,height=3)
 ```
 
 
 ```{r histogram-of-gzmB-expression-tcfhi, plot.width=6}
-target.cell <- TCFhi.CD8[TREG >=1]  # start with TREG neighbors
-val.1 <- Giotto::getExpression(gobject=sln, values='normalized')@exprMat['GZMB', target.cell$from] 
-target.cell <- TCFhi.CD8[TREG == 0]  # now with no TREG neighbors
-val.0 <- Giotto::getExpression(gobject=sln, values='normalized')@exprMat['GZMB', target.cell$from]
-
-dt <- data.table(data = c(val.0, val.1), 
-                 source = c(rep("No.Treg.Neighbors", length(val.0)), 
-                            rep("Treg.Neighbors", length(val.1)))
-                 )  # make a new dt where the expression values of FEAT can be plotted 
-p.val <- permutation.test.neighborhoods(data.tbl = dt, group.0 = "No.Treg.Neighbors", group.1 = "Treg.Neighbors", num.perm = 10000)
-dt %>% group_by(source) %>% rstatix::get_summary_stats(data, type = 'common')
-ggplot(dt, aes(x = data, fill = source)) + geom_histogram(binwidth = 0.25, alpha=0.6, position='identity') + 
-  scale_fill_manual(values = c('grey50','firebrick')) + 
-  annotate('text', x=12, y=4000, color='black', 
-           label= paste0("Mean Treg.Neighbors: ", round(mean(dt[source == 'Treg.Neighbors', data]), 2), 
-                         "\n",
-                         "Mean No.Treg.Neighbors: ", round(mean(dt[source == 'No.Treg.Neighbors', data]), 2),
-                         "\nPermutation test:  P < ", ifelse(p.val==0, 1/num.perm, p.val)),
-           hjust = 0, size=3) +
-  ggtitle("Expression for GZMB for TCF1_HI_TOX_HI_CD8") + xlim(c(0,28 ))+ 
-  xlab("GZMB expression") + ylab("Number of cells") +
-  theme_classic() + theme(legend.justification = c("right", "top"), legend.position = 'inside', 
-                          legend.title=element_blank()) 
+neighbors.histogram(target.cell = TCFhi.CD8, interacting.type = 'TREG', feature='GZMB', 
+                    title = 'GZMB in TCF1_HI_TOX_HI_CD8 due to Treg', xlab='GZMB expression', binwidth=0.25, permutations=10000,
+                    annotate.location = c(20,3000))
 # ggsave(filename = 'output/hist.GZMB.TCF1hiToxhiCD8.pdf', width=4,height=3)
 
 
-
-target.cell <- TCFhi.CD8[TREG >=1]  # start with TREG neighbors
-val.1 <- Giotto::getExpression(gobject=sln, values='normalized')@exprMat['IFNG', target.cell$from] 
-target.cell <- TCFhi.CD8[TREG == 0]  # now with no TREG neighbors
-val.0 <- Giotto::getExpression(gobject=sln, values='normalized')@exprMat['IFNG', target.cell$from]
-
-dt <- data.table(data = c(val.0, val.1), 
-                 source = c(rep("No.Treg.Neighbors", length(val.0)), 
-                            rep("Treg.Neighbors", length(val.1)))
-                 )  # make a new dt where the expression values of FEAT can be plotted 
-p.val <- permutation.test.neighborhoods(data.tbl = dt, group.0 = "No.Treg.Neighbors", group.1 = "Treg.Neighbors", num.perm = 10000)
-dt %>% group_by(source) %>% rstatix::get_summary_stats(data, type = 'common')
-ggplot(dt, aes(x = data, fill = source)) + geom_histogram(binwidth = 0.25, alpha=0.6, position='identity') + 
-  scale_fill_manual(values = c('grey50','firebrick')) + 
-  annotate('text', x=12, y=5000, color='black', 
-           label= paste0("Mean Treg.Neighbors: ", round(mean(dt[source == 'Treg.Neighbors', data]), 1), 
-                         "\n",
-                         "Mean No.Treg.Neighbors: ", round(mean(dt[source == 'No.Treg.Neighbors', data]), 1),
-                         "\nPermutation test:  P < ", ifelse(p.val==0, 1/num.perm, p.val)),
-           hjust = 0, size=3) +
-  ggtitle("Expression for IFNG for TCF1_HI_TOX_HI_CD8") + xlim(c(0,28 ))+ 
-  xlab("IFNg expression") + ylab("Number of cells") +
-  theme_classic() + theme(legend.justification = c("right", "top"), legend.position = 'inside', 
-                          legend.title=element_blank()) 
+neighbors.histogram(target.cell = TCFhi.CD8, interacting.type = 'TREG', feature='IFNG', 
+                    title = 'IFNG in TCF1_HI_TOX_HI_CD8 due to Treg', xlab='IFNg expression', binwidth=0.25, permutations=10000,
+                    annotate.location = c(20,3000))
 # ggsave(filename = 'output/hist.IFNG.TCF1hiToxhiCD8.pdf', width=4,height=3)
 ```
+
+```{r effects-of-progTex-adjacency-on-treg}
+neighborhoods.grouped.TREG <- neighborhoods.grouped[from_cell_type %like% "TREG"]
+a <- neighbors.histogram(target.cell = neighborhoods.grouped.TREG, interacting.type = 'TCF1_HI_TOX_HI_CD8', feature='FOXP3', 
+                    title = 'FOXP3 in TREG due to TCF1_HI_TOX_HI_CD8', xlab='z score', binwidth=0.25, permutations=1000,
+                    annotate.location = c(13,3000))
+ICF.table <- data.table("Neighbors" = mean(a[[2]][source == 'Neighbors', data]), 
+                        "No.Neighbors" = mean(a[[2]][source == 'No.Neighbors', data]), 
+                        feature = 'FOXP3', p.val.permutation = a[[3]]) 
+ggsave(a[[1]], filename = 'output/hist.TREG.FOXP3.TCF1hiToxhiCD8.pdf', width=4,height=3)
+
+a <- neighbors.histogram(target.cell = neighborhoods.grouped.TREG, interacting.type = 'TCF1_HI_TOX_HI_CD8', feature='ICOS', 
+                         title = 'ICOS in TREG due to TCF1_HI_TOX_HI_CD8', xlab='z score', binwidth=0.25, permutations=1000,
+                         annotate.location = c(13,3000))
+ICF.table <- rbindlist(list(ICF.table, 
+                            data.table("Neighbors" = mean(a[[2]][source == 'Neighbors', data]), 
+                                       "No.Neighbors" = mean(a[[2]][source == 'No.Neighbors', data]), 
+                                       feature = 'ICOS', p.val.permutation = a[[3]]))) 
+ggsave(a[[1]], filename = 'output/hist.TREG.ICOS.TCF1hiToxhiCD8.pdf', width=4,height=3)
+
+a <- neighbors.histogram(target.cell = neighborhoods.grouped.TREG, interacting.type = 'TCF1_HI_TOX_HI_CD8', feature='LAG3', 
+                         title = 'LAG3 in TREG due to TCF1_HI_TOX_HI_CD8', xlab='z score', binwidth=0.25, permutations=1000,
+                         annotate.location = c(13,6000))
+ICF.table <- rbindlist(list(ICF.table, 
+                            data.table("Neighbors" = mean(a[[2]][source == 'Neighbors', data]), 
+                                       "No.Neighbors" = mean(a[[2]][source == 'No.Neighbors', data]), 
+                                       feature = 'LAG3', p.val.permutation = a[[3]])))
+ggsave(a[[1]], filename = 'output/hist.TREG.LAG3.TCF1hiToxhiCD8.pdf', width=4,height=3)
+
+a <- neighbors.histogram(target.cell = neighborhoods.grouped.TREG, interacting.type = 'TCF1_HI_TOX_HI_CD8', feature='CD39', 
+                         title = 'CD39 in TREG due to TCF1_HI_TOX_HI_CD8', xlab='z score', binwidth=0.25, permutations=1000,
+                         annotate.location = c(13,2000))
+ICF.table <- rbindlist(list(ICF.table, 
+                            data.table("Neighbors" = mean(a[[2]][source == 'Neighbors', data]), 
+                                       "No.Neighbors" = mean(a[[2]][source == 'No.Neighbors', data]), 
+                                       feature = 'CD39', p.val.permutation = a[[3]])) )
+ggsave(a[[1]], filename = 'output/hist.TREG.CD39.TCF1hiToxhiCD8.pdf', width=4,height=3)
+
+a <- neighbors.histogram(target.cell = neighborhoods.grouped.TREG, interacting.type = 'TCF1_HI_TOX_HI_CD8', feature='PDL1', 
+                         title = 'PDL1 in TREG due to TCF1_HI_TOX_HI_CD8', xlab='z score', binwidth=0.25, permutations=1000,
+                         annotate.location = c(13,6000))
+ICF.table <- rbindlist(list(ICF.table, 
+                            data.table("Neighbors" = mean(a[[2]][source == 'Neighbors', data]), 
+                                       "No.Neighbors" = mean(a[[2]][source == 'No.Neighbors', data]), 
+                                       feature = 'PDL1', p.val.permutation = a[[3]])) )
+ggsave(a[[1]], filename = 'output/hist.TREG.PDL1.TCF1hiToxhiCD8.pdf', width=4,height=3)
+```
+
+
+```{r effects-of-termTex-adjacency-on-treg}
+neighbors.histogram(target.cell = neighborhoods.grouped.TREG, interacting.type = 'TCF1_LO_TOX_HI_CD8', feature='FOXP3', 
+                    title = 'FOXP3 in TREG due to TCF1_LO_TOX_HI_CD8', xlab='z score', binwidth=0.25, permutations=1000,
+                    annotate.location = c(13,3000))
+ggsave(filename = 'output/hist.TREG.FOXP3.TCF1loToxhiCD8.pdf', width=4,height=3)
+
+neighbors.histogram(target.cell = neighborhoods.grouped.TREG, interacting.type = 'TCF1_LO_TOX_HI_CD8', feature='ICOS', 
+                    title = 'ICOS in TREG due to TCF1_LO_TOX_HI_CD8', xlab='z score', binwidth=0.25, permutations=1000,
+                    annotate.location = c(13,3000))
+ggsave(filename = 'output/hist.TREG.ICOS.TCF1loToxhiCD8.pdf', width=4,height=3)
+
+neighbors.histogram(target.cell = neighborhoods.grouped.TREG, interacting.type = 'TCF1_LO_TOX_HI_CD8', feature='LAG3', 
+                    title = 'LAG3 in TREG due to TCF1_LO_TOX_HI_CD8', xlab='z score', binwidth=0.25, permutations=1000,
+                    annotate.location = c(13,5000))
+ggsave(filename = 'output/hist.TREG.LAG3.TCF1loToxhiCD8.pdf', width=4,height=3)
+
+neighbors.histogram(target.cell = neighborhoods.grouped.TREG, interacting.type = 'TCF1_LO_TOX_HI_CD8', feature='CD39', 
+                    title = 'CD39 in TREG due to TCF1_LO_TOX_HI_CD8', xlab='z score', binwidth=0.25, permutations=1000,
+                    annotate.location = c(13,2000))
+ggsave(filename = 'output/hist.TREG.CD39.TCF1loToxhiCD8.pdf', width=4,height=3)
+
+neighbors.histogram(target.cell = neighborhoods.grouped.TREG, interacting.type = 'TCF1_LO_TOX_HI_CD8', feature='PDL1', 
+                    title = 'PDL1 in TREG due to TCF1_LO_TOX_HI_CD8', xlab='z score', binwidth=0.25, permutations=1000,
+                    annotate.location = c(13,4000))
+ggsave(filename = 'output/hist.TREG.PDL1.TCF1loToxhiCD8.pdf', width=4,height=3)
+
+```
+
 
 # Dose response for Treg adjacency 
 ```{r treg-effect-gzmb-doseResponse}

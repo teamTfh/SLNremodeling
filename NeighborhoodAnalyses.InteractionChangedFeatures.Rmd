@@ -63,7 +63,7 @@ saveRDS(md, file = "md.RDS")
 list_ID <- unique(md$list_ID)
 icf.persample <- list(); icf.persample.enrich <- list()
 proteinsList <- c("BCA1", "CD3E", "CD4","CD8" ,"CD11C" ,"CD27","CD38","CD39", "CD45RO","CXCR3","CXCR5",
-                  "FOXP3" , "GZMB" ,"HLA.DR", "ICOS","IFNG","IL21","IRF4","IRF7","KI67", "LAG3",
+                  "FOXP3" , "GZMB" ,"HLA.DR", "ICOS","IFNG","IRF4","IRF7","KI67", "LAG3",
                   "PD1","PDL1","STAT1","STAT3","TCF1","TOX" ) # "TBET","PMTOR","CD19","CD20" ,"CD21","MAC2/GAL3","PAX5","VIMENTIN"
 timeStamp <- format(Sys.time(), "%m%d.%H%M")
 enrich.celltypes <- c("ACTIVATED_TREG", "TCF1_LO_TOX_HI_CD8", "ACTIVATED_CD8") # make a version that keeps all of these cells
@@ -119,17 +119,26 @@ icf.persample <- purrr::list_rbind(readRDS(file="neighborhood.ICFlist.perSample.
 
 # make volcano plots 
 ```{r ICF-perSample-calculate-volcano, fig.width=6}
-plot.volcano.icf <- function( dt, receiver_cell, sender_cell, key.feat = NULL, plot = T, specific.title=NULL)
+plot.volcano.icf <- function( dt, receiver_cell, sender_cell, key.feat = NULL, plot = T, specific.title=NULL, threshold.values=NULL)
 {
   dt <- dt[int_cell_type == sender_cell & cell_type == receiver_cell]
-  volcano.data <- dt[, .(mean_log2fc = mean(log2fc, na.rm = TRUE),
-                                           p_value = t.test(log2fc, mu = 0)$p.value, 
-                                           Welch_t = t.test(log2fc, mu = 0)$statistic ),
-                                       by = .(feats)  ]
+  # return(dt)
+  volcano.data <- dt[, .(mean_sel = mean(sel, na.rm = TRUE), 
+                         mean_other = mean(other, na.rm = TRUE),
+                         mean_log2fc = mean(log2fc, na.rm = TRUE),
+                         p_value = t.test(log2fc, mu = 0)$p.value, 
+                         Welch_t = t.test(log2fc, mu = 0)$statistic ),
+                     by = .(feats)  ]
   volcano.data[, p_adj := p.adjust(p_value, method="fdr" ) ] [order(p_adj, decreasing = T)]
   volcano.data[, log.p_adj := -log10(p.adjust(p_value, method="fdr" )) ] [order(p_adj, decreasing = T)]
   volcano.data[, highlight.feat := "0"]
   volcano.data[feats %in% key.feat, highlight.feat := "1"]
+  if(! is.null (threshold.values))
+    {  
+      volcano.data <- merge(volcano.data, threshold.values[, .(feat_ID, `50%`)], by.x = "feats", by.y = "feat_ID")
+      volcano.data <- volcano.data[mean_sel > `50%`]
+    }  
+  # return(volcano.data)
   annotateX.incr <- max(volcano.data$mean_log2fc)-0.2*max(volcano.data$mean_log2fc)  # place label 20% less than max log2fc
   annotateX.decr <- min(volcano.data$mean_log2fc)+0.2*min(volcano.data$mean_log2fc)  # place other label 20% mroe than min log2fc
   annotateY.ylim <- max(-log10(volcano.data$p_adj))*1.1
@@ -155,22 +164,40 @@ plot.volcano.icf <- function( dt, receiver_cell, sender_cell, key.feat = NULL, p
 }
 
 #  example of volcano.data  
-#      feats mean_log2fc      p_value    Welch_t        p_adj
-#    <char>       <num>        <num>      <num>        <num>
-# 1: HLA.DR  0.67395872 1.071667e-07  9.8895908 2.893501e-06
-# 2:   CD3E  0.02025484 5.118152e-01  0.6731441 5.757921e-01
-# 3:   ICOS -0.05803399 7.299591e-02 -1.9384811 1.159347e-01
+ #    feats  mean_sel mean_log2fc      p_value    Welch_t        p_adj  log.p_adj highlight.feat    50%
+ #    <char>     <num>       <num>        <num>      <num>        <num>      <num>         <char>  <num>
+ # 1:   BCA1  5.188037 -0.27780599 1.821764e-02 -2.6723048 4.098968e-02 1.38732548              0  3.720
+ # 2:  CD11C  3.602075 -0.18550327 3.080696e-02 -2.4010492 6.398368e-02 1.19393079              0  2.400
+ # 3:   CD27 19.957554 -0.05019370 2.614397e-01 -1.1702418 3.208578e-01 0.49368734              0 10.937
+ 
+ 
+# calculate the distribution of z scores for expression for each parameter then take the 1st quartile as what is likely to be negative
+# then filter the ICF list by proteins that are higher than that in the recipient cell type
 
-plot.volcano.icf(dt = icf.persample, receiver_cell = "ACTIVATED_TREG", sender_cell = "ACTIVATED_CD8")
-plot.volcano.icf(dt = icf.persample, receiver_cell = "ACTIVATED_CD8", sender_cell = "ACTIVATED_TREG")
+pd <- fDataDT(sln)$feat_ID  # get list of proteins in dataset
+a <- lapply(pd, function(x) {  Giotto::getExpression(gobject=sln, values='normalized')@exprMat[x,]  } )  
+#  variable     n   min    q1 median    q3   max     mean       sd
+a <- lapply(a, function(x) { rstatix::get_summary_stats(data = as.data.table(x), type = 'quantile') } )
+a <- data.table::rbindlist(a)  # turn list into data.table
+a$feat_ID <- pd
+thresholds <- a
+
+
+plot.volcano.icf(dt = icf.persample, receiver_cell = "ACTIVATED_TREG", sender_cell = "ACTIVATED_CD8", threshold.values = thresholds)
+plot.volcano.icf(dt = icf.persample, receiver_cell = "ACTIVATED_CD8", sender_cell = "ACTIVATED_TREG", threshold.values = thresholds)
+
+plot.volcano.icf(dt = icf.persample, receiver_cell = "ACTIVATED_TREG", sender_cell = "TCF1_HI_TOX_HI_CD8", threshold.values = thresholds)
+plot.volcano.icf(dt = icf.persample, receiver_cell = "TCF1_HI_TOX_HI_CD8", sender_cell = "ACTIVATED_TREG", threshold.values = thresholds)
+plot.volcano.icf(dt = icf.persample, receiver_cell = "MEMORY_CD4", sender_cell = "ACTIVATED_TREG", threshold.values = thresholds)
 
 plot.volcano.icf(dt = icf.persample, receiver_cell = "ACTIVATED_TREG", sender_cell = "TCF1_HI_TOX_HI_CD8")
-plot.volcano.icf(dt = icf.persample, receiver_cell = "TCF1_HI_TOX_HI_CD8", sender_cell = "ACTIVATED_TREG")
-plot.volcano.icf(dt = icf.persample, receiver_cell = "MEMORY_CD4", sender_cell = "ACTIVATED_TREG")
+plot.volcano.icf(dt = icf.persample.thresh, receiver_cell = "ACTIVATED_TREG", sender_cell = "TCF1_HI_TOX_HI_CD8")
+
+
 
 ```
 
-This is curious. It's likely showing membrane spillover from the adjacent cell. All of the recipient cells have ICOS and Foxp3 which is likely coming from the ACTIVATED_TREG. 
+This is curious. It's maybe also showing membrane spillover from the adjacent cell. All of the recipient cells have ICOS and Foxp3 which is likely coming from the ACTIVATED_TREG. 
 
 # heatmap of the ICF 
 ```{r ICF-perSample-heatmap, fig.width=8}
