@@ -1574,6 +1574,7 @@ ggsave(a[[1]], filename = 'output/hist.TREG.PDL1.TCF1loToxhiCD8.pdf', width=4,he
 
 
 ```{r plot-of-Treg-ICFtable-given-Tex}
+# make a barplot of the fold change in expression of each feature given Treg adjacency
 ICF.table.bk <- copy(ICF.table)
 ICF.table <- ICF.table[, fold.change:= Neighbors/No.Neighbors]
 ICF.table <- ICF.table[order(fold.change, decreasing = T)]
