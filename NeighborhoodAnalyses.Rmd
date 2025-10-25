@@ -1289,7 +1289,10 @@ result$`95%` %>% mean
 # so effective limit of detection was 249 pairings 
 num.row.norecur <- md[list_ID %in% norecur.subgroup] %>% nrow
 print(paste0("LOD: ", result$`95%` %>% mean / num.row.norecur, " interactions per 1e6 cells"))
-rm(c(result, num.row.norecur, dt.subs))
+
+rm(result)
+rm(num.row.norecur)
+rm(dt.subs)
 
 ```
 
