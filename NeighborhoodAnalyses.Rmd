@@ -331,8 +331,10 @@ for (i in list_ID)
   tableResults.k5[[i]] <- cellProx.sim(sln.sm, cluster_column = 'L2_annotations', adjust_method = "fdr",
                                        number_of_simulations = 200, spatial_network_name = "spatialknn.k5.persample")
 }
-# saveRDS(list(annot.k5=annot.k5, tableResults.k5 = tableResults.k5), file="neighborhood.annot.k5.sln.RDS")  # all data merged
+saveRDS(list(annot.k5=annot.k5, tableResults.k5 = tableResults.k5), file="neighborhood.annot.k5.sln.RDS")  # all data merged
 # annot.k5 <- readRDS(file="neighborhood.annot.k5.sln.RDS")[["annot.k5"]]  # all data merged
+# dt <- purrr::list_rbind(tableResults.k5, names_to = "id")
+
 ```
 
 
@@ -520,6 +522,41 @@ rm(dt)
 # gc()
 ```
 
+```{r interaction-by-k5-loadData, eval=TRUE}
+dt <- purrr::list_rbind(readRDS(file="neighborhood.annot.k5.sln.RDS")[['tableResults.k5']], names_to = "id")
+```
+
+```{r interaction-by-k5-calculate}
+stage3 <- cellProx.subgroup(subset(dt, id %in% stage3.subgroup))
+stage1 <- cellProx.subgroup(subset(dt, id %in% stage1.subgroup ))
+
+recur <- cellProx.subgroup(subset(dt, id %in% c("tumor.3","tumor.4","tumor.5","tumor.7","tumor.8","tumor.10")))
+no.recur <- cellProx.subgroup(subset(dt, id %in% c("tumor.1","tumor.2", "tumor.6", "tumor.9") ))
+
+sampleList <- unique(md$list_ID)
+perSampleInteraction <- list()
+for (i in seq_along(sampleList))
+{
+  print( paste("Interactions for sample", sampleList[i]) )
+  perSampleInteraction[[i]] <- cellProx.subgroup(subset(dt, id %in% sampleList[i]))  # format in a per-sample fashion 
+  perSampleInteraction[[i]]$name <- subset(dt, id %in% sampleList[i])$id[1]   # carry forward the sample name 
+  names(perSampleInteraction)[i] <-  subset(dt, id %in% sampleList[i])$id[1]
+}
+
+perSampleInteraction.enrichm_res <- list()
+for (i in seq_along(perSampleInteraction))
+{
+  perSampleInteraction.enrichm_res[[i]] <- perSampleInteraction[[i]]$enrichm_res  # save the enrichm results table 
+  names(perSampleInteraction.enrichm_res)[i] <- names(perSampleInteraction)[i]
+}
+
+interaction.byStage.k5 <- rbind(addLabels.fxn(perSampleInteraction.enrichm_res[stage3.subgroup], label = "stage3"),
+             addLabels.fxn(perSampleInteraction.enrichm_res[stage1.subgroup], label = "stage1") ) 
+interaction.byRecur.k5 <- rbind(addLabels.fxn(perSampleInteraction.enrichm_res[recur.subgroup], label = "recur"),
+             addLabels.fxn(perSampleInteraction.enrichm_res[norecur.subgroup], label = "no.recur") ) 
+rm(dt)
+# gc()
+```
 
 # show the average neighborhood for sln 5 
 ```{r show-niche-singleSample, fig.height=6}
@@ -878,7 +915,7 @@ a <- exampleNeighborhoods.filter(neighborhoods, indexCluster = "ACTIVATED_TREG",
 
 tmp <- purrr::list_rbind(neighborhoods$prop.table, names_to = "list_ID") 
 ggplot(tmp, aes(x = row_total)) + geom_histogram(binwidth=0.25, position='identity', fill='grey70', color='black') + 
-  theme_classic() + ggtitle("All cells") + xlab("Number of neighbors")
+  theme_classic() + ggtitle("All cells (k=9)") + xlab("Number of neighbors")
 # ggsave(filename = 'output/hist.numbNeighbors.k9.pdf', width=2,height=3)
 rm(tmp)
 ```
@@ -1079,7 +1116,7 @@ findImportantInteractions.plotFiltered <- function(df, condition.exp, condition.
   geom_bar(stat='identity', width=0.05, color='grey70', fill='grey50') +  
   geom_point(size=4, pch=21, color='white', fill='grey50', stroke=0.2) + 
         theme_classic() + 
-  ggtitle( paste0("Effect size (filtered): ", condition.exp, " - ", condition.ctrl))  +       
+  ggtitle( paste0("Effect size (filtered): ", condition.exp, " vs ", condition.ctrl))  +       
   theme(axis.text.y = element_text( size=8, color='black'), axis.title.y = element_blank(), 
         plot.title=element_text(size=10), 
         axis.title.x = element_text(size=10, color='black'), axis.text.x = element_text(size=10, color='black')) + 
@@ -1377,6 +1414,61 @@ ggplot(DT[variable == "ACTIVATED_TREG"], aes(x = Recurrence, y=Freq )) + # , fil
   annotate('text', x=1, y=max(DT[variable == "ACTIVATED_TREG", Freq]), label = paste("P=", round(pValue$p, digits=2) ), color='black')+
   ylab("Frequency of all cells") + theme_bw()
 # ggsave(filename = "output/SimpleFreq_ACTIVATED_TREG_byRecur.pdf" , height=4, width=2)
+```
+
+
+```{r evaluate-using-k5-neighbors}
+
+showNiche.singleSample(annot.table = annot.k5[['tumor.5']], indexCluster = 'LZ_BCELL', title='LZ_BCELL.rad',
+                            plots=T)
+showNiche.singleSample(annot.table = annot.k9[['tumor.5']], indexCluster = 'LZ_BCELL', title='LZ_BCELL.k9',
+                            plots=T)
+niche.contrast(annot.table = annot.k5, indexCluster = 'LZ_BCELL', common.title='LZ_BCELL.rad', grouping.exp = stage3.subgroup, 
+               grouping.ctrl = stage1.subgroup, condition.exp = "stage3", condition.ctrl = 'stage1')
+niche.contrast(annot.table = annot.k9, indexCluster = 'LZ_BCELL', common.title='LZ_BCELL.k9', grouping.exp = stage3.subgroup, 
+               grouping.ctrl = stage1.subgroup, condition.exp = "stage3", condition.ctrl = 'stage1')
+
+a <- findImportantInteractions( interaction.dt= interaction.byStage.k5, condition.exp="stage3", condition.ctrl="stage1", ef.threshold=1)
+a <- findImportantInteractions( interaction.dt= interaction.byStage.k5, 
+                                condition.exp="recur", condition.ctrl="no.recur", ef.threshold=0)
+b <- findImportantInteractions( interaction.dt= interaction.byRecur, 
+                                condition.exp="recur", condition.ctrl="no.recur", ef.threshold=0)
+print(a$filteredggplot)
+gridExtra::grid.arrange(plot.Average.Niche.igraph(annot.table = annot.k5[norecur.subgroup], indexCluster = 'ACTIVATED_TREG',
+                      title='ACTIVATED_TREG no recurrence'),
+                      plot.Average.Niche.igraph(annot.table = annot.k5[recur.subgroup], indexCluster = 'ACTIVATED_TREG',
+                      title='ACTIVATED_TREG recurrence'), 
+                      nrow=1) 
+gridExtra::grid.arrange(plot.Average.Niche.igraph(annot.table = annot.k5[norecur.subgroup], indexCluster = 'TCF1_HI_TOX_HI_CD8',
+                      title='TCF1_HI_TOX_HI_CD8 no recurrence'),
+                      plot.Average.Niche.igraph(annot.table = annot.k5[recur.subgroup], indexCluster = 'TCF1_HI_TOX_HI_CD8',
+                      title='TCF1_HI_TOX_HI_CD8 recurrence'), 
+                      nrow=1) 
+
+df.a <- a$df; df.b <- b$df;  df.a[, source := 'nearest.5'];  df.b[, source := 'nearest.9']
+df.a <- rbindlist(list(df.a, df.b));  df.a$unified_int <- as.character(df.a$unified_int)
+df.a <- df.a[!unified_int %like% 'ARTIFACT']
+df.a <- df.a %>% select(unified_int, source, effect.size) %>%
+  tidyr::pivot_wider(names_from = source, values_from = effect.size  ) %>%
+  # Arrange by the average effect size for a cleaner plot
+  mutate(avg.effect = (nearest.5 + nearest.9) / 2) %>%     arrange(avg.effect) %>%
+  mutate(unified_int = factor(unified_int, levels = unified_int))    # Reorder the factor levels 
+
+ggplot(df.a, aes(y = unified_int)) +
+  geom_segment(aes(x = nearest.5, xend = nearest.9, y = unified_int, yend = unified_int),
+      color = "grey80", linewidth = 0.5 ) + xlab("effect size") + ylab("Pairwise interaction") + 
+  geom_point(aes(x = nearest.5), color = "purple", size = 1) +  geom_point(aes(x = nearest.9), color = "#4393c3", size = 1) + 
+  annotate( "text", x = 2.1, y = 26, size = 5, label = "Method", fontface = "bold", ) +
+  annotate( "point", x = 1.6, y = 14, size = 5, color = "purple" ) +
+  annotate( "text", x = 1.9, y = 14, size = 4, label = "Nearest 5", hjust = "left" ) +
+  annotate( "point", x = 1.6, y = 6, size = 5, color = "#4393c3" ) +
+  annotate( "text", x = 1.9, y = 6, size = 4, label = "Nearest 9", hjust = "left" ) +
+  theme_bw() + ggtitle("Nearest-5 vs Nearest-9") + 
+  theme(panel.grid.major.y = element_blank(), panel.grid.minor.x = element_line(color = "grey90", linetype = "dashed"), 
+        axis.text.y = element_blank(), axis.text.x = element_text(size=12), axis.title = element_text(size=12), 
+        title = element_text(size=12))
+ggsave(filename = 'output/interaction.nearest5-vs-nearest9.pdf', height=8, width=4)
+
 ```
 
 
