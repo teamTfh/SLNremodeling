@@ -524,6 +524,8 @@ rm(dt)
 
 ```{r interaction-by-k5-loadData, eval=TRUE}
 dt <- purrr::list_rbind(readRDS(file="neighborhood.annot.k5.sln.RDS")[['tableResults.k5']], names_to = "id")
+annot.k5 <- readRDS(file="neighborhood.annot.k5.sln.RDS")[['annot.k5']]   
+
 ```
 
 ```{r interaction-by-k5-calculate}
@@ -1334,7 +1336,7 @@ rm(dt.subs)
 ```
 
 
-# evaluate neighborhoods by radius approach
+# evaluate neighborhoods by radius and k=5 approaches
 ```{r evaluate-neighborhoods-by-radius}
 
 showNiche.singleSample(annot.table = annot.rad[['tumor.5']], indexCluster = 'LZ_BCELL', title='LZ_BCELL.rad',
@@ -1346,7 +1348,7 @@ niche.contrast(annot.table = annot.rad, indexCluster = 'LZ_BCELL', common.title=
 niche.contrast(annot.table = annot.k9, indexCluster = 'LZ_BCELL', common.title='LZ_BCELL.k9', grouping.exp = stage3.subgroup, 
                grouping.ctrl = stage1.subgroup, condition.exp = "stage3", condition.ctrl = 'stage1')
 
-a <- findImportantInteractions( interaction.dt= interaction.byStage.rad, condition.exp="stage3", condition.ctrl="stage1", ef.threshold=1)
+# a <- findImportantInteractions( interaction.dt= interaction.byStage.rad, condition.exp="stage3", condition.ctrl="stage1", ef.threshold=1)
 a <- findImportantInteractions( interaction.dt= interaction.byRecur.rad, 
                                 condition.exp="recur", condition.ctrl="no.recur", ef.threshold=0)
 b <- findImportantInteractions( interaction.dt= interaction.byRecur, 
@@ -1418,7 +1420,7 @@ ggplot(DT[variable == "ACTIVATED_TREG"], aes(x = Recurrence, y=Freq )) + # , fil
 
 
 ```{r evaluate-using-k5-neighbors}
-
+5-5
 showNiche.singleSample(annot.table = annot.k5[['tumor.5']], indexCluster = 'LZ_BCELL', title='LZ_BCELL.rad',
                             plots=T)
 showNiche.singleSample(annot.table = annot.k9[['tumor.5']], indexCluster = 'LZ_BCELL', title='LZ_BCELL.k9',
@@ -1428,24 +1430,15 @@ niche.contrast(annot.table = annot.k5, indexCluster = 'LZ_BCELL', common.title='
 niche.contrast(annot.table = annot.k9, indexCluster = 'LZ_BCELL', common.title='LZ_BCELL.k9', grouping.exp = stage3.subgroup, 
                grouping.ctrl = stage1.subgroup, condition.exp = "stage3", condition.ctrl = 'stage1')
 
-a <- findImportantInteractions( interaction.dt= interaction.byStage.k5, condition.exp="stage3", condition.ctrl="stage1", ef.threshold=1)
-a <- findImportantInteractions( interaction.dt= interaction.byStage.k5, 
+# a <- findImportantInteractions( interaction.dt= interaction.byStage.k5, condition.exp="stage3", condition.ctrl="stage1", ef.threshold=1)
+a <- findImportantInteractions( interaction.dt= interaction.byRecur.k5, 
                                 condition.exp="recur", condition.ctrl="no.recur", ef.threshold=0)
 b <- findImportantInteractions( interaction.dt= interaction.byRecur, 
                                 condition.exp="recur", condition.ctrl="no.recur", ef.threshold=0)
 print(a$filteredggplot)
-gridExtra::grid.arrange(plot.Average.Niche.igraph(annot.table = annot.k5[norecur.subgroup], indexCluster = 'ACTIVATED_TREG',
-                      title='ACTIVATED_TREG no recurrence'),
-                      plot.Average.Niche.igraph(annot.table = annot.k5[recur.subgroup], indexCluster = 'ACTIVATED_TREG',
-                      title='ACTIVATED_TREG recurrence'), 
-                      nrow=1) 
-gridExtra::grid.arrange(plot.Average.Niche.igraph(annot.table = annot.k5[norecur.subgroup], indexCluster = 'TCF1_HI_TOX_HI_CD8',
-                      title='TCF1_HI_TOX_HI_CD8 no recurrence'),
-                      plot.Average.Niche.igraph(annot.table = annot.k5[recur.subgroup], indexCluster = 'TCF1_HI_TOX_HI_CD8',
-                      title='TCF1_HI_TOX_HI_CD8 recurrence'), 
-                      nrow=1) 
 
-df.a <- a$df; df.b <- b$df;  df.a[, source := 'nearest.5'];  df.b[, source := 'nearest.9']
+df.a <- a$df; df.b <- b$df;  
+df.a[, source := 'nearest.5'];  df.b[, source := 'nearest.9']
 df.a <- rbindlist(list(df.a, df.b));  df.a$unified_int <- as.character(df.a$unified_int)
 df.a <- df.a[!unified_int %like% 'ARTIFACT']
 df.a <- df.a %>% select(unified_int, source, effect.size) %>%
@@ -1458,16 +1451,16 @@ ggplot(df.a, aes(y = unified_int)) +
   geom_segment(aes(x = nearest.5, xend = nearest.9, y = unified_int, yend = unified_int),
       color = "grey80", linewidth = 0.5 ) + xlab("effect size") + ylab("Pairwise interaction") + 
   geom_point(aes(x = nearest.5), color = "purple", size = 1) +  geom_point(aes(x = nearest.9), color = "#4393c3", size = 1) + 
-  annotate( "text", x = 2.1, y = 26, size = 5, label = "Method", fontface = "bold", ) +
+  annotate( "text", x = 1.8, y = 26, size = 4, label = "Method", fontface = "bold", ) +
   annotate( "point", x = 1.6, y = 14, size = 5, color = "purple" ) +
-  annotate( "text", x = 1.9, y = 14, size = 4, label = "Nearest 5", hjust = "left" ) +
+  annotate( "text", x = 1.8, y = 14, size = 4, label = "Nearest 5", hjust = "left" ) +
   annotate( "point", x = 1.6, y = 6, size = 5, color = "#4393c3" ) +
-  annotate( "text", x = 1.9, y = 6, size = 4, label = "Nearest 9", hjust = "left" ) +
-  theme_bw() + ggtitle("Nearest-5 vs Nearest-9") + 
+  annotate( "text", x = 1.8, y = 6, size = 4, label = "Nearest 9", hjust = "left" ) +
+  theme_bw() + ggtitle("Nearest-5 vs Nearest-9 for Recurrence") + 
   theme(panel.grid.major.y = element_blank(), panel.grid.minor.x = element_line(color = "grey90", linetype = "dashed"), 
         axis.text.y = element_blank(), axis.text.x = element_text(size=12), axis.title = element_text(size=12), 
         title = element_text(size=12))
-ggsave(filename = 'output/interaction.nearest5-vs-nearest9.pdf', height=8, width=4)
+# ggsave(filename = 'output/interaction.nearest5-vs-nearest9.pdf', height=8, width=4)
 
 ```
 
