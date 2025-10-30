@@ -1421,11 +1421,11 @@ ggplot(DT[variable == "ACTIVATED_TREG"], aes(x = Recurrence, y=Freq )) + # , fil
 
 ```{r evaluate-using-k5-neighbors}
 5-5
-showNiche.singleSample(annot.table = annot.k5[['tumor.5']], indexCluster = 'LZ_BCELL', title='LZ_BCELL.rad',
+showNiche.singleSample(annot.table = annot.k5[['tumor.5']], indexCluster = 'LZ_BCELL', title='LZ_BCELL.k5',
                             plots=T)
 showNiche.singleSample(annot.table = annot.k9[['tumor.5']], indexCluster = 'LZ_BCELL', title='LZ_BCELL.k9',
                             plots=T)
-niche.contrast(annot.table = annot.k5, indexCluster = 'LZ_BCELL', common.title='LZ_BCELL.rad', grouping.exp = stage3.subgroup, 
+niche.contrast(annot.table = annot.k5, indexCluster = 'LZ_BCELL', common.title='LZ_BCELL.k5', grouping.exp = stage3.subgroup, 
                grouping.ctrl = stage1.subgroup, condition.exp = "stage3", condition.ctrl = 'stage1')
 niche.contrast(annot.table = annot.k9, indexCluster = 'LZ_BCELL', common.title='LZ_BCELL.k9', grouping.exp = stage3.subgroup, 
                grouping.ctrl = stage1.subgroup, condition.exp = "stage3", condition.ctrl = 'stage1')
@@ -1572,7 +1572,8 @@ a <- neighbors.histogram(target.cell = neighborhoods.grouped.TREG, interacting.t
 ICF.table <- data.table("Neighbors" = mean(a[[2]][source == 'Neighbors', data]), 
                         "No.Neighbors" = mean(a[[2]][source == 'No.Neighbors', data]), 
                         feature = 'FOXP3', interactingType = 'TCF1_HI_TOX_HI_CD8', p.val.permutation = a[[3]]) 
-ggsave(a[[1]], filename = 'output/hist.TREG.FOXP3.TCF1hiToxhiCD8.pdf', width=4,height=3)
+a[[1]]
+# ggsave(a[[1]], filename = 'output/hist.TREG.FOXP3.TCF1hiToxhiCD8.pdf', width=4,height=3)
 
 a <- neighbors.histogram(target.cell = neighborhoods.grouped.TREG, interacting.type = 'TCF1_HI_TOX_HI_CD8', feature='ICOS', 
                          title = 'ICOS in TREG due to TCF1_HI_TOX_HI_CD8', xlab='z score', binwidth=0.25, permutations=1000,
@@ -1581,7 +1582,8 @@ ICF.table <- rbindlist(list(ICF.table,
                             data.table("Neighbors" = mean(a[[2]][source == 'Neighbors', data]), 
                                        "No.Neighbors" = mean(a[[2]][source == 'No.Neighbors', data]), 
                                        feature = 'ICOS', interactingType = 'TCF1_HI_TOX_HI_CD8', p.val.permutation = a[[3]]))) 
-ggsave(a[[1]], filename = 'output/hist.TREG.ICOS.TCF1hiToxhiCD8.pdf', width=4,height=3)
+a[[1]]
+# ggsave(a[[1]], filename = 'output/hist.TREG.ICOS.TCF1hiToxhiCD8.pdf', width=4,height=3)
 
 a <- neighbors.histogram(target.cell = neighborhoods.grouped.TREG, interacting.type = 'TCF1_HI_TOX_HI_CD8', feature='LAG3', 
                          title = 'LAG3 in TREG due to TCF1_HI_TOX_HI_CD8', xlab='z score', binwidth=0.25, permutations=1000,
@@ -1590,7 +1592,8 @@ ICF.table <- rbindlist(list(ICF.table,
                             data.table("Neighbors" = mean(a[[2]][source == 'Neighbors', data]), 
                                        "No.Neighbors" = mean(a[[2]][source == 'No.Neighbors', data]), 
                                        feature = 'LAG3', interactingType = 'TCF1_HI_TOX_HI_CD8', p.val.permutation = a[[3]])))
-ggsave(a[[1]], filename = 'output/hist.TREG.LAG3.TCF1hiToxhiCD8.pdf', width=4,height=3)
+a[[1]]
+# ggsave(a[[1]], filename = 'output/hist.TREG.LAG3.TCF1hiToxhiCD8.pdf', width=4,height=3)
 
 a <- neighbors.histogram(target.cell = neighborhoods.grouped.TREG, interacting.type = 'TCF1_HI_TOX_HI_CD8', feature='CD39', 
                          title = 'CD39 in TREG due to TCF1_HI_TOX_HI_CD8', xlab='z score', binwidth=0.25, permutations=1000,
@@ -1599,7 +1602,8 @@ ICF.table <- rbindlist(list(ICF.table,
                             data.table("Neighbors" = mean(a[[2]][source == 'Neighbors', data]), 
                                        "No.Neighbors" = mean(a[[2]][source == 'No.Neighbors', data]), 
                                        feature = 'CD39', interactingType = 'TCF1_HI_TOX_HI_CD8', p.val.permutation = a[[3]])) )
-ggsave(a[[1]], filename = 'output/hist.TREG.CD39.TCF1hiToxhiCD8.pdf', width=4,height=3)
+a[[1]]
+# ggsave(a[[1]], filename = 'output/hist.TREG.CD39.TCF1hiToxhiCD8.pdf', width=4,height=3)
 
 a <- neighbors.histogram(target.cell = neighborhoods.grouped.TREG, interacting.type = 'TCF1_HI_TOX_HI_CD8', feature='PDL1', 
                          title = 'PDL1 in TREG due to TCF1_HI_TOX_HI_CD8', xlab='z score', binwidth=0.25, permutations=1000,
@@ -1608,7 +1612,8 @@ ICF.table <- rbindlist(list(ICF.table,
                             data.table("Neighbors" = mean(a[[2]][source == 'Neighbors', data]), 
                                        "No.Neighbors" = mean(a[[2]][source == 'No.Neighbors', data]), 
                                        feature = 'PDL1', interactingType = 'TCF1_HI_TOX_HI_CD8', p.val.permutation = a[[3]])) )
-ggsave(a[[1]], filename = 'output/hist.TREG.PDL1.TCF1hiToxhiCD8.pdf', width=4,height=3)
+a[[1]]
+# ggsave(a[[1]], filename = 'output/hist.TREG.PDL1.TCF1hiToxhiCD8.pdf', width=4,height=3)
 ```
 
 
@@ -1620,7 +1625,8 @@ ICF.table <- rbindlist(list(ICF.table,
                             data.table("Neighbors" = mean(a[[2]][source == 'Neighbors', data]), 
                                        "No.Neighbors" = mean(a[[2]][source == 'No.Neighbors', data]), 
                                        feature = 'FOXP3', interactingType = 'TCF1_LO_TOX_HI_CD8', p.val.permutation = a[[3]]))) 
-ggsave(a[[1]], filename = 'output/hist.TREG.FOXP3.TCF1loToxhiCD8.pdf', width=4,height=3)
+a[[1]]
+# ggsave(a[[1]], filename = 'output/hist.TREG.FOXP3.TCF1loToxhiCD8.pdf', width=4,height=3)
 
 a <- neighbors.histogram(target.cell = neighborhoods.grouped.TREG, interacting.type = 'TCF1_LO_TOX_HI_CD8', feature='ICOS', 
                     title = 'ICOS in TREG due to TCF1_LO_TOX_HI_CD8', xlab='z score', binwidth=0.25, permutations=1000,
@@ -1629,7 +1635,8 @@ ICF.table <- rbindlist(list(ICF.table,
                             data.table("Neighbors" = mean(a[[2]][source == 'Neighbors', data]), 
                                        "No.Neighbors" = mean(a[[2]][source == 'No.Neighbors', data]), 
                                        feature = 'ICOS', interactingType = 'TCF1_LO_TOX_HI_CD8', p.val.permutation = a[[3]])))
-ggsave(a[[1]], filename = 'output/hist.TREG.ICOS.TCF1loToxhiCD8.pdf', width=4,height=3)
+a[[1]]
+# ggsave(a[[1]], filename = 'output/hist.TREG.ICOS.TCF1loToxhiCD8.pdf', width=4,height=3)
 
 a <- neighbors.histogram(target.cell = neighborhoods.grouped.TREG, interacting.type = 'TCF1_LO_TOX_HI_CD8', feature='LAG3', 
                     title = 'LAG3 in TREG due to TCF1_LO_TOX_HI_CD8', xlab='z score', binwidth=0.25, permutations=1000,
@@ -1638,7 +1645,8 @@ ICF.table <- rbindlist(list(ICF.table,
                             data.table("Neighbors" = mean(a[[2]][source == 'Neighbors', data]), 
                                        "No.Neighbors" = mean(a[[2]][source == 'No.Neighbors', data]), 
                                        feature = 'LAG3', interactingType = 'TCF1_LO_TOX_HI_CD8', p.val.permutation = a[[3]])))
-ggsave(a[[1]], filename = 'output/hist.TREG.LAG3.TCF1loToxhiCD8.pdf', width=4,height=3)
+a[[1]]
+# ggsave(a[[1]], filename = 'output/hist.TREG.LAG3.TCF1loToxhiCD8.pdf', width=4,height=3)
 
 a <- neighbors.histogram(target.cell = neighborhoods.grouped.TREG, interacting.type = 'TCF1_LO_TOX_HI_CD8', feature='CD39', 
                     title = 'CD39 in TREG due to TCF1_LO_TOX_HI_CD8', xlab='z score', binwidth=0.25, permutations=1000,
@@ -1647,7 +1655,8 @@ ICF.table <- rbindlist(list(ICF.table,
                             data.table("Neighbors" = mean(a[[2]][source == 'Neighbors', data]), 
                                        "No.Neighbors" = mean(a[[2]][source == 'No.Neighbors', data]), 
                                        feature = 'CD39', interactingType = 'TCF1_LO_TOX_HI_CD8', p.val.permutation = a[[3]])))
-ggsave(a[[1]], filename = 'output/hist.TREG.CD39.TCF1loToxhiCD8.pdf', width=4,height=3)
+a[[1]]
+# ggsave(a[[1]], filename = 'output/hist.TREG.CD39.TCF1loToxhiCD8.pdf', width=4,height=3)
 
 a <- neighbors.histogram(target.cell = neighborhoods.grouped.TREG, interacting.type = 'TCF1_LO_TOX_HI_CD8', feature='PDL1', 
                     title = 'PDL1 in TREG due to TCF1_LO_TOX_HI_CD8', xlab='z score', binwidth=0.25, permutations=1000,
@@ -1656,7 +1665,8 @@ ICF.table <- rbindlist(list(ICF.table,
                             data.table("Neighbors" = mean(a[[2]][source == 'Neighbors', data]), 
                                        "No.Neighbors" = mean(a[[2]][source == 'No.Neighbors', data]), 
                                        feature = 'PDL1', interactingType = 'TCF1_LO_TOX_HI_CD8', p.val.permutation = a[[3]])))
-ggsave(a[[1]], filename = 'output/hist.TREG.PDL1.TCF1loToxhiCD8.pdf', width=4,height=3)
+a[[1]]
+# ggsave(a[[1]], filename = 'output/hist.TREG.PDL1.TCF1loToxhiCD8.pdf', width=4,height=3)
 
 ```
 
@@ -1872,7 +1882,6 @@ for (i in list_ID)
   # tableResults.k50[[i]] <- cellProx.sim(sln.sm, cluster_column = 'L2_annotations', adjust_method = "fdr",
   #                                      number_of_simulations = 200, spatial_network_name = "spatialknn.k50.persample")
 }
-# saveRDS(list(annot.k50=annot.k50), file="neighborhood.annot.k50.sln.RDS")  # all data merged
 # saveRDS(list(annot.k50=annot.k50, tableResults.k50 = tableResults.k50), file="neighborhood.annot.k50.sln.RDS")  # all data merged
 
 
@@ -1975,7 +1984,7 @@ nearest.Tumor <- Tumor.interactions[, .(min.dist.Tumor = min(distance)), by = .(
 
 
 #  ***** TCF1_LO *****
-spec.prot = 'GZMB'; subset = "TCF1_LO_TOX_HI_CD8"; num.perm = 1000; radius = 15; 
+spec.prot = 'GZMB'; subset = "TCF1_LO_TOX_HI_CD8"; num.perm = 2000; radius = 15.92; 
 lab.more = paste0(">",radius); lab.less = paste0("<=",radius)
 nearest.Treg.test <- nearest.Treg[from_cell_type == subset]
 max.dist <- max(nearest.Treg.test$min.dist.Treg)
@@ -1988,7 +1997,7 @@ dt <- nearest.Treg.test[,.(source = dist.bin, data=data)]
 p.val <- permutation.test.neighborhoods(dt, group.0 = lab.more, group.1 = lab.less, num.permutations = num.perm)
 ypos = max(dt$data) * 0.85
 ggplot(dt, aes(x = source, y=data)) + 
-  geom_violin(fill='grey80', draw_quantiles = c(0.5)) + ggtitle(subset) + 
+  geom_violin(fill='grey80', draw_quantiles = c(0.5), color='black', linewidth = 0.5) + ggtitle(subset) + 
   xlab("Distance to nearest Treg") + ylab(spec.prot) + 
   annotate('text', x=0.5, y=ypos, color='black', 
            label= paste0("Mean ", lab.less, ": ", round(mean(dt[source == lab.less, data]), 1), 
@@ -1996,13 +2005,13 @@ ggplot(dt, aes(x = source, y=data)) +
                        "Mean ", lab.more,": ", round(mean(dt[source == lab.more, data]), 1),
                        "\nPermutation test: P=", ifelse(p.val==0, 1/num.perm, p.val)),
            hjust = 0, size=3) +
-  theme_classic() + theme(legend.position = 'none', axis.text = element_text(size=12), 
+  theme_classic() + theme(legend.position = 'none', axis.text = element_text(size=12, color='black'), 
                           axis.text.x = element_text(size=12, hjust=1, vjust=1, angle=45)) 
 # ggsave(filename = 'output/dist.to.Treg.GZMB.TCFloCD8.pdf', width=3, height=3)
 
 
 #  ***** TCF1_LO *****
-spec.prot = 'IFNG'; subset = "TCF1_LO_TOX_HI_CD8"; num.perm = 1000; radius = 15; 
+spec.prot = 'IFNG'; subset = "TCF1_LO_TOX_HI_CD8"; num.perm = 10000; radius = 15.92; 
 lab.more = paste0(">",radius); lab.less = paste0("<=",radius)
 nearest.Treg.test <- nearest.Treg[from_cell_type == subset]
 max.dist <- max(nearest.Treg.test$min.dist.Treg)
@@ -2015,7 +2024,7 @@ dt <- nearest.Treg.test[,.(source = dist.bin, data=data)]
 p.val <- permutation.test.neighborhoods(dt, group.0 = lab.more, group.1 = lab.less, num.permutations = num.perm)
 ypos = max(dt$data) * 0.85
 ggplot(dt, aes(x = source, y=data)) + 
-  geom_violin(fill='grey80', draw_quantiles = c(0.5)) + ggtitle(subset) + 
+  geom_violin(fill='grey80', draw_quantiles = c(0.5), color='black', linewidth = 0.5) + ggtitle(subset) + 
   xlab("Distance to nearest Treg") + ylab(spec.prot) + 
   annotate('text', x=0.5, y=ypos, color='black', 
            label= paste0("Mean ", lab.less, ": ", round(mean(dt[source == lab.less, data]), 1), 
@@ -2023,13 +2032,13 @@ ggplot(dt, aes(x = source, y=data)) +
                        "Mean ", lab.more,": ", round(mean(dt[source == lab.more, data]), 1),
                        "\nPermutation test: P=", ifelse(p.val==0, 1/num.perm, p.val)),
            hjust = 0, size=3) +
-  theme_classic() + theme(legend.position = 'none', axis.text = element_text(size=12), 
+  theme_classic() + theme(legend.position = 'none', axis.text = element_text(size=12, color='black'), 
                           axis.text.x = element_text(size=12, hjust=1, vjust=1, angle=45)) 
-ggsave(filename = 'output/dist.to.Treg.IFNG.TCFloCD8.pdf', width=3, height=3)
+# ggsave(filename = 'output/dist.to.Treg.IFNG.TCFloCD8.pdf', width=3, height=3)
 
 
 #  ***** TCF1_HI *****
-spec.prot = 'GZMB'; subset = "TCF1_HI_TOX_HI_CD8"; num.perm = 1000; radius = 15; 
+spec.prot = 'GZMB'; subset = "TCF1_HI_TOX_HI_CD8"; num.perm = 2000; radius = 15.92; 
 lab.more = paste0(">",radius); lab.less = paste0("<=",radius)
 nearest.Treg.test <- nearest.Treg[from_cell_type == subset]
 max.dist <- max(nearest.Treg.test$min.dist.Treg)
@@ -2042,7 +2051,7 @@ dt <- nearest.Treg.test[,.(source = dist.bin, data=data)]
 p.val <- permutation.test.neighborhoods(dt, group.0 = lab.more, group.1 = lab.less, num.permutations = num.perm)
 ypos = max(dt$data) * 0.85
 ggplot(dt, aes(x = source, y=data)) + 
-  geom_violin(fill='grey80', draw_quantiles = c(0.5)) + ggtitle(subset) + 
+  geom_violin(fill='grey80', draw_quantiles = c(0.5), color='black', linewidth = 0.5) + ggtitle(subset) + 
   xlab("Distance to nearest Treg") + ylab(spec.prot) + 
   annotate('text', x=0.5, y=ypos, color='black', 
            label= paste0("Mean ", lab.less, ": ", round(mean(dt[source == lab.less, data]), 1), 
@@ -2050,7 +2059,7 @@ ggplot(dt, aes(x = source, y=data)) +
                        "Mean ", lab.more,": ", round(mean(dt[source == lab.more, data]), 1),
                        "\nPermutation test: P=", ifelse(p.val==0, 1/num.perm, p.val)),
            hjust = 0, size=3) +
-  theme_classic() + theme(legend.position = 'none', axis.text = element_text(size=12), 
+  theme_classic() + theme(legend.position = 'none', axis.text = element_text(size=12, color='black'), 
                           axis.text.x = element_text(size=12, hjust=1, vjust=1, angle=45)) 
 # ggsave(filename = 'output/dist.to.Treg.GZMB.TCFhiCD8.pdf', width=3, height=3)
 
@@ -2058,7 +2067,7 @@ ggplot(dt, aes(x = source, y=data)) +
 
 
 #  ***** Tumor *****
-spec.prot = 'GZMB'; subset = "TCF1_LO_TOX_HI_CD8"; num.perm = 1000; radius = 15; 
+spec.prot = 'GZMB'; subset = "TCF1_LO_TOX_HI_CD8"; num.perm = 2000; radius = 15.92; 
 lab.more = paste0(">",radius); lab.less = paste0("<=",radius)
 nearest.Treg.test <- nearest.Tumor[from_cell_type == subset]
 max.dist <- max(nearest.Treg.test$min.dist.Treg)
@@ -2071,7 +2080,7 @@ dt <- nearest.Treg.test[,.(source = dist.bin, data=data)]
 p.val <- permutation.test.neighborhoods(dt, group.0 = lab.more, group.1 = lab.less, num.permutations = num.perm)
 ypos = max(dt$data) * 1.15
 ggplot(dt, aes(x = source, y=data)) + 
-  geom_violin(fill='grey80', draw_quantiles = c(0.5)) + ggtitle(subset) + 
+  geom_violin(fill='grey80', draw_quantiles = c(0.5), color='black', linewidth = 0.5) + ggtitle(subset) + 
   xlab("Distance to nearest Tumor cell") + ylab(spec.prot) + 
   annotate('text', x=0.5, y=ypos, color='black', 
            label= paste0("Mean ", lab.less, ": ", round(mean(dt[source == lab.less, data]), 1), 
@@ -2079,13 +2088,13 @@ ggplot(dt, aes(x = source, y=data)) +
                        "Mean ", lab.more,": ", round(mean(dt[source == lab.more, data]), 1),
                        "\nPermutation test: P=", ifelse(p.val==0, 1/num.perm, p.val)),
            hjust = 0, size=3) +
-  theme_classic() + theme(legend.position = 'none', axis.text = element_text(size=12), 
+  theme_classic() + theme(legend.position = 'none', axis.text = element_text(size=12, color='black'), 
                           axis.text.x = element_text(size=12, hjust=1, vjust=1, angle=45)) + 
   scale_y_continuous(limits = c(0,34))
 # ggsave(filename = 'output/dist.to.Tumor.GZMB.TCFloCD8.pdf', width=3, height=3)
 
 
-spec.prot = 'IFNG'; subset = "TCF1_LO_TOX_HI_CD8"; num.perm = 1000; radius = 15; 
+spec.prot = 'IFNG'; subset = "TCF1_LO_TOX_HI_CD8"; num.perm = 10000; radius = 15.92; 
 lab.more = paste0(">",radius); lab.less = paste0("<=",radius)
 nearest.Treg.test <- nearest.Tumor[from_cell_type == subset]
 max.dist <- max(nearest.Treg.test$min.dist.Treg)
@@ -2098,7 +2107,7 @@ dt <- nearest.Treg.test[,.(source = dist.bin, data=data)]
 p.val <- permutation.test.neighborhoods(dt, group.0 = lab.more, group.1 = lab.less, num.permutations = num.perm)
 ypos = max(dt$data) * 1
 ggplot(dt, aes(x = source, y=data)) + 
-  geom_violin(fill='grey80', draw_quantiles = c(0.5)) + ggtitle(subset) + 
+  geom_violin(fill='grey80', draw_quantiles = c(0.5), color='black', linewidth = 0.5) + ggtitle(subset) + 
   xlab("Distance to nearest Tumor cell") + ylab(spec.prot) + 
   annotate('text', x=0.5, y=ypos, color='black', 
            label= paste0("Mean ", lab.less, ": ", round(mean(dt[source == lab.less, data]), 1), 
@@ -2106,26 +2115,25 @@ ggplot(dt, aes(x = source, y=data)) +
                        "Mean ", lab.more,": ", round(mean(dt[source == lab.more, data]), 1),
                        "\nPermutation test: P=", ifelse(p.val==0, 1/num.perm, p.val)),
            hjust = 0, size=3) +
-  theme_classic() + theme(legend.position = 'none', axis.text = element_text(size=12), 
+  theme_classic() + theme(legend.position = 'none', axis.text = element_text(size=12, color='black'), 
                           axis.text.x = element_text(size=12, hjust=1, vjust=1, angle=45)) + 
   scale_y_continuous(limits = c(0,40))
 # ggsave(filename = 'output/dist.to.Tumor.IFNG.TCFloCD8.pdf', width=3, height=3)
 
-rm(annot.k50)
 ```
 
 
-Job ID: 6784618
+Job ID: 11149753
 Cluster: slurm_cluster
 User/Group: heratr01/heratr01
 State: COMPLETED (exit code 0)
 Nodes: 1
 Cores per node: 5
-CPU Utilized: 05:28:57
-CPU Efficiency: 26.30% of 20:50:55 core-walltime
-Job Wall-clock time: 04:10:11
-Memory Utilized: 317.18 GB
-Memory Efficiency: 63.44% of 500.00 GB
+CPU Utilized: 05:37:43
+CPU Efficiency: 25.87% of 21:45:25 core-walltime
+Job Wall-clock time: 04:21:05
+Memory Utilized: 311.29 GB
+Memory Efficiency: 62.26% of 500.00 GB (500.00 GB/node)
 
 
 
