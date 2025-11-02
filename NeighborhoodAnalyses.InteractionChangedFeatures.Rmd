@@ -191,7 +191,7 @@ plot.volcano.icf(dt = icf.persample, receiver_cell = "TCF1_HI_TOX_HI_CD8", sende
 plot.volcano.icf(dt = icf.persample, receiver_cell = "MEMORY_CD4", sender_cell = "ACTIVATED_TREG", threshold.values = thresholds)
 
 plot.volcano.icf(dt = icf.persample, receiver_cell = "ACTIVATED_TREG", sender_cell = "TCF1_HI_TOX_HI_CD8")
-plot.volcano.icf(dt = icf.persample.thresh, receiver_cell = "ACTIVATED_TREG", sender_cell = "TCF1_HI_TOX_HI_CD8")
+# plot.volcano.icf(dt = icf.persample.thresh, receiver_cell = "ACTIVATED_TREG", sender_cell = "TCF1_HI_TOX_HI_CD8")
 
 
 
