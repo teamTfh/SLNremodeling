@@ -1783,7 +1783,7 @@ b <- plot.Feat.pairedVoroni(target = expr.feat.0, select.row = sel.0, feat.show=
 
 
 
-Though these example images might come across as cherry-picked. It will be very hard to show a single cell-based example to compare unless it's only the mean being shown (but the mean is a poor descriptor for a skew population)
+These example images will show a single cell-based example to compare unless it's only the mean being shown (but the mean is a poor descriptor for a skew population)
 
 
 ```{r region-given-pairings}

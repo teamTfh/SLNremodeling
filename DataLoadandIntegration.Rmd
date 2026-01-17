@@ -67,7 +67,7 @@ cleanHALO <- function(halo.obj, label=paste0(sample(letters, 5, T), collapse = "
   return(out <- list(expr = t(expr), metadata = metadata, locations = locations))
 }
 
-makeGiottoObject <- function(inputFile, label=sample.name)
+makeGiottoObject <- function(inputFile, label, instructions)
 {
   out <- cleanHALO(inputFile, label)
   print(paste0("Making the Giotto object for ", label))
@@ -89,12 +89,10 @@ makeGiottoObject <- function(inputFile, label=sample.name)
   return(sln)
 }
 
-# inputFile <- setDF(fread(files[1]))
-
 out <- list()
 for(i in 1:length(files))
 {
-  out[[i]] <- makeGiottoObject( inputFile = setDF(fread(files[i])), label = names(files)[i])
+  out[[i]] <- makeGiottoObject( inputFile = setDF(fread(files[i])), label = names(files)[i], instructions= instructions)
 }
 
 # sln <- adjustGiottoMatrix(gobject = sln, expression_values = "normalized",
