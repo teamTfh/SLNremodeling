@@ -472,13 +472,13 @@ for (i in list_ID)
   print(i)
   keepCells <- subset(md, list_ID %in% i )$cell_ID
   sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
-  sln.sm <- createSpatialKNNnetwork(sln.sm, k=50, maximum_distance = 15, verbose=T, name = "spatialknn.radius.persample")
+  sln.sm <- createSpatialKNNnetwork(sln.sm, k=50, maximum_distance = 15.9, verbose=T, name = "spatialknn.radius.persample")
   annot.rad[[i]] <- annotateSpatialNetwork(sln.sm, cluster_column = "L2_annotations", spatial_network_name = 'spatialknn.radius.persample')
   tableResults.rad[[i]] <- cellProx.sim(sln.sm, cluster_column = 'L2_annotations', adjust_method = "fdr",
                                        number_of_simulations = 200, spatial_network_name = "spatialknn.radius.persample")
 }
-# saveRDS(list(annot.rad = annot.rad, tableResults.rad = tableResults.rad), 
-#         file="neighborhood.annot.radius.sln.RDS")  # all data merged
+saveRDS(list(annot.rad = annot.rad, tableResults.rad = tableResults.rad),
+        file="neighborhood.annot.radius.sln.RDS")  # all data merged
 # annot.rad <- readRDS(file="neighborhood.annot.radius.sln.RDS")[['annot.rad']]  #  read in L2 annotations 
 dt <- purrr::list_rbind(tableResults.rad, names_to = "id")
 
@@ -1140,7 +1140,8 @@ findImportantInteractions.plotFiltered <- function(df, condition.exp, condition.
   )
   return(b)
 }
-
+a <- findImportantInteractions( interaction.dt= interaction.byStage, condition.exp="stage3", condition.ctrl="stage1", ef.threshold=1,
+                                leaveOutTumor = F)
 a <- findImportantInteractions( interaction.dt= interaction.byStage, condition.exp="stage3", condition.ctrl="stage1", ef.threshold=1,
                                 leaveOutTumor = T)
 # ggsave(plot = a$filteredggplot, file = "output/interaction.Stage.EffectSize.pdf", height=5, width=6)

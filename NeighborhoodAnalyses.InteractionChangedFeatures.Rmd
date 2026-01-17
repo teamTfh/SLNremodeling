@@ -62,9 +62,9 @@ saveRDS(md, file = "md.RDS")
 ```{r ICF-perSample-calculateICF-setupvariables, fig.width=10}
 list_ID <- unique(md$list_ID)
 icf.persample <- list(); icf.persample.enrich <- list()
-proteinsList <- c("BCA1", "CD3E", "CD4","CD8" ,"CD11C" ,"CD27","CD38","CD39", "CD45RO","CXCR3","CXCR5",
+proteinsList <- c("BCA1", "CD3E", "CD4","CD8" ,"CD11C" ,"CD38","CD39", "CD45RO","CXCR3","CXCR5",
                   "FOXP3" , "GZMB" ,"HLA.DR", "ICOS","IFNG","IRF4","IRF7","KI67", "LAG3",
-                  "PD1","PDL1","STAT1","STAT3","TCF1","TOX" ) # "TBET","PMTOR","CD19","CD20" ,"CD21","MAC2/GAL3","PAX5","VIMENTIN"
+                  "PD1","PDL1","STAT1","STAT3","TCF1","TOX" ) # "CD27","TBET","PMTOR","CD19","CD20" ,"CD21","MAC2/GAL3","PAX5","VIMENTIN"
 timeStamp <- format(Sys.time(), "%m%d.%H%M")
 enrich.celltypes <- c("ACTIVATED_TREG", "TCF1_LO_TOX_HI_CD8", "ACTIVATED_CD8") # make a version that keeps all of these cells
 ```
