@@ -42,7 +42,10 @@ files <- list.files("halo_export/")
 files <- paste0("halo_export/",files)
 names(files) <- c("ctrl.1","tumor.4", "tumor.5","ctrl.2","tumor.7","tumor.6","tumor.8","ctrl.3","tumor.9","tumor.10","ctrl.4","ctrl.5", "tumor.1","tumor.2","tumor.3")
 
-cleanHALO <- function(halo.obj, label=paste0(sample(letters, 5, T), collapse = ""))
+# trimmed down version for testing 
+# names(files) <- c("ctrl.1","tumor.4", "tumor.5","ctrl.2","tumor.7","tumor.8","tumor.9")
+
+cleanHALO <- function(halo.obj, label=paste0(sample(letters, 5, T), collapse = ""), saveColumns)
 {  # load in a halo object, make a unique column via a random string of 5 letters if no label supplied
   # halo.obj <- inputFile
   expr <- data.frame();   metadata <- data.table(); locations <- data.table()
@@ -54,22 +57,18 @@ cleanHALO <- function(halo.obj, label=paste0(sample(letters, 5, T), collapse = "
   locations$x <- rowMeans(halo.obj[,c('XMax', 'XMin')]);   locations$y <- rowMeans(halo.obj[,c('YMax', 'YMin')])
   
   # recover region & cellID columns
-  saveColumns <- c(colnames(halo.obj)[grep('Object.Id', colnames(halo.obj), value=F)],
-                   colnames(halo.obj)[grep('Classifier.Label', colnames(halo.obj), value=F)],
-                   colnames(halo.obj)[grep("Positive.Classification$", colnames(halo.obj), value=F)], 
-                   colnames(halo.obj)[9:17])
   metadata <- halo.obj[, saveColumns]
   metadata$cellID <- paste0(label, "_", halo.obj$Object.Id)
-  metadata$cellArea <- halo.obj$Cell.Area..µm..
+  # metadata$cellArea <- halo.obj$Cell.Area..µm..
   metadata$x <- locations$x;   metadata$y <- locations$y
 
   metadata[metadata == "NaN"] <- 0
   return(out <- list(expr = t(expr), metadata = metadata, locations = locations))
 }
 
-makeGiottoObject <- function(inputFile, label, instructions)
+makeGiottoObject <- function(inputData, label, instructions)
 {
-  out <- cleanHALO(inputFile, label)
+  out <- inputData
   print(paste0("Making the Giotto object for ", label))
   sln <- createGiottoObject(expression = out$expr,  spatial_locs = out$locations, instructions = instructions)
   print("Adding cell metadata"); # gc()  
@@ -89,11 +88,27 @@ makeGiottoObject <- function(inputFile, label, instructions)
   return(sln)
 }
 
+a <- setDF(fread(files[1]))
+cols <- c(which(colnames(a) %in% grep('Object Id', colnames(a), value=T)),
+                   which(colnames(a) %in% grep('Classifier Label', colnames(a), value=T)),
+                   which(colnames(a) %in% grep("Positive Classification$", colnames(a), value=T)), 
+                   which(colnames(a) %in% grep("Cell Area", colnames(a), value=T)),
+                   9:17
+                   )
+
 out <- list()
-for(i in 1:length(files))
+for(i in 1:1)#length(files))
 {
-  out[[i]] <- makeGiottoObject( inputFile = setDF(fread(files[i])), label = names(files)[i], instructions= instructions)
+  temp <- cleanHALO(setDF(fread(files[i])),
+            label=names(files)[i],
+            saveColumns=cols)
+  out[[i]] <- makeGiottoObject( inputData = temp,
+                                label = names(files)[i], 
+                                instructions= instructions)
 }
+
+
+ESImap::makeGiottoObject( inputFile = setDF(fread(files[1])), label = names(files)[1], instructions= instructions)
 
 # sln <- adjustGiottoMatrix(gobject = sln, expression_values = "normalized",
 #                                  batch_columns = "sample_Xtile_Ytile", covariate_columns = NULL,
