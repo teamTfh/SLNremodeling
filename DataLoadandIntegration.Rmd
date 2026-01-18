@@ -45,7 +45,7 @@ names(files) <- c("ctrl.1","tumor.4", "tumor.5","ctrl.2","tumor.7","tumor.6","tu
 # trimmed down version for testing 
 # names(files) <- c("ctrl.1","tumor.4", "tumor.5","ctrl.2","tumor.7","tumor.8","tumor.9")
 
-cleanHALO <- function(halo.obj, label=paste0(sample(letters, 5, T), collapse = ""), saveColumns)
+cleanHALO.local <- function(halo.obj, label=paste0(sample(letters, 5, T), collapse = ""), saveColumns)
 {  
     # Ensure input is a data.table
   if (!data.table::is.data.table(halo.obj)) {   data.table::setDT(halo.obj)   }
@@ -80,7 +80,7 @@ cleanHALO <- function(halo.obj, label=paste0(sample(letters, 5, T), collapse = "
   return(list(expr = t(expr), metadata = metadata, locations = locations))
 }
 
-makeGiottoObject <- function(inputData, label, instructions)
+makeGiottoObject.local <- function(inputData, label, instructions)
 {
   out <- inputData
   print(paste0("Making the Giotto object for ", label))
@@ -110,12 +110,15 @@ for(i in 1:length(files))
   cols <- names(a)[colnames(a) %like% paste(c('Object Id','Classifier Label','Positive Classification$', "Cell Area", "Tregs", "Activated Tregs", 
                                               "Tfh", "GZMB CD8", "Exhausted CD8", "Plasma Cells", "IFNy CD4 T Cells", "IFNy CD8 T cells", 
                                               "TOX CD8 T Cells"), collapse = '|')]
-  temp <- cleanHALO(halo.obj = fread(files[i]),
+  temp <- cleanHALO.local(halo.obj = fread(files[i]),
             label=names(files)[i],
             saveColumns=cols)
-  out[[i]] <- makeGiottoObject( inputData = temp,
+  out[[i]] <- makeGiottoObject.local( inputData = temp,
                                 label = names(files)[i], 
                                 instructions= instructions)
+  rm(temp)
+  rm(a)
+  rm(cols)
 }
 
 
