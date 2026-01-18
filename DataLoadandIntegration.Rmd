@@ -46,24 +46,38 @@ names(files) <- c("ctrl.1","tumor.4", "tumor.5","ctrl.2","tumor.7","tumor.6","tu
 # names(files) <- c("ctrl.1","tumor.4", "tumor.5","ctrl.2","tumor.7","tumor.8","tumor.9")
 
 cleanHALO <- function(halo.obj, label=paste0(sample(letters, 5, T), collapse = ""), saveColumns)
-{  # load in a halo object, make a unique column via a random string of 5 letters if no label supplied
-  # halo.obj <- inputFile
-  expr <- data.frame();   metadata <- data.table(); locations <- data.table()
-  setnames(halo.obj, names(halo.obj), gsub(" ", ".", names(halo.obj)))
-  cellIntensity <- grep("Cell.Intensity", names(halo.obj), value=T)
-  expr <- halo.obj[, which(colnames(halo.obj) %in% cellIntensity)]  # save the Cell.Intensity columns as expression
-  names(expr) <- gsub("\\.Cell.Intensity$","",names(expr))  # remove the words ".Cell.Intensity" from columns
-  rownames(expr) <- paste0(label, "_", halo.obj$Object.Id)
-  locations$x <- rowMeans(halo.obj[,c('XMax', 'XMin')]);   locations$y <- rowMeans(halo.obj[,c('YMax', 'YMin')])
-  
-  # recover region & cellID columns
-  metadata <- halo.obj[, saveColumns]
-  metadata$cellID <- paste0(label, "_", halo.obj$Object.Id)
-  # metadata$cellArea <- halo.obj$Cell.Area..µm..
-  metadata$x <- locations$x;   metadata$y <- locations$y
+{  
+    # Ensure input is a data.table
+  if (!data.table::is.data.table(halo.obj)) {   data.table::setDT(halo.obj)   }
 
-  metadata[metadata == "NaN"] <- 0
-  return(out <- list(expr = t(expr), metadata = metadata, locations = locations))
+  # Clean column names
+  data.table::setnames(halo.obj, names(halo.obj), gsub(" ", ".", names(halo.obj)))
+
+  # Extract Expression Data
+  cellIntensity <- grep("Cell.Intensity", names(halo.obj), value = TRUE)
+  expr <- setDF(halo.obj[, .SD, .SDcols = cellIntensity])
+  names(expr) <- gsub("\\.Cell.Intensity$", "", names(expr))
+  rownames(expr) <- paste0(label, "_", halo.obj$Object.Id)
+
+  # Extract Locations
+  locations <- data.table::data.table(
+    x = rowMeans(halo.obj[, c('XMax', 'XMin'), with = FALSE]),
+    y = rowMeans(halo.obj[, c('YMax', 'YMin'), with = FALSE])
+  )
+
+  # Extract Metadata
+  saveColumns <-   gsub(" ", ".", saveColumns)
+  metadata <- halo.obj[, .SD, .SDcols = saveColumns]
+  metadata[, cellID := paste0(label, "_", Object.Id)]
+  metadata[, x := locations$x]
+  metadata[, y := locations$y]
+
+  # Clean NaNs
+  for (j in seq_len(ncol(metadata))) {
+    set(metadata, which(is.nan(metadata[[j]])), j, 0)
+  }
+
+  return(list(expr = t(expr), metadata = metadata, locations = locations))
 }
 
 makeGiottoObject <- function(inputData, label, instructions)
@@ -82,24 +96,21 @@ makeGiottoObject <- function(inputData, label, instructions)
   print("Starting normalization")
   sln <- normalizeGiotto(gobject = sln, scalefactor = 6000, norm_methods = "standard",
                                 verbose = TRUE, log_norm = FALSE, library_size_norm = FALSE,
-                                scale_genes = FALSE, scale_cells = TRUE)
+                                scale_feats = FALSE, scale_cells = TRUE)
   print("Finished normalization")
   sln <- addStatistics(gobject = sln, expression_values = "normalized")
   return(sln)
 }
 
-a <- setDF(fread(files[1]))
-cols <- c(which(colnames(a) %in% grep('Object Id', colnames(a), value=T)),
-                   which(colnames(a) %in% grep('Classifier Label', colnames(a), value=T)),
-                   which(colnames(a) %in% grep("Positive Classification$", colnames(a), value=T)), 
-                   which(colnames(a) %in% grep("Cell Area", colnames(a), value=T)),
-                   9:17
-                   )
 
 out <- list()
-for(i in 1:1)#length(files))
+for(i in 1:length(files))
 {
-  temp <- cleanHALO(setDF(fread(files[i])),
+  a <- fread(files[i])
+  cols <- names(a)[colnames(a) %like% paste(c('Object Id','Classifier Label','Positive Classification$', "Cell Area", "Tregs", "Activated Tregs", 
+                                              "Tfh", "GZMB CD8", "Exhausted CD8", "Plasma Cells", "IFNy CD4 T Cells", "IFNy CD8 T cells", 
+                                              "TOX CD8 T Cells"), collapse = '|')]
+  temp <- cleanHALO(halo.obj = fread(files[i]),
             label=names(files)[i],
             saveColumns=cols)
   out[[i]] <- makeGiottoObject( inputData = temp,
@@ -107,8 +118,6 @@ for(i in 1:1)#length(files))
                                 instructions= instructions)
 }
 
-
-ESImap::makeGiottoObject( inputFile = setDF(fread(files[1])), label = names(files)[1], instructions= instructions)
 
 # sln <- adjustGiottoMatrix(gobject = sln, expression_values = "normalized",
 #                                  batch_columns = "sample_Xtile_Ytile", covariate_columns = NULL,
