@@ -43,11 +43,14 @@ sessionInfo()
 
 # read in data object 
 ```{r read-annot-sln-spatnet}
-
-sln <- readRDS("sln.clustering5.annot.spatnet.20250617.160512.RDS")
+if(.Platform$OS.type == "windows")  
+{
+  sln <- qs2::qs_read(file = "sln.clustering5.annot.spatnet.20250617.160512.qs2", nthreads = 5)
+} else sln <- readRDS("sln.clustering5.annot.spatnet.20250617.160512.RDS")
 gc()
 md <- pDataDT(sln)
-stableColorsL2 <- getDistinctColors(length(unique(md$L2_annotations)));  names(stableColorsL2) <- unique(md$L2_annotations)
+# stableColorsL2 <- getDistinctColors(length(unique(md$L2_annotations)));  names(stableColorsL2) <- unique(md$L2_annotations)
+stableColorsL2 <- readRDS(file = 'l2_v3_master_colors.rds')
 classifier_label_colors <- c('B Cell Follicle'='#107BDA','GC'='#EE6710', 'T/B Mixed'='yellow', 'T Cell Zone'='#FF0096',
                              'Tumor'='limegreen')
 name_mapping <- c('ctrl.1' = '101', 'ctrl.2' = '102', 'ctrl.3' = '103', 'ctrl.4' = '104', 'ctrl.5' = '105',
@@ -560,8 +563,8 @@ rm(dt)
 # gc()
 ```
 
-# show the average neighborhood for sln 5 
-```{r show-niche-singleSample, fig.height=6}
+
+```{r define-functions}
 
 removeArtifacts <- function(dt)
 {
@@ -569,6 +572,9 @@ removeArtifacts <- function(dt)
   dt <- dt[!unified_int %like% "outlier"]
   return(dt)
 }
+
+
+
 
 showNiche.singleSample <- function(annot.table, indexCluster, title, plots=TRUE)
 {
@@ -636,32 +642,7 @@ showNiche.singleSample <- function(annot.table, indexCluster, title, plots=TRUE)
   else return(res)
 }
 
-a <- removeArtifacts(annot.k9[['tumor.5']])
-b <- a[to_cell_type == 'ACTIVATED_TREG']
-a <- a[from_cell_type == 'ACTIVATED_TREG']
-# write.csv(x = rbind(a, b), file = "neighborsTable.ACTIVATED_TREG.tumor5.csv")
-# write.csv(x = annot.k9[['tumor.5']], file = "neighborsTable.allCells.tumor5.csv")
-#   
-  
-a <- showNiche.singleSample(annot.table = annot.k9[['tumor.5']], indexCluster = 'LZ_BCELL', title='LZ_BCELL',
-                            plots=T)
-b <- showNiche.singleSample(annot.table = annot.k9[['tumor.5']], indexCluster = 'MIXED_GC_TCELL', title='MIXED_GC_TCELL',
-                            plots=T)
-gridExtra::grid.arrange(a,b, nrow=1)
 
-a <- showNiche.singleSample(annot.table = annot.k9[['tumor.5']], indexCluster = 'TCF1_HI_TOX_HI_CD8',
-                            title='TCF1_HI_TOX_HI_CD8', plots=T)
-b <- showNiche.singleSample(annot.table = annot.k9[['tumor.5']], indexCluster = 'TCF1_LO_TOX_HI_CD8',
-                            title='TCF1_LO_TOX_HI_CD8', plots=T)
-gridExtra::grid.arrange(a,b, nrow=1) 
-  
-
-```
-
-
-
-# show the average neighborhood for all sln 
-```{r show-niche-multipleSample}
 showNiche.multiSample <- function(annot.table, indexCluster, title,  plots=T, parallel=F)
 {
   library(future.apply)
@@ -708,14 +689,8 @@ showNiche.multiSample <- function(annot.table, indexCluster, title,  plots=T, pa
   }
   return(res)
 }  
-showNiche.multiSample(annot.table = annot.k9, indexCluster = 'LZ_BCELL', title='LZ_BCELL', parallel=F)
- # ggsave("output/LZBCELL.scatterplot.allSamples.pdf", height=6,width=5)
-showNiche.multiSample(annot.table = annot.k9, indexCluster = 'TCF1_HI_TOX_HI_CD8', title='TCF1_HI_TOX_HI_CD8')
-showNiche.multiSample(annot.table = annot.k9, indexCluster = 'TCF1_LO_TOX_HI_CD8', title='TCF1_LO_TOX_HI_CD8')
 
-```
 
-```{r plot-average-niche}
 
 plot.Average.Niche.squares <- function( annot.table, indexCluster, title )
 {
@@ -801,26 +776,7 @@ plot.Average.Niche.igraph <- function( annot.table, indexCluster, title )
   )
   return(a)
 }
-plot.Average.Niche.igraph(annot.table = annot.k9, indexCluster = 'LZ_BCELL', title='Light zone B cells')
- # ggsave("output/LZBCELL.igraph.allSamples.pdf", height=5,width=5)
-plot.Average.Niche.igraph(annot.table = annot.k9, indexCluster = 'PC', title='Plasma cells')
 
-# plot.Average.Niche.squares(annot.table = annot.k9, indexCluster = 'LZ_BCELL', title='LZ_BCELL')
-
-a <- plot.Average.Niche.igraph(annot.table = annot.k9, indexCluster = 'TCF1_HI_TOX_HI_CD8', title='TCF1_HI_TOX_HI_CD8')
-b <- plot.Average.Niche.igraph(annot.table = annot.k9, indexCluster = 'TCF1_LO_TOX_HI_CD8', title='TCF1_LO_TOX_HI_CD8')
-
-```
-
-
-```{r plot-average-niche-comparisons, fig.width=10, fig.height=5}
-gridExtra::grid.arrange(a,b, nrow=1) 
-```
-
-
-
-# locate cells that exist in a given neighborhood 
-```{r finding-example-cells-for-neighborhood}
 defineNeighborhoods <- function( annot.list)
 {
   list_ID <- names(annot.list)
@@ -885,8 +841,6 @@ defineNeighborhoods <- function( annot.list)
   return( list(prop.table=res, raw.table=copymatrix, list_ID=list_ID)) 
 }
 
-neighborhoods <- defineNeighborhoods(annot.list = annot.k9)
-gc()
 
 exampleNeighborhoods.filter <- function(res.list, indexCluster, chooseNeighbor, threshold)
 {  
@@ -897,62 +851,7 @@ exampleNeighborhoods.filter <- function(res.list, indexCluster, chooseNeighbor, 
   return( rbindlist(filterList)  )
 }
 
-a <- exampleNeighborhoods.filter(neighborhoods, indexCluster = "LZ_BCELL", chooseNeighbor = "LZ_BCELL", threshold=0.2)
-# write.csv(a, file = "LZ_BCELL.filtered.by.LZ_BCELL_over0.2n.csv")
-a <- exampleNeighborhoods.filter(neighborhoods, indexCluster = "LZ_BCELL", chooseNeighbor = "PC", threshold=0.2)
-# write.csv(a, file = "LZ_BCELL.filtered.by.PC_over0.2.csv")
-a <- exampleNeighborhoods.filter(neighborhoods, indexCluster = "TCF1_HI_TOX_HI_CD8", chooseNeighbor = "ACTIVATED_TREG", threshold=0.15)
-# write.csv(a, file = "TCF1_HI_TOX_HI_CD8.filtered.by.ACTIVATED_TREG_over0.15.csv")
-a <- exampleNeighborhoods.filter(neighborhoods, indexCluster = "ACTIVATED_TREG", chooseNeighbor = "TCF1_HI_TOX_HI_CD8", threshold=-0.1)
-# write.csv(a, file = "ACTIVATED_TREG.unfiltered.csv")
 
-# example output
-#                      from     from_cell_type ACTIVATED_CD4 ACTIVATED_CD8 ACTIVATED_MEMORY_CD4 ACTIVATED_MEMORY_CD8 ACTIVATED_TREG
-#                    <char>             <char>         <num>         <num>                <num>                <num>          <num>
-# 1:   ctrl.1-ctrl.1_101134 TCF1_HI_TOX_HI_CD8          0.00          0.00                 0.25                    0      0.2500000
-# 2:   ctrl.1-ctrl.1_132837 TCF1_HI_TOX_HI_CD8          0.00          0.00                 0.00                    0      0.1666667
-# 3:   ctrl.1-ctrl.1_132840 TCF1_HI_TOX_HI_CD8          0.00          0.00                 0.00                    0      0.1250000
-# 4:   ctrl.1-ctrl.1_157997 TCF1_HI_TOX_HI_CD8          0.00          0.00                 0.20                    0      0.2000000
-# 5:   ctrl.1-ctrl.1_169239 TCF1_HI_TOX_HI_CD8          0.00          0.00                 0.00                    0      0.2000000
-
-tmp <- purrr::list_rbind(neighborhoods$prop.table, names_to = "list_ID") 
-ggplot(tmp, aes(x = row_total)) + geom_histogram(binwidth=0.25, position='identity', fill='grey70', color='black') + 
-  theme_classic() + ggtitle("All cells (k=9)") + xlab("Number of neighbors")
-# ggsave(filename = 'output/hist.numbNeighbors.k9.pdf', width=2,height=3)
-rm(tmp)
-```
-
-# plot average niche by stage for CD8 subsets 
-```{r plot-average-niche-by-stage, fig.width=10, fig.height=5}
-a <- plot.Average.Niche.igraph(annot.table = annot.k9[stage1.subgroup], indexCluster = 'TCF1_HI_TOX_HI_CD8',
-                      title='TCF1_HI_TOX_HI_CD8 stage 1')
-b <- plot.Average.Niche.igraph(annot.table = annot.k9[stage3.subgroup], indexCluster = 'TCF1_HI_TOX_HI_CD8',
-                      title='TCF1_HI_TOX_HI_CD8 stage 3')
-gridExtra::grid.arrange(a,b, nrow=1) 
-a <- plot.Average.Niche.igraph(annot.table = annot.k9[stage1.subgroup], indexCluster = 'TCF1_LO_TOX_HI_CD8',
-                      title='TCF1_LO_TOX_HI_CD8 stage 1')
-b <- plot.Average.Niche.igraph(annot.table = annot.k9[stage3.subgroup], indexCluster = 'TCF1_LO_TOX_HI_CD8',
-                      title='TCF1_LO_TOX_HI_CD8 stage 3')
-gridExtra::grid.arrange(a,b, nrow=1) 
-```
-
-# plot average niche by recur
-```{r plot-average-niche-by-recur, fig.width=10, fig.height=5}
-a <- plot.Average.Niche.igraph(annot.table = annot.k9[recur.subgroup], indexCluster = 'TCF1_HI_TOX_HI_CD8',
-                      title='TCF1_HI_TOX_HI_CD8 recur')
-b <- plot.Average.Niche.igraph(annot.table = annot.k9[norecur.subgroup], indexCluster = 'TCF1_HI_TOX_HI_CD8',
-                      title='TCF1_HI_TOX_HI_CD8 no recur')
-gridExtra::grid.arrange(a,b, nrow=1) 
-a <- plot.Average.Niche.igraph(annot.table = annot.k9[recur.subgroup], indexCluster = 'TCF1_LO_TOX_HI_CD8',
-                      title='TCF1_LO_TOX_HI_CD8 recur')
-b <- plot.Average.Niche.igraph(annot.table = annot.k9[norecur.subgroup], indexCluster = 'TCF1_LO_TOX_HI_CD8',
-                      title='TCF1_LO_TOX_HI_CD8 no recur')
-gridExtra::grid.arrange(a,b, nrow=1) 
-```
-
-
-# contrast stage 1 vs stage 3 for niche  
-```{r contrast-niche-by-stage, plot.height=10}
 
 rgb_to_hex <- function(rgb) {
   sprintf("#%02X%02X%02X", rgb[1], rgb[2], rgb[3])
@@ -1002,17 +901,8 @@ niche.contrast <- function( annot.table, indexCluster, common.title, grouping.ex
   )
   return(list(res=res, scatterplot = a, colorScheme = combined_palette))
 }
-niche.contrast(annot.table = annot.k9, indexCluster = 'LZ_BCELL', common.title='LZ_BCELL', grouping.exp = stage3.subgroup, 
-               grouping.ctrl = stage1.subgroup, condition.exp = "stage3", condition.ctrl = 'stage1')
-# niche.contrast( annot.k9, indexCluster = 'TCF1_HI_TOX_HI_CD8', common.title='TCF1_HI_TOX_HI_CD8', grouping.exp = stage3.subgroup,
-#                grouping.ctrl = stage1.subgroup, condition.exp = "stage3", condition.ctrl = 'stage1')
-# niche.contrast( annot.k9, indexCluster = 'TCF1_LO_TOX_HI_CD8', common.title='TCF1_LO_TOX_HI_CD8', grouping.exp = stage3.subgroup,
-#                grouping.ctrl = stage1.subgroup, condition.exp = "stage3", condition.ctrl = 'stage1')
 
-```
 
-# contrast stage using cellProxEnrich
-```{r contrast-stage-using-cellProxEnrich, fig.width=10, fig.height=5}
 findImportantInteractions <- function( interaction.dt, condition.exp, condition.ctrl, ef.threshold, leaveOutTumor = T)
 {
   working.dt <- copy(interaction.dt)
@@ -1140,15 +1030,7 @@ findImportantInteractions.plotFiltered <- function(df, condition.exp, condition.
   )
   return(b)
 }
-a <- findImportantInteractions( interaction.dt= interaction.byStage, condition.exp="stage3", condition.ctrl="stage1", ef.threshold=1,
-                                leaveOutTumor = F)
-a <- findImportantInteractions( interaction.dt= interaction.byStage, condition.exp="stage3", condition.ctrl="stage1", ef.threshold=1,
-                                leaveOutTumor = T)
-# ggsave(plot = a$filteredggplot, file = "output/interaction.Stage.EffectSize.pdf", height=5, width=6)
 
-a$filteredggplot.selective <- findImportantInteractions.plotFiltered(df = a$df[unified_int %like% "ACTIVATED_TREG"], 
-                                            condition.exp="stage3", condition.ctrl="stage1", labelPlot = F)
-# ggsave(plot = a$filteredggplot.selective, file = "output/interaction.Stage.EffectSize.ACTIV-TREG.pdf", height=1.75, width=4)
 
 
 globalChanges.Effectsize.plot <- function(importIntxn.obj, colNames = names(stableColorsL2), title = "Stage 3 vs Stage 1")
@@ -1170,6 +1052,189 @@ globalChanges.Effectsize.plot <- function(importIntxn.obj, colNames = names(stab
     ggtitle(title)
   return(a)
 }  
+
+
+plot.boxplot <- function(df, probeSubset, grouping.var, plot.var='proportion', nonparam = T, colorList, title)
+{
+  df <- df[subset == probeSubset]
+  # pVal <- df %>% rstatix::welch_anova_test(formula = get(plot.var) ~ get(grouping.var)) 
+  formula.str <- as.formula(paste(plot.var, "~", grouping.var))
+  if(nonparam==F)   { pVal <- df %>% rstatix::welch_anova_test(formula = formula.str) }
+  if(nonparam==T)   { pVal <- df %>% rstatix::wilcox_test(formula = formula.str)  }
+  colorList <- colorList[names(colorList) %like% probeSubset]
+  ggplot(df, aes(x = get(grouping.var), y=get(plot.var))) + geom_boxplot(aes(fill = color_key)) + 
+    geom_point(size=4, pch=21, fill='white', color='grey50',) + theme_bw() + theme(axis.text = element_text(color='black')) + 
+    scale_fill_manual(values = colorList)  + theme(legend.position = 'null', axis.title.x = element_blank()) + 
+    annotate('text', x=2, y=max(df$proportion), label = paste("P=", round(pVal$p, 2)), color='black')+
+    ylab(paste(probeSubset, plot.var)) + ggtitle(title) 
+}
+
+
+plot.enrichm.interaction <- function(interaction.dt, probeSubset, nonparam=T, plot.var='enrichm', colorList, title)
+{
+  interaction.dt <- interaction.dt[unified_int == probeSubset]
+  formula.str <- as.formula(paste(plot.var, "~", 'condition'))
+  if(nonparam==F)   { pVal <- interaction.dt %>% rstatix::welch_anova_test(formula = formula.str) }
+  if(nonparam==T)   { pVal <- interaction.dt %>% rstatix::wilcox_test(formula = formula.str)   }
+  colorList <- colorList[names(colorList) %like% probeSubset]
+  ggplot(interaction.dt, aes(x = condition, y=get(plot.var))) + geom_boxplot(fill = 'grey80', alpha=0.5) + 
+    geom_point(size=4, pch=21, fill='white', color='grey30',) + theme_bw() + theme(axis.text = element_text(color='black')) + 
+    scale_fill_manual(values = colorList)  + theme(legend.position = 'null', axis.title.x = element_blank()) + 
+    annotate('text', x=1, y=1.2*max(interaction.dt[,.(get(plot.var))]), 
+             label = paste("P=", round(pVal$p, digits=2)), color='black')+
+    ggtitle(title) + ylab("Log2FC enrichment relative to random") #+   scale_y_continuous(expand = expansion(mult = 0.1))
+}
+
+```
+
+
+
+# show the average neighborhood for sln 5 
+```{r show-niche-singleSample, fig.height=6}
+
+a <- removeArtifacts(annot.k9[['tumor.5']])
+b <- a[to_cell_type == 'ACTIVATED_TREG']
+a <- a[from_cell_type == 'ACTIVATED_TREG']
+# write.csv(x = rbind(a, b), file = "neighborsTable.ACTIVATED_TREG.tumor5.csv")
+# write.csv(x = annot.k9[['tumor.5']], file = "neighborsTable.allCells.tumor5.csv")
+#   
+  
+a <- showNiche.singleSample(annot.table = annot.k9[['tumor.5']], indexCluster = 'LZ_BCELL', title='LZ_BCELL',
+                            plots=T)
+b <- showNiche.singleSample(annot.table = annot.k9[['tumor.5']], indexCluster = 'MIXED_GC_TCELL', title='MIXED_GC_TCELL',
+                            plots=T)
+gridExtra::grid.arrange(a,b, nrow=1)
+
+a <- showNiche.singleSample(annot.table = annot.k9[['tumor.5']], indexCluster = 'TCF1_HI_TOX_HI_CD8',
+                            title='TCF1_HI_TOX_HI_CD8', plots=T)
+b <- showNiche.singleSample(annot.table = annot.k9[['tumor.5']], indexCluster = 'TCF1_LO_TOX_HI_CD8',
+                            title='TCF1_LO_TOX_HI_CD8', plots=T)
+gridExtra::grid.arrange(a,b, nrow=1) 
+  
+
+```
+
+
+
+# show the average neighborhood for all sln 
+```{r show-niche-multipleSample}
+
+showNiche.multiSample(annot.table = annot.k9, indexCluster = 'LZ_BCELL', title='LZ_BCELL', parallel=F)
+ # ggsave("output/LZBCELL.scatterplot.allSamples.pdf", height=6,width=5)
+showNiche.multiSample(annot.table = annot.k9, indexCluster = 'TCF1_HI_TOX_HI_CD8', title='TCF1_HI_TOX_HI_CD8')
+showNiche.multiSample(annot.table = annot.k9, indexCluster = 'TCF1_LO_TOX_HI_CD8', title='TCF1_LO_TOX_HI_CD8')
+
+```
+
+```{r plot-average-niche}
+
+plot.Average.Niche.igraph(annot.table = annot.k9, indexCluster = 'LZ_BCELL', title='Light zone B cells')
+ # ggsave("output/LZBCELL.igraph.allSamples.pdf", height=5,width=5)
+plot.Average.Niche.igraph(annot.table = annot.k9, indexCluster = 'PC', title='Plasma cells')
+
+# plot.Average.Niche.squares(annot.table = annot.k9, indexCluster = 'LZ_BCELL', title='LZ_BCELL')
+
+a <- plot.Average.Niche.igraph(annot.table = annot.k9, indexCluster = 'TCF1_HI_TOX_HI_CD8', title='TCF1_HI_TOX_HI_CD8')
+b <- plot.Average.Niche.igraph(annot.table = annot.k9, indexCluster = 'TCF1_LO_TOX_HI_CD8', title='TCF1_LO_TOX_HI_CD8')
+
+```
+
+
+```{r plot-average-niche-comparisons, fig.width=10, fig.height=5}
+gridExtra::grid.arrange(a,b, nrow=1) 
+```
+
+
+
+# locate cells that exist in a given neighborhood 
+```{r finding-example-cells-for-neighborhood}
+
+
+neighborhoods <- defineNeighborhoods(annot.list = annot.k9)
+gc()
+
+
+
+a <- exampleNeighborhoods.filter(neighborhoods, indexCluster = "LZ_BCELL", chooseNeighbor = "LZ_BCELL", threshold=0.2)
+# write.csv(a, file = "LZ_BCELL.filtered.by.LZ_BCELL_over0.2n.csv")
+a <- exampleNeighborhoods.filter(neighborhoods, indexCluster = "LZ_BCELL", chooseNeighbor = "PC", threshold=0.2)
+# write.csv(a, file = "LZ_BCELL.filtered.by.PC_over0.2.csv")
+a <- exampleNeighborhoods.filter(neighborhoods, indexCluster = "TCF1_HI_TOX_HI_CD8", chooseNeighbor = "ACTIVATED_TREG", threshold=0.15)
+# write.csv(a, file = "TCF1_HI_TOX_HI_CD8.filtered.by.ACTIVATED_TREG_over0.15.csv")
+a <- exampleNeighborhoods.filter(neighborhoods, indexCluster = "ACTIVATED_TREG", chooseNeighbor = "TCF1_HI_TOX_HI_CD8", threshold=-0.1)
+# write.csv(a, file = "ACTIVATED_TREG.unfiltered.csv")
+
+# example output
+#                      from     from_cell_type ACTIVATED_CD4 ACTIVATED_CD8 ACTIVATED_MEMORY_CD4 ACTIVATED_MEMORY_CD8 ACTIVATED_TREG
+#                    <char>             <char>         <num>         <num>                <num>                <num>          <num>
+# 1:   ctrl.1-ctrl.1_101134 TCF1_HI_TOX_HI_CD8          0.00          0.00                 0.25                    0      0.2500000
+# 2:   ctrl.1-ctrl.1_132837 TCF1_HI_TOX_HI_CD8          0.00          0.00                 0.00                    0      0.1666667
+# 3:   ctrl.1-ctrl.1_132840 TCF1_HI_TOX_HI_CD8          0.00          0.00                 0.00                    0      0.1250000
+# 4:   ctrl.1-ctrl.1_157997 TCF1_HI_TOX_HI_CD8          0.00          0.00                 0.20                    0      0.2000000
+# 5:   ctrl.1-ctrl.1_169239 TCF1_HI_TOX_HI_CD8          0.00          0.00                 0.00                    0      0.2000000
+
+tmp <- purrr::list_rbind(neighborhoods$prop.table, names_to = "list_ID") 
+ggplot(tmp, aes(x = row_total)) + geom_histogram(binwidth=0.25, position='identity', fill='grey70', color='black') + 
+  theme_classic() + ggtitle("All cells (k=9)") + xlab("Number of neighbors")
+# ggsave(filename = 'output/hist.numbNeighbors.k9.pdf', width=2,height=3)
+rm(tmp)
+```
+
+# plot average niche by stage for CD8 subsets 
+```{r plot-average-niche-by-stage, fig.width=10, fig.height=5}
+a <- plot.Average.Niche.igraph(annot.table = annot.k9[stage1.subgroup], indexCluster = 'TCF1_HI_TOX_HI_CD8',
+                      title='TCF1_HI_TOX_HI_CD8 stage 1')
+b <- plot.Average.Niche.igraph(annot.table = annot.k9[stage3.subgroup], indexCluster = 'TCF1_HI_TOX_HI_CD8',
+                      title='TCF1_HI_TOX_HI_CD8 stage 3')
+gridExtra::grid.arrange(a,b, nrow=1) 
+a <- plot.Average.Niche.igraph(annot.table = annot.k9[stage1.subgroup], indexCluster = 'TCF1_LO_TOX_HI_CD8',
+                      title='TCF1_LO_TOX_HI_CD8 stage 1')
+b <- plot.Average.Niche.igraph(annot.table = annot.k9[stage3.subgroup], indexCluster = 'TCF1_LO_TOX_HI_CD8',
+                      title='TCF1_LO_TOX_HI_CD8 stage 3')
+gridExtra::grid.arrange(a,b, nrow=1) 
+```
+
+# plot average niche by recur
+```{r plot-average-niche-by-recur, fig.width=10, fig.height=5}
+a <- plot.Average.Niche.igraph(annot.table = annot.k9[recur.subgroup], indexCluster = 'TCF1_HI_TOX_HI_CD8',
+                      title='TCF1_HI_TOX_HI_CD8 recur')
+b <- plot.Average.Niche.igraph(annot.table = annot.k9[norecur.subgroup], indexCluster = 'TCF1_HI_TOX_HI_CD8',
+                      title='TCF1_HI_TOX_HI_CD8 no recur')
+gridExtra::grid.arrange(a,b, nrow=1) 
+a <- plot.Average.Niche.igraph(annot.table = annot.k9[recur.subgroup], indexCluster = 'TCF1_LO_TOX_HI_CD8',
+                      title='TCF1_LO_TOX_HI_CD8 recur')
+b <- plot.Average.Niche.igraph(annot.table = annot.k9[norecur.subgroup], indexCluster = 'TCF1_LO_TOX_HI_CD8',
+                      title='TCF1_LO_TOX_HI_CD8 no recur')
+gridExtra::grid.arrange(a,b, nrow=1) 
+```
+
+
+# contrast stage 1 vs stage 3 for niche  
+```{r contrast-niche-by-stage, plot.height=10}
+
+niche.contrast(annot.table = annot.k9, indexCluster = 'LZ_BCELL', common.title='LZ_BCELL', grouping.exp = stage3.subgroup, 
+               grouping.ctrl = stage1.subgroup, condition.exp = "stage3", condition.ctrl = 'stage1')
+# niche.contrast( annot.k9, indexCluster = 'TCF1_HI_TOX_HI_CD8', common.title='TCF1_HI_TOX_HI_CD8', grouping.exp = stage3.subgroup,
+#                grouping.ctrl = stage1.subgroup, condition.exp = "stage3", condition.ctrl = 'stage1')
+# niche.contrast( annot.k9, indexCluster = 'TCF1_LO_TOX_HI_CD8', common.title='TCF1_LO_TOX_HI_CD8', grouping.exp = stage3.subgroup,
+#                grouping.ctrl = stage1.subgroup, condition.exp = "stage3", condition.ctrl = 'stage1')
+
+```
+
+# contrast stage using cellProxEnrich
+```{r contrast-stage-using-cellProxEnrich, fig.width=10, fig.height=5}
+
+a <- findImportantInteractions( interaction.dt= interaction.byStage, condition.exp="stage3", condition.ctrl="stage1", ef.threshold=1,
+                                leaveOutTumor = F)
+a <- findImportantInteractions( interaction.dt= interaction.byStage, condition.exp="stage3", condition.ctrl="stage1", ef.threshold=1,
+                                leaveOutTumor = T)
+# ggsave(plot = a$filteredggplot, file = "output/interaction.Stage.EffectSize.pdf", height=5, width=6)
+
+a$filteredggplot.selective <- findImportantInteractions.plotFiltered(df = a$df[unified_int %like% "ACTIVATED_TREG"], 
+                                            condition.exp="stage3", condition.ctrl="stage1", labelPlot = F)
+# ggsave(plot = a$filteredggplot.selective, file = "output/interaction.Stage.EffectSize.ACTIV-TREG.pdf", height=1.75, width=4)
+
+
 
 b <- globalChanges.Effectsize.plot(importIntxn.obj = a, title = "Stage 3 vs Stage 1")
 # ggsave(b, filename = 'output/EffectSize.allSubsets.byStage.violin.pdf', height=6,width=6)
@@ -1193,20 +1258,6 @@ a[['res']][subset == 'MIXED_TOX_LO_CD8'] %>% rstatix::wilcox_test(formula = prop
 a[['res']][subset == 'MIXED_TOX_LO_CD8'] %>% group_by(stage) %>% rstatix::shapiro_test(proportion)
 a[['res']][subset == 'MIXED_TOX_LO_CD8'] %>% rstatix::welch_anova_test(formula = proportion ~ stage)
 
-plot.boxplot <- function(df, probeSubset, grouping.var, plot.var='proportion', nonparam = T, colorList, title)
-{
-  df <- df[subset == probeSubset]
-  # pVal <- df %>% rstatix::welch_anova_test(formula = get(plot.var) ~ get(grouping.var)) 
-  formula.str <- as.formula(paste(plot.var, "~", grouping.var))
-  if(nonparam==F)   { pVal <- df %>% rstatix::welch_anova_test(formula = formula.str) }
-  if(nonparam==T)   { pVal <- df %>% rstatix::wilcox_test(formula = formula.str)  }
-  colorList <- colorList[names(colorList) %like% probeSubset]
-  ggplot(df, aes(x = get(grouping.var), y=get(plot.var))) + geom_boxplot(aes(fill = color_key)) + 
-    geom_point(size=4, pch=21, fill='white', color='grey50',) + theme_bw() + theme(axis.text = element_text(color='black')) + 
-    scale_fill_manual(values = colorList)  + theme(legend.position = 'null', axis.title.x = element_blank()) + 
-    annotate('text', x=2, y=max(df$proportion), label = paste("P=", round(pVal$p, 2)), color='black')+
-    ylab(paste(probeSubset, plot.var)) + ggtitle(title) 
-}
 plot.boxplot( df = a$res, probeSubset = 'MIXED_TOX_LO_CD8', grouping.var = 'stage', plot.var='proportion', colorList = a$colorScheme,
               title = "ACTIVATED_TREG")
 # ggsave(filename = 'output/ACTIVATED_TREG-for-MIXED_TOX_LO_CD8.stage.boxplot.pdf', width=3,height=3)
@@ -1215,20 +1266,7 @@ plot.boxplot( df = a$res, probeSubset = 'MEMORY_CD8', grouping.var = 'stage', pl
 # ggsave(filename = 'output/ACTIVATED_TREG-for-MEMORY_CD8.stage.boxplot.pdf', width=3,height=3)
 
 
-plot.enrichm.interaction <- function(interaction.dt, probeSubset, nonparam=T, plot.var='enrichm', colorList, title)
-{
-  interaction.dt <- interaction.dt[unified_int == probeSubset]
-  formula.str <- as.formula(paste(plot.var, "~", 'condition'))
-  if(nonparam==F)   { pVal <- interaction.dt %>% rstatix::welch_anova_test(formula = formula.str) }
-  if(nonparam==T)   { pVal <- interaction.dt %>% rstatix::wilcox_test(formula = formula.str)   }
-  colorList <- colorList[names(colorList) %like% probeSubset]
-  ggplot(interaction.dt, aes(x = condition, y=get(plot.var))) + geom_boxplot(fill = 'grey80', alpha=0.5) + 
-    geom_point(size=4, pch=21, fill='white', color='grey30',) + theme_bw() + theme(axis.text = element_text(color='black')) + 
-    scale_fill_manual(values = colorList)  + theme(legend.position = 'null', axis.title.x = element_blank()) + 
-    annotate('text', x=1, y=1.2*max(interaction.dt[,.(get(plot.var))]), 
-             label = paste("P=", round(pVal$p, digits=2)), color='black')+
-    ggtitle(title) + ylab("Log2FC enrichment relative to random") #+   scale_y_continuous(expand = expansion(mult = 0.1))
-}
+
 
 plot.enrichm.interaction(interaction.dt = interaction.byStage, probeSubset = "ACTIVATED_TREG--MIXED_TOX_LO_CD8", 
                          colorList = a$colorScheme, title="ACTIVATED_TREG--\nMIXED_TOX_LO_CD8")
@@ -1237,6 +1275,11 @@ plot.enrichm.interaction(interaction.dt = interaction.byStage, probeSubset = "AC
                          colorList = a$colorScheme, title="ACTIVATED_TREG--\nMEMORY_CD8")
 # ggsave(filename = 'output/ACTIVATED_TREG--MEMORY_CD8.stage.boxplot.pdf', width=2.5,height=3)
 
+x <- interaction.byStage[condition=='stage1' & enrichm > 1] %>% group_by(unified_int) %>% select(enrichm) %>% rstatix::get_summary_stats(show=c("n", "mean", "sd", "median"))
+plot.enrichm.interaction(interaction.dt = interaction.byStage, probeSubset = "ACTIVATED_TREG--TCF1_HI_TOX_HI_CD8", 
+                         colorList = a$colorScheme, title="ACTIVATED_TREG--\nTCF1_HI_TOX_HI_CD8")
+plot.enrichm.interaction(interaction.dt = interaction.byStage, probeSubset = "ACTIVATED_TREG--TCF1_LO_TOX_HI_CD8", 
+                         colorList = a$colorScheme, title="ACTIVATED_TREG--\nTCF1_LO_TOX_HI_CD8")
 ```
 
 

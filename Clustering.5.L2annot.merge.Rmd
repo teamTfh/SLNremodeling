@@ -210,73 +210,143 @@ md <- pDataDT(sln)
 print(paste("Primary object size: ", nrow(md), "cells"))
 print("cluster membership")
 print(table(md$leiden_harmony))
+```
 
-df <- data.frame(leiden_harmony = md$leiden_harmony, L1_annotations = "Unknown")   # consider re-implementing as data.table
-df$cell_ID <- md$cell_ID
-df$L1_annotations <- paste0("Clust.", df$leiden_harmony)  # unknown clusters
-df[which(df$leiden_harmony == "1" ), 'L1_annotations'] <-  "BCells.1"
-df[which(df$leiden_harmony == "2" ), 'L1_annotations'] <-  "BCells.2"
-df[which(df$leiden_harmony == "3" ), 'L1_annotations'] <-  "BCells.3"
-df[which(df$leiden_harmony == "4" ), 'L1_annotations'] <-  "BCells.4"
-df[which(df$leiden_harmony == "5" ), 'L1_annotations'] <-  "BCells.5"
-df[which(df$leiden_harmony == "6" ), 'L1_annotations'] <-  "BCells.6"
-df[which(df$leiden_harmony == "7" ), 'L1_annotations'] <-  "TBMixed.1"
-df[which(df$leiden_harmony == "8" ), 'L1_annotations'] <-  "TBMixed.2"
-df[which(df$leiden_harmony == "9" ), 'L1_annotations'] <-  "TBMixed.3"
-df[which(df$leiden_harmony == "10" ), 'L1_annotations'] <-  "TBMixed.4"
-df[which(df$leiden_harmony == "11" ), 'L1_annotations'] <-  "TBMixed.5"
-df[which(df$leiden_harmony == "12" ), 'L1_annotations'] <-  "TBMixed.6"
-df[which(df$leiden_harmony == "13" ), 'L1_annotations'] <-  "TBMixed.7"
-df[which(df$leiden_harmony == "14" ), 'L1_annotations'] <-  "BCells.7"
-df[which(df$leiden_harmony == "15" ), 'L1_annotations'] <-  "TBMixed.8"
-df[which(df$leiden_harmony == "16" ), 'L1_annotations'] <-  "TBMixed.9"
-df[which(df$leiden_harmony == "17" ), 'L1_annotations'] <-  "TBMixed.10"
-df[which(df$leiden_harmony == "18" ), 'L1_annotations'] <-  "TBMixed.11"
-df[which(df$leiden_harmony == "19" ), 'L1_annotations'] <-  "TBMixed.12"
-df[which(df$leiden_harmony == "20" ), 'L1_annotations'] <-  "TBMixed.13"
-df[which(df$leiden_harmony == "21" ), 'L1_annotations'] <-  "BCells.8"
-df[which(df$leiden_harmony == "22" ), 'L1_annotations'] <-  "BCells.9"
-df[which(df$leiden_harmony == "23" ), 'L1_annotations'] <-  "BCells.10"
-df[which(df$leiden_harmony == "24" ), 'L1_annotations'] <-  "BCells.11"
-df[which(df$leiden_harmony == "25" ), 'L1_annotations'] <-  "TBMixed.14"
-df[which(df$leiden_harmony == "26" ), 'L1_annotations'] <-  "TBMixed.15"
-df[which(df$leiden_harmony == "27" ), 'L1_annotations'] <-  "TBMixed.16"
-df[which(df$leiden_harmony == "28" ), 'L1_annotations'] <-  "BCells.12"
-df[which(df$leiden_harmony == "29" ), 'L1_annotations'] <-  "BCells.13"
-df[which(df$leiden_harmony == "30" ), 'L1_annotations'] <-  "TBMixed.17"
-df[which(df$leiden_harmony == "31" ), 'L1_annotations'] <-  "TBMixed.18"
-df[which(df$leiden_harmony == "32" ), 'L1_annotations'] <-  "TBMixed.19"
-df[which(df$leiden_harmony == "33" ), 'L1_annotations'] <-  "TBMixed.20"
-df[which(df$leiden_harmony == "34" ), 'L1_annotations'] <-  "BCells.14"
-df[which(df$leiden_harmony == "35" ), 'L1_annotations'] <-  "TBMixed.21"
-df[which(df$leiden_harmony == "36" ), 'L1_annotations'] <-  "Tumor.1"
-df[which(df$leiden_harmony == "37" ), 'L1_annotations'] <-  "Tumor.2"
-df[which(df$leiden_harmony == "38" ), 'L1_annotations'] <-  "BCells.15"
-df[which(df$leiden_harmony == "39" ), 'L1_annotations'] <-  "Tumor.3"
-df[which(df$leiden_harmony == "40" ), 'L1_annotations'] <-  "Tumor.4"
-df[which(df$leiden_harmony == "41" ), 'L1_annotations'] <-  "BCells.16"
-df[which(df$leiden_harmony == "42" ), 'L1_annotations'] <-  "TBMixed.22"
-df[which(df$leiden_harmony == "43" ), 'L1_annotations'] <-  "BCells.17"
-df[which(df$leiden_harmony == "44" ), 'L1_annotations'] <-  "TBMixed.23"
-df[which(df$leiden_harmony == "45" ), 'L1_annotations'] <-  "BCells.18"
-df[which(df$leiden_harmony == "46" ), 'L1_annotations'] <-  "TBMixed.24"
-df[which(df$leiden_harmony == "47" ), 'L1_annotations'] <-  "TBMixed.25"
-df[which(df$leiden_harmony == "48" ), 'L1_annotations'] <-  "TBMixed.26"
-df[which(df$leiden_harmony == "49" ), 'L1_annotations'] <-  "TCells.1"
-df[which(df$leiden_harmony == "50" ), 'L1_annotations'] <-  "BCells.19"
-df[which(df$leiden_harmony == "51" ), 'L1_annotations'] <-  "TBMixed.27"
-df[which(df$leiden_harmony == "52" ), 'L1_annotations'] <-  "Artifact.1"
-df[which(df$leiden_harmony == "53" ), 'L1_annotations'] <-  "TBMixed.28"
-df[which(df$leiden_harmony == "54" ), 'L1_annotations'] <-  "Artifact.2"
-df[which(df$leiden_harmony == "55" ), 'L1_annotations'] <-  "TCells.2"
-df[which(df$leiden_harmony == "56" ), 'L1_annotations'] <-  "TBMixed.29"
-df[which(df$leiden_harmony == "57" ), 'L1_annotations'] <-  "TBMixed.30"
-df[which(df$leiden_harmony == "58" ), 'L1_annotations'] <-  "BCells.20"
-df[which(df$leiden_harmony == "59" ), 'L1_annotations'] <-  "Tumor.5"
-df[which(df$leiden_harmony == "60" ), 'L1_annotations'] <-  "BCells.21"
-df[which(df$leiden_harmony == "61" ), 'L1_annotations'] <-  "Artifact.3"
-df[which(df$leiden_harmony == "62" ), 'L1_annotations'] <-  "TBMixed.31"
-      
+
+```{r assign-L1-labels}
+# df <- data.frame(leiden_harmony = md$leiden_harmony, L1_annotations = "Unknown")    
+# df$cell_ID <- md$cell_ID
+# df$L1_annotations <- paste0("Clust.", df$leiden_harmony)  # unknown clusters
+
+# df[which(df$leiden_harmony == "1" ), 'L1_annotations'] <-  "BCells.1"
+# df[which(df$leiden_harmony == "2" ), 'L1_annotations'] <-  "BCells.2"
+# df[which(df$leiden_harmony == "3" ), 'L1_annotations'] <-  "BCells.3"
+# df[which(df$leiden_harmony == "4" ), 'L1_annotations'] <-  "BCells.4"
+# df[which(df$leiden_harmony == "5" ), 'L1_annotations'] <-  "BCells.5"
+# df[which(df$leiden_harmony == "6" ), 'L1_annotations'] <-  "BCells.6"
+# df[which(df$leiden_harmony == "7" ), 'L1_annotations'] <-  "TBMixed.1"
+# df[which(df$leiden_harmony == "8" ), 'L1_annotations'] <-  "TBMixed.2"
+# df[which(df$leiden_harmony == "9" ), 'L1_annotations'] <-  "TBMixed.3"
+# df[which(df$leiden_harmony == "10" ), 'L1_annotations'] <-  "TBMixed.4"
+# df[which(df$leiden_harmony == "11" ), 'L1_annotations'] <-  "TBMixed.5"
+# df[which(df$leiden_harmony == "12" ), 'L1_annotations'] <-  "TBMixed.6"
+# df[which(df$leiden_harmony == "13" ), 'L1_annotations'] <-  "TBMixed.7"
+# df[which(df$leiden_harmony == "14" ), 'L1_annotations'] <-  "BCells.7"
+# df[which(df$leiden_harmony == "15" ), 'L1_annotations'] <-  "TBMixed.8"
+# df[which(df$leiden_harmony == "16" ), 'L1_annotations'] <-  "TBMixed.9"
+# df[which(df$leiden_harmony == "17" ), 'L1_annotations'] <-  "TBMixed.10"
+# df[which(df$leiden_harmony == "18" ), 'L1_annotations'] <-  "TBMixed.11"
+# df[which(df$leiden_harmony == "19" ), 'L1_annotations'] <-  "TBMixed.12"
+# df[which(df$leiden_harmony == "20" ), 'L1_annotations'] <-  "TBMixed.13"
+# df[which(df$leiden_harmony == "21" ), 'L1_annotations'] <-  "BCells.8"
+# df[which(df$leiden_harmony == "22" ), 'L1_annotations'] <-  "BCells.9"
+# df[which(df$leiden_harmony == "23" ), 'L1_annotations'] <-  "BCells.10"
+# df[which(df$leiden_harmony == "24" ), 'L1_annotations'] <-  "BCells.11"
+# df[which(df$leiden_harmony == "25" ), 'L1_annotations'] <-  "TBMixed.14"
+# df[which(df$leiden_harmony == "26" ), 'L1_annotations'] <-  "TBMixed.15"
+# df[which(df$leiden_harmony == "27" ), 'L1_annotations'] <-  "TBMixed.16"
+# df[which(df$leiden_harmony == "28" ), 'L1_annotations'] <-  "BCells.12"
+# df[which(df$leiden_harmony == "29" ), 'L1_annotations'] <-  "BCells.13"
+# df[which(df$leiden_harmony == "30" ), 'L1_annotations'] <-  "TBMixed.17"
+# df[which(df$leiden_harmony == "31" ), 'L1_annotations'] <-  "TBMixed.18"
+# df[which(df$leiden_harmony == "32" ), 'L1_annotations'] <-  "TBMixed.19"
+# df[which(df$leiden_harmony == "33" ), 'L1_annotations'] <-  "TBMixed.20"
+# df[which(df$leiden_harmony == "34" ), 'L1_annotations'] <-  "BCells.14"
+# df[which(df$leiden_harmony == "35" ), 'L1_annotations'] <-  "TBMixed.21"
+# df[which(df$leiden_harmony == "36" ), 'L1_annotations'] <-  "Tumor.1"
+# df[which(df$leiden_harmony == "37" ), 'L1_annotations'] <-  "Tumor.2"
+# df[which(df$leiden_harmony == "38" ), 'L1_annotations'] <-  "BCells.15"
+# df[which(df$leiden_harmony == "39" ), 'L1_annotations'] <-  "Tumor.3"
+# df[which(df$leiden_harmony == "40" ), 'L1_annotations'] <-  "Tumor.4"
+# df[which(df$leiden_harmony == "41" ), 'L1_annotations'] <-  "BCells.16"
+# df[which(df$leiden_harmony == "42" ), 'L1_annotations'] <-  "TBMixed.22"
+# df[which(df$leiden_harmony == "43" ), 'L1_annotations'] <-  "BCells.17"
+# df[which(df$leiden_harmony == "44" ), 'L1_annotations'] <-  "TBMixed.23"
+# df[which(df$leiden_harmony == "45" ), 'L1_annotations'] <-  "BCells.18"
+# df[which(df$leiden_harmony == "46" ), 'L1_annotations'] <-  "TBMixed.24"
+# df[which(df$leiden_harmony == "47" ), 'L1_annotations'] <-  "TBMixed.25"
+# df[which(df$leiden_harmony == "48" ), 'L1_annotations'] <-  "TBMixed.26"
+# df[which(df$leiden_harmony == "49" ), 'L1_annotations'] <-  "TCells.1"
+# df[which(df$leiden_harmony == "50" ), 'L1_annotations'] <-  "BCells.19"
+# df[which(df$leiden_harmony == "51" ), 'L1_annotations'] <-  "TBMixed.27"
+# df[which(df$leiden_harmony == "52" ), 'L1_annotations'] <-  "Artifact.1"
+# df[which(df$leiden_harmony == "53" ), 'L1_annotations'] <-  "TBMixed.28"
+# df[which(df$leiden_harmony == "54" ), 'L1_annotations'] <-  "Artifact.2"
+# df[which(df$leiden_harmony == "55" ), 'L1_annotations'] <-  "TCells.2"
+# df[which(df$leiden_harmony == "56" ), 'L1_annotations'] <-  "TBMixed.29"
+# df[which(df$leiden_harmony == "57" ), 'L1_annotations'] <-  "TBMixed.30"
+# df[which(df$leiden_harmony == "58" ), 'L1_annotations'] <-  "BCells.20"
+# df[which(df$leiden_harmony == "59" ), 'L1_annotations'] <-  "Tumor.5"
+# df[which(df$leiden_harmony == "60" ), 'L1_annotations'] <-  "BCells.21"
+# df[which(df$leiden_harmony == "61" ), 'L1_annotations'] <-  "Artifact.3"
+# df[which(df$leiden_harmony == "62" ), 'L1_annotations'] <-  "TBMixed.31"
+
+df <- data.table(leiden_harmony = md$leiden_harmony, L1_annotations = "Unknown")    
+df[, cell_ID := md$cell_ID]
+df[, L1_annotations := paste0("Clust.", df$leiden_harmony)]  # unknown clusters
+df[leiden_harmony == "1" , L1_annotations := "BCells.1"]
+df[leiden_harmony == "2" , L1_annotations := "BCells.2"]
+df[leiden_harmony == "3" , L1_annotations := "BCells.3"]
+df[leiden_harmony == "4" , L1_annotations := "BCells.4"]
+df[leiden_harmony == "5" , L1_annotations := "BCells.5"]
+df[leiden_harmony == "6" , L1_annotations := "BCells.6"]
+df[leiden_harmony == "7" , L1_annotations := "TBMixed.1"]
+df[leiden_harmony == "8" , L1_annotations := "TBMixed.2"]
+df[leiden_harmony == "9" , L1_annotations := "TBMixed.3"]
+df[leiden_harmony == "10" , L1_annotations := "TBMixed.4"]
+df[leiden_harmony == "11" , L1_annotations := "TBMixed.5"]
+df[leiden_harmony == "12" , L1_annotations := "TBMixed.6"]
+df[leiden_harmony == "13" , L1_annotations := "TBMixed.7"]
+df[leiden_harmony == "14" , L1_annotations := "BCells.7"]
+df[leiden_harmony == "15" , L1_annotations := "TBMixed.8"]
+df[leiden_harmony == "16" , L1_annotations := "TBMixed.9"]
+df[leiden_harmony == "17" , L1_annotations := "TBMixed.10"]
+df[leiden_harmony == "18" , L1_annotations := "TBMixed.11"]
+df[leiden_harmony == "19" , L1_annotations := "TBMixed.12"]
+df[leiden_harmony == "20" , L1_annotations := "TBMixed.13"]
+df[leiden_harmony == "21" , L1_annotations := "BCells.8"]
+df[leiden_harmony == "22" , L1_annotations := "BCells.9"]
+df[leiden_harmony == "23" , L1_annotations := "BCells.10"]
+df[leiden_harmony == "24" , L1_annotations := "BCells.11"]
+df[leiden_harmony == "25" , L1_annotations := "TBMixed.14"]
+df[leiden_harmony == "26" , L1_annotations := "TBMixed.15"]
+df[leiden_harmony == "27" , L1_annotations := "TBMixed.16"]
+df[leiden_harmony == "28" , L1_annotations := "BCells.12"]
+df[leiden_harmony == "29" , L1_annotations := "BCells.13"]
+df[leiden_harmony == "30" , L1_annotations := "TBMixed.17"]
+df[leiden_harmony == "31" , L1_annotations := "TBMixed.18"]
+df[leiden_harmony == "32" , L1_annotations := "TBMixed.19"]
+df[leiden_harmony == "33" , L1_annotations := "TBMixed.20"]
+df[leiden_harmony == "34" , L1_annotations := "BCells.14"]
+df[leiden_harmony == "35" , L1_annotations := "TBMixed.21"]
+df[leiden_harmony == "36" , L1_annotations := "Tumor.1"]
+df[leiden_harmony == "37" , L1_annotations := "Tumor.2"]
+df[leiden_harmony == "38" , L1_annotations := "BCells.15"]
+df[leiden_harmony == "39" , L1_annotations := "Tumor.3"]
+df[leiden_harmony == "40" , L1_annotations := "Tumor.4"]
+df[leiden_harmony == "41" , L1_annotations := "BCells.16"]
+df[leiden_harmony == "42" , L1_annotations := "TBMixed.22"]
+df[leiden_harmony == "43" , L1_annotations := "BCells.17"]
+df[leiden_harmony == "44" , L1_annotations := "TBMixed.23"]
+df[leiden_harmony == "45" , L1_annotations := "BCells.18"]
+df[leiden_harmony == "46" , L1_annotations := "TBMixed.24"]
+df[leiden_harmony == "47" , L1_annotations := "TBMixed.25"]
+df[leiden_harmony == "48" , L1_annotations := "TBMixed.26"]
+df[leiden_harmony == "49" , L1_annotations := "TCells.1"]
+df[leiden_harmony == "50" , L1_annotations := "BCells.19"]
+df[leiden_harmony == "51" , L1_annotations := "TBMixed.27"]
+df[leiden_harmony == "52" , L1_annotations := "Artifact.1"]
+df[leiden_harmony == "53" , L1_annotations := "TBMixed.28"]
+df[leiden_harmony == "54" , L1_annotations := "Artifact.2"]
+df[leiden_harmony == "55" , L1_annotations := "TCells.2"]
+df[leiden_harmony == "56" , L1_annotations := "TBMixed.29"]
+df[leiden_harmony == "57" , L1_annotations := "TBMixed.30"]
+df[leiden_harmony == "58" , L1_annotations := "BCells.20"]
+df[leiden_harmony == "59" , L1_annotations := "Tumor.5"]
+df[leiden_harmony == "60" , L1_annotations := "BCells.21"]
+df[leiden_harmony == "61" , L1_annotations := "Artifact.3"]
+df[leiden_harmony == "62" , L1_annotations := "TBMixed.31"]
+
 sln <- addCellMetadata(sln, new_metadata = df, by_column = T, column_cell_ID="cell_ID")  # add in the annotations to the main object
 
 
@@ -331,6 +401,21 @@ md$L3_annotations %>% table
 print(md$L3_annotations %>% table %>% length)
 
 ```
+
+```{r add-new-subsets}
+md <- pDataDT(sln)
+
+md[L2_annotations == "TCELL_BCELL_MYELOID_MIXED" & CD11C.Positive.Classification == 1, 
+   L2_annotations:= "DENDRITIC_CELL"]
+md[L2_annotations == "MEMORY_CD4" & TCF1.Positive.Classification == 1 & TOX.Positive.Classification == 1, 
+   L2_annotations:= "STEM_CD4"]
+md[L2_annotations == "ACTIVATED_MEMORY_CD4" & TCF1.Positive.Classification == 1 & TOX.Positive.Classification == 1, 
+   L2_annotations:= "ACTIVATED_STEM_CD4"]
+sln <- addCellMetadata(gobject = sln, new_metadata = df.new, by_column=T, column_cell_ID = 'cell_ID')
+
+
+```
+
 
 # calculate spatialKNN for later InteractionChangedFeats
 ```{r add-spatialKNN}
@@ -391,7 +476,6 @@ spatPlot2D(sln.sm, cell_color = 'L1_annotations', cell_color_code = leiden_color
 
 # final save object 
 ```{r save-SLN-object}
-filename = 
 saveRDS(object = sln,  file = paste0("sln.clustering5.annot.spatnet.", timeStamp, ".RDS"))
 md <- pDataDT(sln)
 saveRDS(object = md, file = paste0("md.sln.clustering5.annot.spatnet.", timeStamp, ".RDS"))
