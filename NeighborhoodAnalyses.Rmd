@@ -41,16 +41,35 @@ sessionInfo()
 # library(factoextra)
 ```
 
+```{r scratchpad, eval=FALSE}
+
+# qs2::qs_save(object = readRDS("sln.clustering5.annot.spatnet.20260606.095149.RDS"), file = "sln.clustering5.annot.spatnet.20260606.095149.qs2", compress_level = 10, nthreads=10  )
+
+# qs2::qs_save(object = readRDS("neighborhood.annot.k9.sln.RDS"), file = "neighborhood.annot.k9.sln.qs2", compress_level = 10, nthreads=10  )
+
+```
+
 # read in data object 
 ```{r read-annot-sln-spatnet}
+# sln <- readRDS("sln.clustering5.annot.spatnet.20250617.160512.RDS")
+# gc()
+
 if(.Platform$OS.type == "windows")  
 {
-  sln <- qs2::qs_read(file = "sln.clustering5.annot.spatnet.20250617.160512.qs2", nthreads = 5)
-} else sln <- readRDS("sln.clustering5.annot.spatnet.20250617.160512.RDS")
+  qs2::qopt("nthreads", 5)  # better this than to specify nThreads with every qs2_read call
+  sln <- qs2::qs_read(file = "sln.clustering5.annot.spatnet.20260606.095149.qs2")
+} else sln <- readRDS("sln.clustering5.annot.spatnet.20260606.095149.RDS")
 gc()
+
+
 md <- pDataDT(sln)
-# stableColorsL2 <- getDistinctColors(length(unique(md$L2_annotations)));  names(stableColorsL2) <- unique(md$L2_annotations)
-stableColorsL2 <- readRDS(file = 'l2_v3_master_colors.rds')
+stableColorsL2 <- getDistinctColors(length(unique(md$L2_annotations)));  names(stableColorsL2) <- unique(md$L2_annotations)
+stableColors.sabrina <- readRDS(file = 'l2_v3_master_colors.rds')
+common_names <- intersect(names(stableColorsL2), names(stableColors.sabrina))
+stableColorsL2[common_names] <- stableColors.sabrina[common_names]
+stableColorsL2 <- c(stableColorsL2[!names(stableColorsL2) %in% names(stableColors.sabrina)], 
+                    stableColors.sabrina)
+rm(stableColors.sabrina, common_names)
 classifier_label_colors <- c('B Cell Follicle'='#107BDA','GC'='#EE6710', 'T/B Mixed'='yellow', 'T Cell Zone'='#FF0096',
                              'Tumor'='limegreen')
 name_mapping <- c('ctrl.1' = '101', 'ctrl.2' = '102', 'ctrl.3' = '103', 'ctrl.4' = '104', 'ctrl.5' = '105',
@@ -79,10 +98,9 @@ spatPlot2D(sln.sm, cell_color = 'L2_annotations', cell_color_code = leiden_color
 ```
 
 
-# calculate proximity enrichment per sample for k=5
+# calculate proximity enrichment per sample - Functions
 ```{r cellproxEnrich-function-functions}
-cellProx.sim <- function(gobject, spat_unit = NULL, feat_type = NULL, spatial_network_name="spatialknn.k5", 
-                         #spatial_network_name = "Delaunay_network",
+cellProx.sim <- function(gobject, spat_unit = NULL, feat_type = NULL, spatial_network_name="spatialknn.k9", 
     cluster_column, number_of_simulations = 1000, 
     adjust_method = c("none", "fdr", "bonferroni", "BH", "holm", "hochberg", "hommel", "BY"), 
     set_seed = TRUE, seed_number = 1234) 
@@ -322,43 +340,48 @@ gc()
 
 
 ```{r cellproxEnrich-function-k5}
-tableResults.k5 <- list()
-annot.k5 <- list()
-for (i in list_ID)
+if(.Platform$OS.type != "windows")  
 {
-  print(i)
-  keepCells <- subset(md, list_ID %in% i )$cell_ID
-  sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
-  sln.sm <- createSpatialKNNnetwork(sln.sm, k=5, verbose=T, name = "spatialknn.k5.persample")
-  annot.k5[[i]] <- annotateSpatialNetwork(sln.sm, cluster_column = "L2_annotations", spatial_network_name = 'spatialknn.k5.persample')
-  tableResults.k5[[i]] <- cellProx.sim(sln.sm, cluster_column = 'L2_annotations', adjust_method = "fdr",
-                                       number_of_simulations = 200, spatial_network_name = "spatialknn.k5.persample")
+  tableResults.k5 <- list()
+  annot.k5 <- list()
+  for (i in list_ID)
+  {
+    print(i)
+    keepCells <- subset(md, list_ID %in% i )$cell_ID
+    sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
+    sln.sm <- createSpatialKNNnetwork(sln.sm, k=5, verbose=T, name = "spatialknn.k5.persample")
+    annot.k5[[i]] <- annotateSpatialNetwork(sln.sm, cluster_column = "L2_annotations", spatial_network_name = 'spatialknn.k5.persample')
+    tableResults.k5[[i]] <- cellProx.sim(sln.sm, cluster_column = 'L2_annotations', adjust_method = "fdr",
+                                         number_of_simulations = 200, spatial_network_name = "spatialknn.k5.persample")
+  }
+  saveRDS(list(annot.k5=annot.k5, tableResults.k5 = tableResults.k5), file="neighborhood.annot.k5.sln.RDS") 
 }
-saveRDS(list(annot.k5=annot.k5, tableResults.k5 = tableResults.k5), file="neighborhood.annot.k5.sln.RDS")  # all data merged
-# annot.k5 <- readRDS(file="neighborhood.annot.k5.sln.RDS")[["annot.k5"]]  # all data merged
-# dt <- purrr::list_rbind(tableResults.k5, names_to = "id")
-
 ```
 
-
+# calculate proximity enrichment per sample for k=9
 ```{r cellproxEnrich-function-k9}
 # calculate proximity enrichment per sample for k=9
-tableResults.k9 <- list()
-annot.k9 <- list()
-for (i in list_ID)
+
+if(.Platform$OS.type != "windows")  
 {
-  print(i)
-  keepCells <- subset(md, list_ID %in% i )$cell_ID
-  sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
-  sln.sm <- createSpatialKNNnetwork(sln.sm, k=9, verbose=T, name = "spatialknn.k9.persample") 
-  print("made spatialKNN")
-  annot.k9[[i]] <- annotateSpatialNetwork(sln.sm, cluster_column = "L2_annotations", spatial_network_name = 'spatialknn.k9.persample')
-  tableResults.k9[[i]] <- cellProx.sim(sln.sm, cluster_column = 'L2_annotations', adjust_method = "fdr",
-                                       number_of_simulations = 200, spatial_network_name = "spatialknn.k9.persample")
+  tableResults.k9 <- list()
+  annot.k9 <- list()
+  for (i in list_ID)
+  {
+    print(i)
+    keepCells <- subset(md, list_ID %in% i )$cell_ID
+    sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
+    sln.sm <- createSpatialKNNnetwork(sln.sm, k=9, verbose=T, name = "spatialknn.k9.persample") 
+    print("made spatialKNN")
+    annot.k9[[i]] <- annotateSpatialNetwork(sln.sm, cluster_column = "L2_annotations", spatial_network_name = 'spatialknn.k9.persample')
+    tableResults.k9[[i]] <- cellProx.sim(sln.sm, cluster_column = 'L2_annotations', adjust_method = "fdr",
+                                         number_of_simulations = 200, spatial_network_name = "spatialknn.k9.persample")
+  }
+  
+  saveRDS(list(annot.k9 = annot.k9, tableResults.k9 = tableResults.k9), file="neighborhood.annot.k9.sln.RDS") 
+  
+  dt <- purrr::list_rbind(tableResults.k9, names_to = "id")
 }
-
-# saveRDS(list(annot.k9 = annot.k9, tableResults.k9 = tableResults.k9), file="neighborhood.annot.k9.sln.RDS")  # all data merged
-
 
 # ******* L3 annotations proximity enrichment ***********
 # tableResults.k9 <- list()
@@ -374,21 +397,20 @@ for (i in list_ID)
 #   tableResults.k9[[i]] <- cellProx.sim(sln.sm, cluster_column = 'L3_annotations', adjust_method = "fdr",
 #                                        number_of_simulations = 200, spatial_network_name = "spatialknn.k9.persample")
 # }
+# saveRDS(list(annot.k9 = annot.k9, tableResults.k9 = tableResults.k9), file="neighborhood.annot.k9.L3.sln.RDS")   
 
-# pull example cell for study
-# annot.k9$tumor.5[from %like% 215265 | to %like% 215265] %>% write.csv("neighbors.of.tumor5.215265.csv")
-
-# saveRDS(list(annot.k9 = annot.k9, tableResults.k9 = tableResults.k9), file="neighborhood.annot.k9.L3.sln.RDS")  # all data merged
-#  
-dt <- purrr::list_rbind(tableResults.k9, names_to = "id")
 ```
 
 Fails on k=10 on tumor.6  (2 million rows) with long vectors error 
 Works for k=9 for all samples 
 
 ```{r read-in-annotk9, eval=FALSE}
-dt <- purrr::list_rbind(readRDS(file="neighborhood.annot.k9.sln.RDS")[['tableResults.k9']], names_to = "id")
-annot.k9 <- readRDS(file="neighborhood.annot.k9.sln.RDS")[['annot.k9']]  #  read in L2 annotations
+
+dt <- purrr::list_rbind(qs2::qs_read(file = "neighborhood.annot.k9.sln.qs2")[['tableResults.k9']], names_to = "id")
+annot.k9 <- qs2::qs_read(file = "neighborhood.annot.k9.sln.qs2")[['annot.k9']]  #  read in L2 annotations
+
+# dt <- purrr::list_rbind(readRDS(file="neighborhood.annot.k9.sln.RDS")[['tableResults.k9']], names_to = "id")
+# annot.k9 <- readRDS(file="neighborhood.annot.k9.sln.RDS")[['annot.k9']]  #  read in L2 annotations
 ```
 
 
@@ -437,7 +459,7 @@ for (i in seq_along(sampleList))
   names(perSampleInteraction)[i] <-  subset(dt, id %in% sampleList[i])$id[1]
 }
 
-# saveRDS(perSampleInteraction, file="neighborhood.perSampleInteraction.RDS")  # all data merged 
+# saveRDS(perSampleInteraction, file="neighborhood.perSampleInteraction.RDS")  
 # perSampleInteraction <- readRDS(file="neighborhood.perSampleInteraction.RDS")
 
 perSampleInteraction.enrichm_res <- list()
@@ -480,8 +502,11 @@ for (i in list_ID)
   tableResults.rad[[i]] <- cellProx.sim(sln.sm, cluster_column = 'L2_annotations', adjust_method = "fdr",
                                        number_of_simulations = 200, spatial_network_name = "spatialknn.radius.persample")
 }
-saveRDS(list(annot.rad = annot.rad, tableResults.rad = tableResults.rad),
-        file="neighborhood.annot.radius.sln.RDS")  # all data merged
+if(.Platform$OS.type != "windows")  
+{   
+  saveRDS(list(annot.rad = annot.rad, tableResults.rad = tableResults.rad), file="neighborhood.annot.radius.sln.RDS")   
+}
+
 # annot.rad <- readRDS(file="neighborhood.annot.radius.sln.RDS")[['annot.rad']]  #  read in L2 annotations 
 dt <- purrr::list_rbind(tableResults.rad, names_to = "id")
 
@@ -1926,7 +1951,12 @@ for (i in list_ID)
   # tableResults.k50[[i]] <- cellProx.sim(sln.sm, cluster_column = 'L2_annotations', adjust_method = "fdr",
   #                                      number_of_simulations = 200, spatial_network_name = "spatialknn.k50.persample")
 }
-# saveRDS(list(annot.k50=annot.k50, tableResults.k50 = tableResults.k50), file="neighborhood.annot.k50.sln.RDS")  # all data merged
+
+
+if(.Platform$OS.type != "windows")  
+{
+  saveRDS(list(annot.k50=annot.k50, tableResults.k50 = tableResults.k50), file="neighborhood.annot.k50.sln.RDS")
+}
 
 
 # Job ID: 6403353
@@ -2109,6 +2139,32 @@ ggplot(dt, aes(x = source, y=data)) +
 
  
 
+#  ***** TCF1_HI *****
+spec.prot = 'IFNG'; subset = "TCF1_HI_TOX_HI_CD8"; num.perm = 10000; radius = 15.92; 
+lab.more = paste0(">",radius); lab.less = paste0("<=",radius)
+nearest.Treg.test <- nearest.Treg[from_cell_type == subset]
+max.dist <- max(nearest.Treg.test$min.dist.Treg)
+nearest.Treg.test <- nearest.Treg.test[, dist.bin := cut(min.dist.Treg, breaks = c(0,radius,Inf), labels= c(lab.less,lab.more),
+                                                           right=T, include_lowest=T)]  # break into bins 
+prot.data <- Giotto::getExpression(gobject = sln, values = "normalized")@exprMat[spec.prot, nearest.Treg.test$from ]
+nearest.Treg.test <- merge(nearest.Treg.test, data.frame(from = names(prot.data), data = prot.data), by='from')
+nearest.Treg.test %>% group_by(dist.bin) %>% select(data) %>% rstatix::get_summary_stats(type = 'common')
+dt <- nearest.Treg.test[,.(source = dist.bin, data=data)]
+p.val <- permutation.test.neighborhoods(dt, group.0 = lab.more, group.1 = lab.less, num.permutations = num.perm)
+ypos = max(dt$data) * 0.85
+ggplot(dt, aes(x = source, y=data)) + 
+  geom_violin(fill='grey80', draw_quantiles = c(0.5), color='black', linewidth = 0.5) + ggtitle(subset) + 
+  xlab("Distance to nearest Treg") + ylab(spec.prot) + 
+  annotate('text', x=0.5, y=ypos, color='black', 
+           label= paste0("Mean ", lab.less, ": ", round(mean(dt[source == lab.less, data]), 1), 
+                       "\n",
+                       "Mean ", lab.more,": ", round(mean(dt[source == lab.more, data]), 1),
+                       "\nPermutation test: P=", ifelse(p.val==0, 1/num.perm, p.val)),
+           hjust = 0, size=3) +
+  theme_classic() + theme(legend.position = 'none', axis.text = element_text(size=12, color='black'), 
+                          axis.text.x = element_text(size=12, hjust=1, vjust=1, angle=45)) 
+# ggsave(filename = 'output/dist.to.Treg.IFNG.TCFhiCD8.pdf', width=3, height=3)
+
 
 #  ***** Tumor *****
 spec.prot = 'GZMB'; subset = "TCF1_LO_TOX_HI_CD8"; num.perm = 2000; radius = 15.92; 
@@ -2164,6 +2220,414 @@ ggplot(dt, aes(x = source, y=data)) +
   scale_y_continuous(limits = c(0,40))
 # ggsave(filename = 'output/dist.to.Tumor.IFNG.TCFloCD8.pdf', width=3, height=3)
 
+```
+
+
+# study spatial triplets in the data 
+```{r finding-triplets-function, eval=FALSE}
+
+
+
+triplet.Analysis <- function(gobject, nsims = 200, spatnet='spatialknn.arbitrary', clustCol = "L2_annotations", threshold=0.5, spatialk)
+{
+  sim.results <- list()
+  annot.knn <- list()
+  i = list_ID[1]
+  # for (i in list_ID)
+  # {
+    print(i)
+    keepCells <- subset(md, list_ID %in% i )$cell_ID
+    gobj.sm <- subsetGiotto(gobject = gobject, cell_ids = keepCells)
+    gobj.sm <- createSpatialKNNnetwork(gobj.sm, k=spatialk, verbose=T, name = spatnet) 
+    message("made spatialKNN at ", Sys.time())
+    annot.knn <- annotateSpatialNetwork(gobj.sm, cluster_column = clustCol, spatial_network_name = spatnet)
+    message("annotated spatialKNN at ", Sys.time())
+    message("starting pairwise cellProx.sim at ", Sys.time())
+    tableResults.knn <- cellProx.sim(gobj.sm, cluster_column = clustCol, adjust_method = "fdr",
+                                         number_of_simulations = nsims, spatial_network_name = spatnet)
+    pairwise_dt <- cellProx.subgroup(tableResults.knn)[['enrichm_res']]
+    message("starting cellTriplet.sim at ", Sys.time())
+
+    sim.results[[i]] <- cellTriplet.sim(gobj.sm, spat_unit = NULL, feat_type = NULL, spatial_network_name= spatnet,
+                            cluster_column= clustCol, number_of_simulations = nsims,
+                            min_cell_abundance = 0,             # Pre-filter 1: Drop rare cells overall
+                            specific_cell_types = NULL,         # Pre-filter 2: Character vector of cells to keep
+                            pairwise_results_dt = pairwise_dt,         # Output from cellProx.sim()
+                            pairwise_enrich_threshold  = threshold)      # Enrichment threshold
+    out.calcP <- cellTriplet.calcP(table_results = sim.results[[i]], number_of_simulations = nsims, adjust_method = "fdr")
+# }
+  return(out.calcP)
+}
+
+
+cellTriplet.sim <- function(gobject, spat_unit = NULL, feat_type = NULL, spatial_network_name,
+                            cluster_column, number_of_simulations = 200,
+                            min_cell_abundance = 0,             # Pre-filter 1: Drop rare cells overall
+                            specific_cell_types = NULL,         # Pre-filter 2: Character vector of cells to keep
+                            pairwise_results_dt = NULL,         # Output from cellProx.sim()
+                            pairwise_enrich_threshold = 1)      # Enrichment threshold
+
+{
+    # 1. Helper Functions (Defined first so they can be called)
+    # Vectorized fast sorting for duplets
+    get_unified_duplet <- function(t1, t2) {   paste(pmin(t1, t2), pmax(t1, t2), sep = "--")   }
+    
+    # Row-wise sorting for triplets (Fallback for 3+ items, optimized with data.table)
+    # Using apply is slow on millions of rows, but necessary for >2 elements without complex pmin/pmax nesting.
+    get_unified_triplet <- function(t1, t2, t3) {  
+      apply(cbind(t1, t2, t3), 1, 
+            function(row) { paste(sort(row), collapse = "--")    })   
+      }
+
+    # 2. Extract spatial network and metadata
+    spat_net <- Giotto::getSpatialNetwork(gobject, name = spatial_network_name)
+    spat_net <- spat_net@networkDT
+    cell_meta <- Giotto::pDataDT(gobject)
+    
+    # 3. PRE-FILTERING: Isolate Valid Cells & Anchored Pairs
+    # Filter Cell Metadata based on abundance and user-specified types
+    type_counts <- cell_meta[, .N, by = cluster_column]
+    valid_types <- type_counts[N >= min_cell_abundance][[cluster_column]]
+    
+    if(!is.null(specific_cell_types)) {  valid_types <- intersect(valid_types, specific_cell_types)  }
+    
+    cell_meta_filtered <- cell_meta[get(cluster_column) %in% valid_types]
+    valid_cell_ids <- cell_meta_filtered$cell_ID    # not super meaningful on large datasets with coarse clustering
+    # > valid_cell_ids[1:3]
+    # [1] "ctrl.1-ctrl.1_31681" "ctrl.1-ctrl.1_31682" "ctrl.1-ctrl.1_31683"
+    
+    # Extract only the enriched pairs from prior analysis that exceed threshold
+    if(!is.null(pairwise_results_dt)) {
+        sig_pairs <- pairwise_results_dt[enrichm <= -pairwise_enrich_threshold | enrichm >= pairwise_enrich_threshold]
+        valid_enriched_duplets <- unique(sig_pairs$unified_int) 
+    } else {  stop("Pairwise results must be provided to filter the cell dataset.")    }
+    
+    # create dictionary 
+    all.types <- unique(cell_meta_filtered[[cluster_column]])
+    dict <- as.data.table(expand.grid(t1 = all.types, t2 = all.types, t3=all.types, stringsAsFactors = F))
+    dict <- dict[, unified_int := get_unified_triplet(t1, t2, t3)]
+    data.table::setkey(dict, t1, t2, t3)
+    
+    # 4. Construct igraph object and find 3-cliques (Triplets)
+    g <- igraph::graph_from_data_frame(spat_net[, .(from, to)], directed = FALSE)
+    g <- igraph::simplify(g)  # Simplify to remove duplicate edges and self-loops
+    
+    message("Starting spatial triangle search at: ", Sys.time())
+    tri_verts <- igraph::triangles(g)
+    message("Triangle search complete at: ", Sys.time())
+    
+    # Reshape flat vector into a 3-column matrix
+    tri_mat <- matrix(tri_verts, ncol = 3, byrow = TRUE)
+    # > tri_mat
+    #          [,1]   [,2]   [,3]
+    #   [1,]  32787  32773  32778
+    #   [2,]  32787  32776  32773
+    #   [3,]  32787  32776  32778
+    #   [4,]  32787  32777  32773
+    
+    node_names <- igraph::V(g)$name  
+    
+    triplet_dt <- data.table(
+        node1 = node_names[tri_mat[, 1]],
+        node2 = node_names[tri_mat[, 2]],
+        node3 = node_names[tri_mat[, 3]]
+    )
+    
+    # Keep only triplets where ALL THREE nodes belong to our pre-filtered valid cells
+    triplet_dt <- triplet_dt[node1 %in% valid_cell_ids & 
+                             node2 %in% valid_cell_ids & 
+                             node3 %in% valid_cell_ids]
+    #                          
+    # > triplet_dt
+    #                     node1                node2                node3
+    #                    <char>               <char>               <char>
+    #   1: ctrl.1-ctrl.1_132794 ctrl.1-ctrl.1_132780 ctrl.1-ctrl.1_132785
+    #   2: ctrl.1-ctrl.1_132794 ctrl.1-ctrl.1_132783 ctrl.1-ctrl.1_132780
+    #   3: ctrl.1-ctrl.1_132794 ctrl.1-ctrl.1_132783 ctrl.1-ctrl.1_132785
+      
+    
+    # 5. Map Observed Cell Types to Triplets
+    # Create a named vector for fast lookup
+    type_map <- setNames(as.character(cell_meta_filtered[[cluster_column]]), cell_meta_filtered$cell_ID)
+   #  > type_map[1:3]
+   #  ctrl.1-ctrl.1_31681 ctrl.1-ctrl.1_31682 ctrl.1-ctrl.1_31683 
+   # "CD4_CD20_MIXED"                "PC"      "CD8_PC_MIXED" 
+   
+    # Map types to the nodes BEFORE evaluating pairs
+    triplet_dt[, type1 := type_map[node1]]
+    triplet_dt[, type2 := type_map[node2]]
+    triplet_dt[, type3 := type_map[node3]]
+    # > triplet_dt
+    #                     node1                node2                node3              type1              type2
+    #                    <char>               <char>               <char>             <char>             <char>
+    #   1: ctrl.1-ctrl.1_132794 ctrl.1-ctrl.1_132780 ctrl.1-ctrl.1_132785 TCF1_LO_TOX_HI_CD8 TCF1_HI_TOX_HI_CD8
+    #   2: ctrl.1-ctrl.1_132794 ctrl.1-ctrl.1_132783 ctrl.1-ctrl.1_132780 TCF1_LO_TOX_HI_CD8 TCF1_HI_TOX_HI_CD8
+    #   3: ctrl.1-ctrl.1_132794 ctrl.1-ctrl.1_132783 ctrl.1-ctrl.1_132785 TCF1_LO_TOX_HI_CD8 TCF1_HI_TOX_HI_CD8
+      
+    # 6. Apply The Anchored Pair Filter
+    # Generate the three constituent pairs for every observed triplet
+    triplet_dt[, pair1 := get_unified_duplet(type1, type2)]
+    triplet_dt[, pair2 := get_unified_duplet(type2, type3)]
+    triplet_dt[, pair3 := get_unified_duplet(type1, type3)]
+    
+    # FILTER: Keep the triplet ONLY if at least one of its pairs is enriched globally
+    triplet_dt <- triplet_dt[pair1 %in% valid_enriched_duplets | 
+                             pair2 %in% valid_enriched_duplets | 
+                             pair3 %in% valid_enriched_duplets]
+                             
+    # > triplet_dt[1:3]
+    #                   node1                node2                node3              type1              type2              type3
+    #                  <char>               <char>               <char>             <char>             <char>             <char>
+    # 1: ctrl.1-ctrl.1_132794 ctrl.1-ctrl.1_132780 ctrl.1-ctrl.1_132785 TCF1_LO_TOX_HI_CD8 TCF1_HI_TOX_HI_CD8 TCF1_HI_TOX_HI_CD8
+    # 2: ctrl.1-ctrl.1_132794 ctrl.1-ctrl.1_132783 ctrl.1-ctrl.1_132780 TCF1_LO_TOX_HI_CD8 TCF1_HI_TOX_HI_CD8 TCF1_HI_TOX_HI_CD8
+    # 3: ctrl.1-ctrl.1_132794 ctrl.1-ctrl.1_132783 ctrl.1-ctrl.1_132785 TCF1_LO_TOX_HI_CD8 TCF1_HI_TOX_HI_CD8 TCF1_HI_TOX_HI_CD8
+    #                                     pair1                                  pair2                                  pair3
+    #                                    <char>                                 <char>                                 <char>
+    # 1: TCF1_HI_TOX_HI_CD8--TCF1_LO_TOX_HI_CD8 TCF1_HI_TOX_HI_CD8--TCF1_HI_TOX_HI_CD8 TCF1_HI_TOX_HI_CD8--TCF1_LO_TOX_HI_CD8
+    # 2: TCF1_HI_TOX_HI_CD8--TCF1_LO_TOX_HI_CD8 TCF1_HI_TOX_HI_CD8--TCF1_HI_TOX_HI_CD8 TCF1_HI_TOX_HI_CD8--TCF1_LO_TOX_HI_CD8
+    # 3: TCF1_HI_TOX_HI_CD8--TCF1_LO_TOX_HI_CD8 TCF1_HI_TOX_HI_CD8--TCF1_HI_TOX_HI_CD8 TCF1_HI_TOX_HI_CD8--TCF1_LO_TOX_HI_CD8
+    # 3.5 million observations 
+
+    
+    triplet_dt[dict, unified_int := i.unified_int, on=.(type1 = t1, type2 = t2, type3=t3)] # calculate the final unified triplet name
+    #  the prefix i. is needed because there is a unified_int in both triplet_dt and dict so specifies using dataset in brackets
+    
+    # > triplet_dt[1:3]
+    #                   node1                node2                node3              type1              type2              type3
+    #                  <char>               <char>               <char>             <char>             <char>             <char>
+    # 1: ctrl.1-ctrl.1_132794 ctrl.1-ctrl.1_132780 ctrl.1-ctrl.1_132785 TCF1_LO_TOX_HI_CD8 TCF1_HI_TOX_HI_CD8 TCF1_HI_TOX_HI_CD8
+    # 2: ctrl.1-ctrl.1_132794 ctrl.1-ctrl.1_132783 ctrl.1-ctrl.1_132780 TCF1_LO_TOX_HI_CD8 TCF1_HI_TOX_HI_CD8 TCF1_HI_TOX_HI_CD8
+    # 3: ctrl.1-ctrl.1_132794 ctrl.1-ctrl.1_132783 ctrl.1-ctrl.1_132785 TCF1_LO_TOX_HI_CD8 TCF1_HI_TOX_HI_CD8 TCF1_HI_TOX_HI_CD8
+    #                                     pair1                                  pair2                                  pair3
+    #                                    <char>                                 <char>                                 <char>
+    # 1: TCF1_HI_TOX_HI_CD8--TCF1_LO_TOX_HI_CD8 TCF1_HI_TOX_HI_CD8--TCF1_HI_TOX_HI_CD8 TCF1_HI_TOX_HI_CD8--TCF1_LO_TOX_HI_CD8
+    # 2: TCF1_HI_TOX_HI_CD8--TCF1_LO_TOX_HI_CD8 TCF1_HI_TOX_HI_CD8--TCF1_HI_TOX_HI_CD8 TCF1_HI_TOX_HI_CD8--TCF1_LO_TOX_HI_CD8
+    # 3: TCF1_HI_TOX_HI_CD8--TCF1_LO_TOX_HI_CD8 TCF1_HI_TOX_HI_CD8--TCF1_HI_TOX_HI_CD8 TCF1_HI_TOX_HI_CD8--TCF1_LO_TOX_HI_CD8
+    #                                                   unified_int
+    #                                                        <char>
+    # 1: TCF1_HI_TOX_HI_CD8--TCF1_HI_TOX_HI_CD8--TCF1_LO_TOX_HI_CD8
+    # 2: TCF1_HI_TOX_HI_CD8--TCF1_HI_TOX_HI_CD8--TCF1_LO_TOX_HI_CD8
+    # 3: TCF1_HI_TOX_HI_CD8--TCF1_HI_TOX_HI_CD8--TCF1_LO_TOX_HI_CD8
+    
+    # Tabulate observed frequencies
+    table_orig_results <- triplet_dt[, .N, by = unified_int]
+    table_orig_results[, `:=`(round = "original", orig = "original")]
+    setnames(table_orig_results, "N", "V1")
+    # > table_orig_results
+    #                                                    unified_int    V1    round     orig
+    #                                                         <char> <int>   <char>   <char>
+    #  1: TCF1_HI_TOX_HI_CD8--TCF1_HI_TOX_HI_CD8--TCF1_LO_TOX_HI_CD8   192 original original
+    #  2:     MIXED_GC_TCELL--TCF1_HI_TOX_HI_CD8--TCF1_LO_TOX_HI_CD8   183 original original
+    #  3:              TCF1_HI_TOX_HI_CD8--TCF1_LO_TOX_HI_CD8--Tumor    25 original original
+    #  
+   
+    
+    # 7. Permutation Simulation
+    sim_results_list <- vector("list", number_of_simulations)
+    
+    # Extract the base node matrix for speed in the loop
+    node_mat <- as.matrix(triplet_dt[, .(node1, node2, node3)])
+    message("Starting simulations at: ", Sys.time())
+
+    for(i in seq_len(number_of_simulations)) {
+        
+        shuffled_types <- sample(type_map)        # Shuffle cell types among the valid nodes
+        names(shuffled_types) <- names(type_map)  # scramble the cell labels  
+        
+        # Map shuffled types
+        t1_sim <- shuffled_types[node_mat[, 1]]
+        t2_sim <- shuffled_types[node_mat[, 2]]
+        t3_sim <- shuffled_types[node_mat[, 3]]
+        
+        # Create a lightweight data.table of the current simulation round
+        sim_temp <- data.table(type1 = t1_sim, type2 = t2_sim, type3 = t3_sim)
+        
+        # Join to the pre-sorted dictionary 
+        sim_temp[dict, unified_int := i.unified_int, on = .(type1 = t1, type2 = t2, type3 = t3)]
+        
+        # Tabulate directly from the temporary table
+        sim_dt <- sim_temp[, .N, by = unified_int]
+        sim_dt[, round := paste0("sim", i)]
+        sim_results_list[[i]] <- sim_dt
+    }
+    
+    # 8. Aggregate Simulation Results & Add Missing Zeros
+    table_sim_results <- data.table::rbindlist(sim_results_list)
+    table_sim_results[, orig := "simulations"]
+    setnames(table_sim_results, "N", "V1")
+    
+    # > table_sim_results
+    #                                                         unified_int    V1  round        orig
+    #                                                              <char> <int> <char>      <char>
+    # 1:                ACTIVATED_CD4--CD4_CD8_CD20_MIXED--NONIMMUNE_CELL  3537   sim1 simulations
+    # 2:                        ACTIVATED_CD4--MEMORY_CD4--NONIMMUNE_CELL  5571   sim1 simulations
+    # 3:                   CD4_CD8_CD20_MIXED--MEMORY_CD4--NONIMMUNE_CELL  3736   sim1 simulations
+    # 4:                    ACTIVATED_CD4--NONIMMUNE_CELL--NONIMMUNE_CELL  4190   sim1 simulations
+    
+    
+    # Add zero-counts for missing combinations
+    unique_ints <- unique(c(table_orig_results$unified_int, table_sim_results$unified_int))
+    sim_rounds <- paste0("sim", seq_len(number_of_simulations))
+    grid_dt <- as.data.table(expand.grid(unified_int = unique_ints, round = sim_rounds))
+    
+    # > grid_dt
+    #                                                       unified_int  round
+    #                                                        <fctr> <fctr>
+    # 1: TCF1_HI_TOX_HI_CD8--TCF1_HI_TOX_HI_CD8--TCF1_LO_TOX_HI_CD8   sim1
+    # 2:     MIXED_GC_TCELL--TCF1_HI_TOX_HI_CD8--TCF1_LO_TOX_HI_CD8   sim1
+    # 3:              TCF1_HI_TOX_HI_CD8--TCF1_LO_TOX_HI_CD8--Tumor   sim1
+    
+    
+    # Merge back to inject zeros where the permutation didn't form that triplet
+    table_sim_withZeroes <- merge(grid_dt, table_sim_results[, .(unified_int, round, V1)], 
+                               by = c("unified_int", "round"), all.x = TRUE)
+    table_sim_withZeroes[is.na(V1), V1 := 0]
+    table_sim_withZeroes[, orig := "simulations"]
+    
+    table_results <- rbind(table_orig_results, table_sim_withZeroes, fill = TRUE)
+    
+    # > table_results
+    #                                                        unified_int    V1    round        orig
+    #                                                             <char> <int>   <char>      <char>
+    #      1: TCF1_HI_TOX_HI_CD8--TCF1_HI_TOX_HI_CD8--TCF1_LO_TOX_HI_CD8   192 original    original
+    #      2:     MIXED_GC_TCELL--TCF1_HI_TOX_HI_CD8--TCF1_LO_TOX_HI_CD8   183 original    original
+    #      3:              TCF1_HI_TOX_HI_CD8--TCF1_LO_TOX_HI_CD8--Tumor    25 original    original
+    #      4:                  MIXED_GC_TCELL--TCF1_LO_TOX_HI_CD8--Tumor    13 original    original
+    #      5:         MIXED_GC_TCELL--MIXED_GC_TCELL--TCF1_LO_TOX_HI_CD8   133 original    original
+    #     ---                                                                                      
+    # 102086:                                        Tumor--Tumor--Tumor     0     sim5 simulations
+    # 102087:                                        Tumor--Tumor--Tumor     0     sim6 simulations
+    # 102088:                                        Tumor--Tumor--Tumor     0     sim7 simulations
+    # 102089:                                        Tumor--Tumor--Tumor     0     sim8 simulations
+    # 102090:                                        Tumor--Tumor--Tumor     0     sim9 simulations
+
+    message("Finished simulations at: ", Sys.time())
+
+    return(table_results)
+}
+
+
+cellTriplet.calcP <- function(table_results, number_of_simulations = 1000, 
+                              adjust_method = c("none", "fdr", "bonferroni", "BH", "holm", "hochberg", "hommel", "BY"))
+{
+  sel_adjust_method <- match.arg(adjust_method, choices = c("none", "fdr", "bonferroni", "BH", "holm", "hochberg", "hommel", "BY"))
+  message("Starting P-value calculations...")
+  
+  # 1. VECTORIZED P-VALUE CALCULATION
+  # Isolate original and simulated values into clear reference tables
+  orig_dt <- table_results[orig == "original", .(unified_int, original_V1 = V1)]
+  sim_dt  <- table_results[orig == "simulations", .(unified_int, round, sim_V1 = V1)]
+  p_comp <- merge(sim_dt, orig_dt, by = "unified_int", all.x = TRUE)
+  p_comp[is.na(original_V1), original_V1 := 0]   # fill for missing observations
+  # > p_comp
+  # Key: <unified_int>
+  #                                       unified_int  round sim_V1 original_V1
+  #                                            <char> <char>  <int>       <int>
+  #    1: ACTIVATED_CD4--ACTIVATED_CD4--ACTIVATED_CD4   sim1    556       21122
+  #    2: ACTIVATED_CD4--ACTIVATED_CD4--ACTIVATED_CD4  sim10    569       21122
+  
+  # res_pvalue_DT <- p_comp[, .(p_min = min(1 - (sum(original_V1 > sim_V1) / number_of_simulations),
+  #                                         1 - (sum(original_V1 < sim_V1) / number_of_simulations))
+  #                             ), by = unified_int]
+  res_pvalue_DT <- p_comp[, .(p_min = min((sum(sim_V1 >= original_V1) + 1) / (number_of_simulations + 1),
+                                          (sum(sim_V1 <= original_V1) + 1) / (number_of_simulations + 1))
+                              ), by = unified_int]
+  
+  # > res_pvalue_DT
+  # Key: <unified_int>
+  #                                                             unified_int p_min
+  #                                                                  <char> <num>
+  #  1:                         ACTIVATED_CD4--ACTIVATED_CD4--ACTIVATED_CD4  0.95
+  #  2:                         ACTIVATED_CD4--ACTIVATED_CD4--ACTIVATED_CD8  0.95
+  #  3:                  ACTIVATED_CD4--ACTIVATED_CD4--ACTIVATED_MEMORY_CD4  0.95
+  
+  
+  # Tabulate means grouping strictly by condition and triplet name (removing type_int)
+  table_mean_results <- table_results[, .(V1 = mean(V1)), by = .(orig, unified_int)] 
+  # > table_mean_results
+  #             orig                                                         unified_int     V1
+  #           <char>                                                              <char>  <num>
+  #   1:    original          TCF1_HI_TOX_HI_CD8--TCF1_HI_TOX_HI_CD8--TCF1_LO_TOX_HI_CD8 192.00
+  #   2:    original              MIXED_GC_TCELL--TCF1_HI_TOX_HI_CD8--TCF1_LO_TOX_HI_CD8 183.00
+  #   3:    original                       TCF1_HI_TOX_HI_CD8--TCF1_LO_TOX_HI_CD8--Tumor  25.00
+  #   
+  table_mean_results_dc <- data.table::dcast.data.table(
+    data = table_mean_results, formula = unified_int ~ orig, value.var = "V1")
+  if (!"original" %in% names(table_mean_results_dc)) table_mean_results_dc[, original := 0]
+  if (!"simulations" %in% names(table_mean_results_dc)) table_mean_results_dc[, simulations := 0]
+  table_mean_results_dc[is.na(original), original := 0]
+  table_mean_results_dc[is.na(simulations), simulations := 0]
+  
+  table_mean_results_dc[, enrichm := log2((original + 1) / (simulations + 1))]
+  # > table_mean_results_dc
+  # Key: <unified_int>
+  #                                                             unified_int original simulations  enrichm
+  #                                                                  <char>    <num>       <num>    <num>
+  #  1:                         ACTIVATED_CD4--ACTIVATED_CD4--ACTIVATED_CD4    21122      521.78 5.336467
+  #  2:                         ACTIVATED_CD4--ACTIVATED_CD4--ACTIVATED_CD8     5291      260.96 4.336395
+  #  3:                  ACTIVATED_CD4--ACTIVATED_CD4--ACTIVATED_MEMORY_CD4    12204      551.08 4.466451
+  #  4:                  ACTIVATED_CD4--ACTIVATED_CD4--ACTIVATED_MEMORY_CD8       94       15.18 2.553716
+  
+  
+  table_mean_results_dc <- merge(table_mean_results_dc, res_pvalue_DT, by = "unified_int")
+  
+  p_val <- p_adj <- PI_value <- int_ranking <- NULL  # Local variable declarations to satisfy R CMD check globals
+
+  # Adjust the single p-value for multi-hypothesis testing
+  table_mean_results_dc[, p_adj := stats::p.adjust(p_min, method = sel_adjust_method )]
+
+  # Calculate the final Proximity/Interaction Score (PI_value)
+  # The sign is entirely driven by the enrichment log2FC
+  table_mean_results_dc[, PI_value := -log10(p_adj + (1 / number_of_simulations)) * enrichm]
+  
+  # Sort and rank triplets from strongest enrichment to strongest depletion
+  data.table::setorder(table_mean_results_dc, -PI_value)
+  table_mean_results_dc[, int_ranking := seq_len(.N)]
+  # Key: <unified_int>
+  #                                                             unified_int original simulations  enrichm p_min p_adj PI_value int_ranking
+  #                                                                  <char>    <num>       <num>    <num> <num> <num>    <num>       <int>
+  #  1:                         ACTIVATED_CD4--ACTIVATED_CD4--ACTIVATED_CD4    21122      521.78 5.336467  0.95 0.999        0           1
+  #  2:                         ACTIVATED_CD4--ACTIVATED_CD4--ACTIVATED_CD8     5291      260.96 4.336395  0.95 0.999        0           2
+  #  3:                  ACTIVATED_CD4--ACTIVATED_CD4--ACTIVATED_MEMORY_CD4    12204      551.08 4.466451  0.95 0.999        0           3
+  #  
+  message("P-value and enrichment analysis complete. Returning object at ", Sys.time())
+  
+  return(list(
+      raw_sim_table = table_results,
+      enrichm_res = table_mean_results_dc
+  ))
+
+}
+
+out <- triplet.Analysis(gobject = sln, nsims = 100, spatnet="spatialknn.k9.persample", clustCol="L2_annotations", threshold=0.5,
+                        spatialk=9)
+  # > out$raw_sim_table
+  # Index: <orig>
+  #                                                         unified_int    V1    round        orig
+  #                                                              <char> <int>   <char>      <char>
+  #       1: TCF1_HI_TOX_HI_CD8--TCF1_HI_TOX_HI_CD8--TCF1_LO_TOX_HI_CD8   192 original    original
+  #       2:     MIXED_GC_TCELL--TCF1_HI_TOX_HI_CD8--TCF1_LO_TOX_HI_CD8   183 original    original
+  #       3:              TCF1_HI_TOX_HI_CD8--TCF1_LO_TOX_HI_CD8--Tumor    25 original    original
+  #       4:                  MIXED_GC_TCELL--TCF1_LO_TOX_HI_CD8--Tumor    13 original    original
+  #       5:         MIXED_GC_TCELL--MIXED_GC_TCELL--TCF1_LO_TOX_HI_CD8   133 original    original
+  #      ---                                                                                      
+  # 1012267:                                        Tumor--Tumor--Tumor     0    sim95 simulations
+  # 1012268:                                        Tumor--Tumor--Tumor     0    sim96 simulations
+  # 1012269:                                        Tumor--Tumor--Tumor     0    sim97 simulations
+  # 1012270:                                        Tumor--Tumor--Tumor     0    sim98 simulations
+  # 1012271:                                        Tumor--Tumor--Tumor     0    sim99 simulations
+
+  # > out$enrichm_res[1:5,]
+  #                                               unified_int original simulations   enrichm p_min p_adj PI_value int_ranking
+  #                                                    <char>    <num>       <num>     <num> <num> <num>    <num>       <int>
+  # 1:                           LZ_BCELL--LZ_BCELL--LZ_BCELL     9059        4.16 10.777924     0     0 21.55585           1
+  # 2:                      KI67_HI_BCELL--LZ_BCELL--LZ_BCELL     5405        8.98  9.081306     0     0 18.16261           2
+  # 3:            KI67_HI_BCELL--KI67_HI_BCELL--KI67_HI_BCELL     1432        2.04  8.880752     0     0 17.76150           3
+  # 4:                 KI67_HI_BCELL--KI67_HI_BCELL--LZ_BCELL     3177        6.43  8.740541     0     0 17.48108           4
+
+
+
+  
 ```
 
 

@@ -411,7 +411,7 @@ md[L2_annotations == "MEMORY_CD4" & TCF1.Positive.Classification == 1 & TOX.Posi
    L2_annotations:= "STEM_CD4"]
 md[L2_annotations == "ACTIVATED_MEMORY_CD4" & TCF1.Positive.Classification == 1 & TOX.Positive.Classification == 1, 
    L2_annotations:= "ACTIVATED_STEM_CD4"]
-sln <- addCellMetadata(gobject = sln, new_metadata = df.new, by_column=T, column_cell_ID = 'cell_ID')
+sln <- addCellMetadata(gobject = sln, new_metadata = md, by_column=T, column_cell_ID = 'cell_ID')
 
 
 ```
