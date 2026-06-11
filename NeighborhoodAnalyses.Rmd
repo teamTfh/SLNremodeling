@@ -63,6 +63,7 @@ gc()
 
 
 md <- pDataDT(sln)
+list_ID <- unique(md$list_ID)
 stableColorsL2 <- getDistinctColors(length(unique(md$L2_annotations)));  names(stableColorsL2) <- unique(md$L2_annotations)
 stableColors.sabrina <- readRDS(file = 'l2_v3_master_colors.rds')
 common_names <- intersect(names(stableColorsL2), names(stableColors.sabrina))
@@ -115,13 +116,10 @@ cellProx.sim <- function(gobject, spat_unit = NULL, feat_type = NULL, spatial_ne
         spat_unit = spat_unit,
         feat_type = feat_type
     )
+    message("cellProx.sim milestone 1" )
 
     # p.adj test
-    sel_adjust_method <- match.arg(adjust_method, choices = c(
-        "none", "fdr", "bonferroni", "BH",
-        "holm", "hochberg", "hommel",
-        "BY"
-    ))
+    sel_adjust_method <- match.arg(adjust_method, choices = c("none", "fdr", "bonferroni", "BH", "holm", "hochberg", "hommel", "BY"))
 
     spatial_network_annot <- annotateSpatialNetwork(
         gobject = gobject,
@@ -130,6 +128,7 @@ cellProx.sim <- function(gobject, spat_unit = NULL, feat_type = NULL, spatial_ne
         spatial_network_name = spatial_network_name,
         cluster_column = cluster_column
     )
+    message("cellProx.sim milestone 2" )
 
     # remove double edges between same cells #
     # a simplified network does not have double edges between cells #
@@ -152,11 +151,11 @@ cellProx.sim <- function(gobject, spat_unit = NULL, feat_type = NULL, spatial_ne
         set_seed = set_seed,
         seed_number = seed_number
     )
+    
+    message("cellProx.sim milestone 3" )
 
     # combine original and simulated network
-    table_sim_results <- sample_dt[, .N, by = c(
-        "unified_int", "type_int", "round"
-    )]
+    table_sim_results <- sample_dt[, .N, by = c("unified_int", "type_int", "round" )]
 
     ## create complete simulations
     ## add 0 if no single interaction was found
@@ -181,7 +180,6 @@ cellProx.sim <- function(gobject, spat_unit = NULL, feat_type = NULL, spatial_ne
     )
     table_sim_results <- table_sim_minimum_results
 
-
     # data.table variables
     orig <- unified_int <- V1 <- original <- enrichm <- simulations <- NULL
 
@@ -197,37 +195,22 @@ cellProx.sim <- function(gobject, spat_unit = NULL, feat_type = NULL, spatial_ne
     table_results <- rbind(table_orig_results, table_sim_results)
 
 
+    message("cellProx.sim milestone 4" )
 
     # add missing combinations from original or simulations
     # probably not needed anymore
-    all_simulation_ints <- as.character(unique(table_results[
-        orig == "simulations"
-    ]$unified_int))
-    all_original_ints <- as.character(unique(table_results[
-        orig == "original"
-    ]$unified_int))
-    missing_in_original <- all_simulation_ints[
-        !all_simulation_ints %in% all_original_ints
-    ]
-    missing_in_simulations <- all_original_ints[
-        !all_original_ints %in% all_simulation_ints
-    ]
-    create_missing_for_original <- table_results[
-        unified_int %in% missing_in_original
-    ]
-    create_missing_for_original <- unique(create_missing_for_original[
-        , c("orig", "V1") := list("original", 0)
-    ])
-    create_missing_for_simulations <- table_results[
-        unified_int %in% missing_in_simulations
-    ]
-    create_missing_for_simulations <- unique(
-        create_missing_for_simulations[, c("orig", "V1") := list(
-            "simulations", 0
-        )]
+    all_simulation_ints <- as.character(unique(table_results[orig == "simulations"]$unified_int))
+    all_original_ints <- as.character(unique(table_results[orig == "original"]$unified_int))
+    missing_in_original <- all_simulation_ints[!all_simulation_ints %in% all_original_ints]
+    missing_in_simulations <- all_original_ints[!all_original_ints %in% all_simulation_ints]
+    create_missing_for_original <- table_results[unified_int %in% missing_in_original]
+    create_missing_for_original <- unique(create_missing_for_original[, c("orig", "V1") := list("original", 0)])
+    create_missing_for_simulations <- table_results[unified_int %in% missing_in_simulations]
+    create_missing_for_simulations <- unique(create_missing_for_simulations[, c("orig", "V1") := list("simulations", 0)]
     )
+    
 # stop **********************************************************************************************
-
+    message("cellProx.sim milestone 5" )
     table_results <- do.call(
         "rbind",
         list(
@@ -334,7 +317,6 @@ cellProx.calcP <- function(table_results, number_of_simulations = 1000,
     ))
 }
 
-list_ID <- unique(md$list_ID)
 gc()
 ```
 
@@ -443,31 +425,36 @@ cellProx.subgroup <- function(dt)
   return(out)
 }
 
-stage3 <- cellProx.subgroup(subset(dt, id %in% stage3.subgroup))
-stage1 <- cellProx.subgroup(subset(dt, id %in% stage1.subgroup ))
+# stage3 <- cellProx.subgroup(subset(dt, id %in% stage3.subgroup))
+# stage1 <- cellProx.subgroup(subset(dt, id %in% stage1.subgroup ))
+# 
+# recur <- cellProx.subgroup(subset(dt, id %in% c("tumor.3","tumor.4","tumor.5","tumor.7","tumor.8","tumor.10")))
+# no.recur <- cellProx.subgroup(subset(dt, id %in% c("tumor.1","tumor.2", "tumor.6", "tumor.9") ))
 
-recur <- cellProx.subgroup(subset(dt, id %in% c("tumor.3","tumor.4","tumor.5","tumor.7","tumor.8","tumor.10")))
-no.recur <- cellProx.subgroup(subset(dt, id %in% c("tumor.1","tumor.2", "tumor.6", "tumor.9") ))
-
-sampleList <- unique(md$list_ID)
-perSampleInteraction <- list()
-for (i in seq_along(sampleList))
+calc.Interactions <- function(allInteractions, sampleNames)
 {
-  print( paste("Interactions for sample", sampleList[i]) )
-  perSampleInteraction[[i]] <- cellProx.subgroup(subset(dt, id %in% sampleList[i]))  # format in a per-sample fashion 
-  perSampleInteraction[[i]]$name <- subset(dt, id %in% sampleList[i])$id[1]   # carry forward the sample name 
-  names(perSampleInteraction)[i] <-  subset(dt, id %in% sampleList[i])$id[1]
+  perSampleInteraction <- list()
+  perSampleInteraction.enrichm_res <- list()
+  message("adding full labels")
+
+  for (i in seq_along(sampleNames))
+  {
+    print( paste("Interactions for sample", sampleNames[i]) )
+    perSampleInteraction[[i]] <- cellProx.subgroup(subset(allInteractions, id %in% sampleNames[i]))  # format in a per-sample fashion 
+    perSampleInteraction[[i]]$name <- subset(allInteractions, id %in% sampleNames[i])$id[1]   # carry forward the sample name 
+    names(perSampleInteraction)[i] <-  subset(allInteractions, id %in% sampleNames[i])$id[1]
+  }
+  message("making enrichment results table")
+  for (i in seq_along(perSampleInteraction))
+  {
+    perSampleInteraction.enrichm_res[[i]] <- perSampleInteraction[[i]]$enrichm_res  # save the enrichm results table 
+    names(perSampleInteraction.enrichm_res)[i] <- names(perSampleInteraction)[i]
+  }
+  return(perSampleInteraction.enrichm_res)
 }
 
-# saveRDS(perSampleInteraction, file="neighborhood.perSampleInteraction.RDS")  
-# perSampleInteraction <- readRDS(file="neighborhood.perSampleInteraction.RDS")
+res.interaction <- calc.Interactions(allInteractions = dt, sampleNames = list_ID)
 
-perSampleInteraction.enrichm_res <- list()
-for (i in seq_along(perSampleInteraction))
-{
-  perSampleInteraction.enrichm_res[[i]] <- perSampleInteraction[[i]]$enrichm_res  # save the enrichm results table 
-  names(perSampleInteraction.enrichm_res)[i] <- names(perSampleInteraction)[i]
-}
 
 addLabels.fxn <- function(dt, label)
 {
@@ -477,10 +464,10 @@ addLabels.fxn <- function(dt, label)
   return(dt)
 }
 
-interaction.byStage <- rbind(addLabels.fxn(perSampleInteraction.enrichm_res[stage3.subgroup], label = "stage3"),
-             addLabels.fxn(perSampleInteraction.enrichm_res[stage1.subgroup], label = "stage1") ) 
-interaction.byRecur <- rbind(addLabels.fxn(perSampleInteraction.enrichm_res[recur.subgroup], label = "recur"),
-             addLabels.fxn(perSampleInteraction.enrichm_res[norecur.subgroup], label = "no.recur") ) 
+interaction.byStage <- rbind(addLabels.fxn(res.interaction[stage3.subgroup], label = "stage3"),
+             addLabels.fxn(res.interaction[stage1.subgroup], label = "stage1") ) 
+interaction.byRecur <- rbind(addLabels.fxn(res.interaction[recur.subgroup], label = "recur"),
+             addLabels.fxn(res.interaction[norecur.subgroup], label = "no.recur") ) 
 
 ```
 
@@ -519,33 +506,12 @@ dt <- purrr::list_rbind(readRDS(file="neighborhood.annot.radius.sln.RDS")[['tabl
 
 
 ```{r interaction-by-sample-radius-calculate}
-stage3 <- cellProx.subgroup(subset(dt, id %in% stage3.subgroup))
-stage1 <- cellProx.subgroup(subset(dt, id %in% stage1.subgroup ))
+res.interaction <- calc.Interactions(allInteractions = dt, sampleNames = list_ID)
 
-recur <- cellProx.subgroup(subset(dt, id %in% c("tumor.3","tumor.4","tumor.5","tumor.7","tumor.8","tumor.10")))
-no.recur <- cellProx.subgroup(subset(dt, id %in% c("tumor.1","tumor.2", "tumor.6", "tumor.9") ))
-
-sampleList <- unique(md$list_ID)
-perSampleInteraction <- list()
-for (i in seq_along(sampleList))
-{
-  print( paste("Interactions for sample", sampleList[i]) )
-  perSampleInteraction[[i]] <- cellProx.subgroup(subset(dt, id %in% sampleList[i]))  # format in a per-sample fashion 
-  perSampleInteraction[[i]]$name <- subset(dt, id %in% sampleList[i])$id[1]   # carry forward the sample name 
-  names(perSampleInteraction)[i] <-  subset(dt, id %in% sampleList[i])$id[1]
-}
-
-perSampleInteraction.enrichm_res <- list()
-for (i in seq_along(perSampleInteraction))
-{
-  perSampleInteraction.enrichm_res[[i]] <- perSampleInteraction[[i]]$enrichm_res  # save the enrichm results table 
-  names(perSampleInteraction.enrichm_res)[i] <- names(perSampleInteraction)[i]
-}
-
-interaction.byStage.rad <- rbind(addLabels.fxn(perSampleInteraction.enrichm_res[stage3.subgroup], label = "stage3"),
-             addLabels.fxn(perSampleInteraction.enrichm_res[stage1.subgroup], label = "stage1") ) 
-interaction.byRecur.rad <- rbind(addLabels.fxn(perSampleInteraction.enrichm_res[recur.subgroup], label = "recur"),
-             addLabels.fxn(perSampleInteraction.enrichm_res[norecur.subgroup], label = "no.recur") ) 
+interaction.byStage.rad <- rbind(addLabels.fxn(res.interaction[stage3.subgroup], label = "stage3"),
+             addLabels.fxn(res.interaction[stage1.subgroup], label = "stage1") ) 
+interaction.byRecur.rad <- rbind(addLabels.fxn(res.interaction[recur.subgroup], label = "recur"),
+             addLabels.fxn(res.interaction[norecur.subgroup], label = "no.recur") ) 
 rm(dt)
 # gc()
 ```
@@ -557,33 +523,13 @@ annot.k5 <- readRDS(file="neighborhood.annot.k5.sln.RDS")[['annot.k5']]
 ```
 
 ```{r interaction-by-k5-calculate}
-stage3 <- cellProx.subgroup(subset(dt, id %in% stage3.subgroup))
-stage1 <- cellProx.subgroup(subset(dt, id %in% stage1.subgroup ))
 
-recur <- cellProx.subgroup(subset(dt, id %in% c("tumor.3","tumor.4","tumor.5","tumor.7","tumor.8","tumor.10")))
-no.recur <- cellProx.subgroup(subset(dt, id %in% c("tumor.1","tumor.2", "tumor.6", "tumor.9") ))
+res.interaction <- calc.Interactions(allInteractions = dt, sampleNames = list_ID)
 
-sampleList <- unique(md$list_ID)
-perSampleInteraction <- list()
-for (i in seq_along(sampleList))
-{
-  print( paste("Interactions for sample", sampleList[i]) )
-  perSampleInteraction[[i]] <- cellProx.subgroup(subset(dt, id %in% sampleList[i]))  # format in a per-sample fashion 
-  perSampleInteraction[[i]]$name <- subset(dt, id %in% sampleList[i])$id[1]   # carry forward the sample name 
-  names(perSampleInteraction)[i] <-  subset(dt, id %in% sampleList[i])$id[1]
-}
-
-perSampleInteraction.enrichm_res <- list()
-for (i in seq_along(perSampleInteraction))
-{
-  perSampleInteraction.enrichm_res[[i]] <- perSampleInteraction[[i]]$enrichm_res  # save the enrichm results table 
-  names(perSampleInteraction.enrichm_res)[i] <- names(perSampleInteraction)[i]
-}
-
-interaction.byStage.k5 <- rbind(addLabels.fxn(perSampleInteraction.enrichm_res[stage3.subgroup], label = "stage3"),
-             addLabels.fxn(perSampleInteraction.enrichm_res[stage1.subgroup], label = "stage1") ) 
-interaction.byRecur.k5 <- rbind(addLabels.fxn(perSampleInteraction.enrichm_res[recur.subgroup], label = "recur"),
-             addLabels.fxn(perSampleInteraction.enrichm_res[norecur.subgroup], label = "no.recur") ) 
+interaction.byStage.k5 <- rbind(addLabels.fxn(res.interaction[stage3.subgroup], label = "stage3"),
+             addLabels.fxn(res.interaction[stage1.subgroup], label = "stage1") ) 
+interaction.byRecur.k5 <- rbind(addLabels.fxn(res.interaction[recur.subgroup], label = "recur"),
+             addLabels.fxn(res.interaction[norecur.subgroup], label = "no.recur") ) 
 rm(dt)
 # gc()
 ```
@@ -2228,19 +2174,20 @@ ggplot(dt, aes(x = source, y=data)) +
 
 
 
-triplet.Analysis <- function(gobject, nsims = 200, spatnet='spatialknn.arbitrary', clustCol = "L2_annotations", threshold=0.5, spatialk)
+triplet.Analysis <- function(gobject, nsims = 200, spatnet='spatialknn.arbitrary', clustCol = "L2_annotations", threshold=0.5, 
+                             spatialk, sample.names)
 {
   sim.results <- list()
+  out.calcP <- list()
   annot.knn <- list()
-  i = list_ID[1]
-  # for (i in list_ID)
-  # {
-    print(i)
-    keepCells <- subset(md, list_ID %in% i )$cell_ID
+  for (i in 1:length(sample.names))
+  {
+    message("starting on sample: ", sample.names[i])
+    keepCells <- subset(pDataDT(gobject), list_ID == sample.names[i] )$cell_ID
     gobj.sm <- subsetGiotto(gobject = gobject, cell_ids = keepCells)
     gobj.sm <- createSpatialKNNnetwork(gobj.sm, k=spatialk, verbose=T, name = spatnet) 
     message("made spatialKNN at ", Sys.time())
-    annot.knn <- annotateSpatialNetwork(gobj.sm, cluster_column = clustCol, spatial_network_name = spatnet)
+    # gobj.sm <- annotateSpatialNetwork(gobj.sm, cluster_column = clustCol, spatial_network_name = spatnet)
     message("annotated spatialKNN at ", Sys.time())
     message("starting pairwise cellProx.sim at ", Sys.time())
     tableResults.knn <- cellProx.sim(gobj.sm, cluster_column = clustCol, adjust_method = "fdr",
@@ -2254,8 +2201,9 @@ triplet.Analysis <- function(gobject, nsims = 200, spatnet='spatialknn.arbitrary
                             specific_cell_types = NULL,         # Pre-filter 2: Character vector of cells to keep
                             pairwise_results_dt = pairwise_dt,         # Output from cellProx.sim()
                             pairwise_enrich_threshold  = threshold)      # Enrichment threshold
-    out.calcP <- cellTriplet.calcP(table_results = sim.results[[i]], number_of_simulations = nsims, adjust_method = "fdr")
-# }
+    out.calcP[[i]] <- cellTriplet.calcP(table_results = sim.results[[i]], number_of_simulations = nsims, adjust_method = "fdr")
+  }
+  names(out.calcP) <- sample.names
   return(out.calcP)
 }
 
@@ -2429,8 +2377,11 @@ cellTriplet.sim <- function(gobject, spat_unit = NULL, feat_type = NULL, spatial
     node_mat <- as.matrix(triplet_dt[, .(node1, node2, node3)])
     message("Starting simulations at: ", Sys.time())
 
-    for(i in seq_len(number_of_simulations)) {
-        
+    progBar <- txtProgressBar(min = 0, max = number_of_simulations, style = 3)
+
+    for(i in seq_len(number_of_simulations)) 
+      {
+        setTxtProgressBar(progBar, i)
         shuffled_types <- sample(type_map)        # Shuffle cell types among the valid nodes
         names(shuffled_types) <- names(type_map)  # scramble the cell labels  
         
@@ -2450,7 +2401,9 @@ cellTriplet.sim <- function(gobject, spat_unit = NULL, feat_type = NULL, spatial
         sim_dt[, round := paste0("sim", i)]
         sim_results_list[[i]] <- sim_dt
     }
-    
+    close(progBar)
+    message("Finished simulations at: ", Sys.time())
+
     # 8. Aggregate Simulation Results & Add Missing Zeros
     table_sim_results <- data.table::rbindlist(sim_results_list)
     table_sim_results[, orig := "simulations"]
@@ -2501,7 +2454,7 @@ cellTriplet.sim <- function(gobject, spat_unit = NULL, feat_type = NULL, spatial
     # 102089:                                        Tumor--Tumor--Tumor     0     sim8 simulations
     # 102090:                                        Tumor--Tumor--Tumor     0     sim9 simulations
 
-    message("Finished simulations at: ", Sys.time())
+    message("Finished wrapping up at: ", Sys.time())
 
     return(table_results)
 }
@@ -2599,8 +2552,8 @@ cellTriplet.calcP <- function(table_results, number_of_simulations = 1000,
 
 }
 
-out <- triplet.Analysis(gobject = sln, nsims = 100, spatnet="spatialknn.k9.persample", clustCol="L2_annotations", threshold=0.5,
-                        spatialk=9)
+out <- triplet.Analysis(gobject = sln, nsims = 50, spatnet="spatialknn.k9.persample", clustCol="L2_annotations", threshold=0.5,
+                        spatialk=9, sample.names = list_ID)
   # > out$raw_sim_table
   # Index: <orig>
   #                                                         unified_int    V1    round        orig
@@ -2627,7 +2580,21 @@ out <- triplet.Analysis(gobject = sln, nsims = 100, spatnet="spatialknn.k9.persa
 
 
 
+res.interaction <- calc.Interactions(allInteractions = purrr::list_rbind( lapply(out, FUN = purrr::pluck, 'raw_sim_table' ), names_to = 'id'),
+                                     sampleNames = list_ID)
+# saveRDS(res.interaction, file = 'revSubm/res.interaction.RDS')
+
+interaction.byStage.trip <- rbind(addLabels.fxn(res.interaction[stage3.subgroup], label = "stage3"),
+             addLabels.fxn(res.interaction[stage1.subgroup], label = "stage1") ) 
+interaction.byRecur.trip <- rbind(addLabels.fxn(res.interaction[recur.subgroup], label = "recur"),
+             addLabels.fxn(res.interaction[norecur.subgroup], label = "no.recur") ) 
+
   
+
+a <- findImportantInteractions( interaction.dt= interaction.byRecur.trip, condition.exp="recur", condition.ctrl="no.recur", ef.threshold=1,
+                                leaveOutTumor = F)
+
+
 ```
 
 
