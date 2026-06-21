@@ -966,11 +966,12 @@ findImportantInteractions <- function( interaction.dt, condition.exp, condition.
   #   theme(legend.position = 'none') + annotate("text", x = annotateX.exp, y = -2.2, size = 5, label = condition.exp) + 
   #   annotate("text", x = annotateX.ctrl, y = -2.2, size = 5, label = condition.ctrl) + xlab("Effect size") + 
   #   coord_cartesian(clip = 'off', ylim= c(0, nrow(df)))
-  b <- findImportantInteractions.plotFiltered(df, condition.exp, condition.ctrl)
-  return(list(df=df, fullggplot=a, filteredggplot=b)) 
+  b <- plot.findImportantInteractions.filtered(df, condition.exp, condition.ctrl)
+  params <- list(condition.exp = condition.exp, condition.ctrl = condition.ctrl, ef.threshold = ef.threshold )
+  return(list(df=df, fullggplot=a, filteredggplot=b, parameters=params)) 
 }
 
-findImportantInteractions.plotFiltered <- function(df, condition.exp, condition.ctrl, labelPlot =T)
+plot.findImportantInteractions.filtered <- function(df, condition.exp, condition.ctrl, labelPlot =T)
 {
   annotateX.exp <- max(df$effect.size)-0.2*max(df$effect.size)
   annotateX.ctrl <- min(df$effect.size)+0.2*min(df$effect.size)
@@ -1004,7 +1005,7 @@ findImportantInteractions.plotFiltered <- function(df, condition.exp, condition.
 
 
 
-globalChanges.Effectsize.plot <- function(importIntxn.obj, colNames = names(stableColorsL2), title = "Stage 3 vs Stage 1")
+plot.globalChanges.Effectsize <- function(importIntxn.obj, colNames = names(stableColorsL2), title = "Stage 3 vs Stage 1")
 {
   importIntxn.obj <- as.data.table(importIntxn.obj$fullggplot$data)
   res_list <- lapply(X = colNames, 
@@ -1105,13 +1106,16 @@ plot.Average.Niche.igraph(annot.table = annot.k9, indexCluster = 'PC', title='Pl
 
 # plot.Average.Niche.squares(annot.table = annot.k9, indexCluster = 'LZ_BCELL', title='LZ_BCELL')
 
-a <- plot.Average.Niche.igraph(annot.table = annot.k9, indexCluster = 'TCF1_HI_TOX_HI_CD8', title='TCF1_HI_TOX_HI_CD8')
-b <- plot.Average.Niche.igraph(annot.table = annot.k9, indexCluster = 'TCF1_LO_TOX_HI_CD8', title='TCF1_LO_TOX_HI_CD8')
+plot.Average.Niche.igraph(annot.table = annot.k9, indexCluster = 'DENDRITIC_CELL', title='Dendritic cells')
+
 
 ```
 
 
 ```{r plot-average-niche-comparisons, fig.width=10, fig.height=5}
+a <- plot.Average.Niche.igraph(annot.table = annot.k9, indexCluster = 'TCF1_HI_TOX_HI_CD8', title='TCF1_HI_TOX_HI_CD8')
+b <- plot.Average.Niche.igraph(annot.table = annot.k9, indexCluster = 'TCF1_LO_TOX_HI_CD8', title='TCF1_LO_TOX_HI_CD8')
+
 gridExtra::grid.arrange(a,b, nrow=1) 
 ```
 
@@ -1201,13 +1205,13 @@ a <- findImportantInteractions( interaction.dt= interaction.byStage, condition.e
                                 leaveOutTumor = T)
 # ggsave(plot = a$filteredggplot, file = "output/interaction.Stage.EffectSize.pdf", height=5, width=6)
 
-a$filteredggplot.selective <- findImportantInteractions.plotFiltered(df = a$df[unified_int %like% "ACTIVATED_TREG"], 
+a$filteredggplot.selective <- plot.findImportantInteractions.filtered(df = a$df[unified_int %like% "ACTIVATED_TREG"], 
                                             condition.exp="stage3", condition.ctrl="stage1", labelPlot = F)
 # ggsave(plot = a$filteredggplot.selective, file = "output/interaction.Stage.EffectSize.ACTIV-TREG.pdf", height=1.75, width=4)
 
 
 
-b <- globalChanges.Effectsize.plot(importIntxn.obj = a, title = "Stage 3 vs Stage 1")
+b <- plot.globalChanges.Effectsize(importIntxn.obj = a, title = "Stage 3 vs Stage 1")
 # ggsave(b, filename = 'output/EffectSize.allSubsets.byStage.violin.pdf', height=6,width=6)
 
 
@@ -1251,6 +1255,13 @@ plot.enrichm.interaction(interaction.dt = interaction.byStage, probeSubset = "AC
                          colorList = a$colorScheme, title="ACTIVATED_TREG--\nTCF1_HI_TOX_HI_CD8")
 plot.enrichm.interaction(interaction.dt = interaction.byStage, probeSubset = "ACTIVATED_TREG--TCF1_LO_TOX_HI_CD8", 
                          colorList = a$colorScheme, title="ACTIVATED_TREG--\nTCF1_LO_TOX_HI_CD8")
+
+plot.enrichm.interaction(interaction.dt = interaction.byStage, probeSubset = "ACTIVATED_TREG--TCF1_HI_TOX_HI_CD8", 
+                         colorList = a$colorScheme, title="ACTIVATED_TREG--\nTCF1_HI_TOX_HI_CD8")
+plot.enrichm.interaction(interaction.dt = interaction.byStage, probeSubset = "ACTIVATED_TREG--TCF1_LO_TOX_HI_CD8", 
+                         colorList = a$colorScheme, title="ACTIVATED_TREG--\nTCF1_LO_TOX_HI_CD8")
+
+
 ```
 
 
@@ -1260,12 +1271,12 @@ a <- findImportantInteractions( interaction.dt= interaction.byRecur, condition.e
 # ggsave(plot = a$filteredggplot, file = "output/interaction.Recur.EffectSize.pdf", height=11, width=8)
 a$filteredggplot
 # a$df[, colorMe:=ifelse(unified_int %like% "ACTIVATED_TREG", "T","F")]
-a$filteredggplot.selective <- findImportantInteractions.plotFiltered(df = a$df[unified_int %like% "ACTIVATED_TREG"], 
+a$filteredggplot.selective <- plot.findImportantInteractions.filtered(df = a$df[unified_int %like% "ACTIVATED_TREG"], 
                                             condition.exp="recur", condition.ctrl="no.recur", labelPlot = F)
 a$filteredggplot.selective
 # ggsave(plot = a$filteredggplot.selective, file = "output/interaction.Recur.EffectSize.justTREG.pdf", height=2, width=4)
 
-b <- globalChanges.Effectsize.plot(importIntxn.obj = a, title = "Recur vs NoRecur")
+b <- plot.globalChanges.Effectsize(importIntxn.obj = a, title = "Recur vs NoRecur")
 # ggsave(b, filename = 'output/EffectSize.allSubsets.byRecur.violin.pdf', height=6,width=6)
 b
 
@@ -2170,7 +2181,7 @@ ggplot(dt, aes(x = source, y=data)) +
 
 
 # study spatial triplets in the data 
-```{r finding-triplets-function, eval=FALSE}
+```{r finding-triplets-function}
 
 
 
@@ -2580,35 +2591,103 @@ out <- triplet.Analysis(gobject = sln, nsims = 50, spatnet="spatialknn.k9.persam
 
 
 
-res.interaction <- calc.Interactions(allInteractions = purrr::list_rbind( lapply(out, FUN = purrr::pluck, 'raw_sim_table' ), names_to = 'id'),
-                                     sampleNames = list_ID)
-# saveRDS(res.interaction, file = 'revSubm/res.interaction.RDS')
+if(.Platform$OS.type != "windows")  
+{
+  res.interaction <- calc.Interactions(allInteractions = purrr::list_rbind( lapply(out, FUN = purrr::pluck, 'raw_sim_table' ), names_to = 'id'),
+                                       sampleNames = list_ID) 
+} else res.interaction <- readRDS(file = 'revSubm/res.interaction.RDS')
+gc()
+
 
 interaction.byStage.trip <- rbind(addLabels.fxn(res.interaction[stage3.subgroup], label = "stage3"),
              addLabels.fxn(res.interaction[stage1.subgroup], label = "stage1") ) 
 interaction.byRecur.trip <- rbind(addLabels.fxn(res.interaction[recur.subgroup], label = "recur"),
              addLabels.fxn(res.interaction[norecur.subgroup], label = "no.recur") ) 
 
-  
+```
 
-a <- findImportantInteractions( interaction.dt= interaction.byRecur.trip, condition.exp="recur", condition.ctrl="no.recur", ef.threshold=1,
-                                leaveOutTumor = F)
+
+
+```{r analyze-triplet-results, fig.width=10, fig.height=10}
+
+
+findImportantInteractions( interaction.dt= interaction.byRecur.trip, condition.exp="recur", 
+                           condition.ctrl="no.recur", ef.threshold=2.5, leaveOutTumor = T)$filteredggplot
+
+
+plot.interaction.rankOrder <- function(imp.intxn.object, ef.threshold=2, leaveOutClusters, labelSubset=NULL)
+{
+  df <- imp.intxn.object[[1]]
+  df <- df[! unified_int %in% leaveOutClusters]
+  df <- df[abs(effect.size) > ef.threshold]
+  df[, rankOrder := .I];   df[, labelSubset := ""]
+  max_rank <- max(df$rankOrder);  min_rank <- min(df$rankOrder);     rank_range <- max_rank - min_rank
+  annotateX.ctrl <- max_rank*0.95;  annotateX.exp <- min_rank+0.2*min_rank
+  annotateY <- min(df$effect.size)+0.2*min(df$effect.size)
+  if( !is.null(labelSubset))   
+  {   
+    indices.to.label <- df$unified_int %like% labelSubset
+    df[indices.to.label, labelSubset := unified_int]
+    df[, labelSubset := gsub("--", " • ", labelSubset)]
+    z <- ggplot(df, aes(x = rankOrder, y = effect.size, label = labelSubset)) 
+  }   
+  else {   z <- ggplot(df, aes(x = rankOrder, y = effect.size, label = unified_int))  }
+  df[, target_nudge_x := ifelse(effect.size >= 0, max_rank * 0.25, -max_rank * 0.25)]
+  df[, target_nudge_y := ifelse(effect.size >= 0, max(effect.size) * 0.15, min(effect.size) * 0.15)]
+  nudge_x_vector <- if(!is.null(labelSubset)) ifelse(!is.na(df$labelSubset), df$target_nudge_x, 0) else df$target_nudge_x
+  nudge_y_vector <- if(!is.null(labelSubset)) ifelse(!is.na(df$labelSubset), df$target_nudge_y, 0) else df$target_nudge_y
+  
+  z <- z + geom_point(pch=21, color='black',fill='gray50', alpha=0.3, size=5) +
+    ggrepel::geom_text_repel(
+      max.overlaps = 5, size=3,
+      nudge_x = nudge_x_vector, nudge_y = nudge_y_vector,
+      direction = "both",               # Allows alignment along x and y dimensions
+      segment.color = "grey30",         # Crisp line matching point borders
+      box.padding = 0.8,                # Spacing around label bounding box
+      point.padding = 0.4,              # Clear boundary zone right around the dot
+      force = 10,                       # Push hard out toward the nudged destinations
+      min.segment.length = 0            # Always draw lines, even for close labels
+    ) +
+    geom_hline(yintercept = 0, color='black') + 
+    ggtitle( paste0("Effect size: ", 
+                    imp.intxn.object$parameters$condition.exp, " vs ", imp.intxn.object$parameters$condition.ctrl))  +             
+    theme_classic() +
+    theme(axis.text.y = element_text( size=8, color='black'),  
+            plot.title=element_text(size=10), 
+            axis.title.x = element_text(size=10, color='black'), axis.text.x = element_text(size=10, color='black')) +
+    theme(legend.position = 'none') + 
+    annotate("text", x = annotateX.exp, y = annotateY, size = 5, label = imp.intxn.object$parameters$condition.exp) + 
+    annotate("text", x = annotateX.ctrl, y = annotateY, size = 3, label = imp.intxn.object$parameters$condition.ctrl) + 
+    ylab("Effect size")  +  coord_cartesian(clip = 'off') 
+  return(z)
+}
+
+a <- findImportantInteractions( interaction.dt= interaction.byRecur.trip, condition.exp="recur", 
+                                condition.ctrl="no.recur", ef.threshold=0, leaveOutTumor = T)
+
+plot.interaction.rankOrder(a, ef.threshold=0, leaveOutClusters=c('Tumor','ARTIFACT'), labelSubset = c("TCF1_HI_TOX_HI_CD8")) + 
+  xlab('Rank Order') + ylab('Effect size') + theme(axis.line.x = element_blank())
+# ggsave(filename = 'output/interactionTrip.Recur.EffectSize.pdf', width=7,height=7)
+
+plot.interaction.rankOrder(a, ef.threshold=0, leaveOutClusters=c('Tumor','ARTIFACT'), labelSubset = c("DENDRITIC")) + 
+  xlab('Rank Order') + ylab('Effect size') + theme(axis.line.x = element_blank())
+
 
 
 ```
 
 
-Job ID: 11149753
+Job ID: 24451186
 Cluster: slurm_cluster
 User/Group: heratr01/heratr01
 State: COMPLETED (exit code 0)
 Nodes: 1
 Cores per node: 5
-CPU Utilized: 05:37:43
-CPU Efficiency: 25.87% of 21:45:25 core-walltime
-Job Wall-clock time: 04:21:05
-Memory Utilized: 311.29 GB
-Memory Efficiency: 62.26% of 500.00 GB (500.00 GB/node)
+CPU Utilized: 07:24:59
+CPU Efficiency: 24.92% of 1-05:45:50 core-walltime
+Job Wall-clock time: 05:57:10
+Memory Utilized: 311.15 GB
+Memory Efficiency: 77.79% of 400.00 GB (400.00 GB/node)
 
 
 

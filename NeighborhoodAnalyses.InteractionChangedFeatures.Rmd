@@ -45,10 +45,16 @@ sessionInfo()
 # read in data object 
 ```{r read-annot-sln-spatnet}
 
-sln <- readRDS("sln.clustering5.annot.spatnet.20250617.160512.RDS")
+sln <- readRDS("sln.clustering5.annot.spatnet.20260606.095149.RDS")
 gc()
 md <- pDataDT(sln)
 stableColorsL2 <- getDistinctColors(length(unique(md$L2_annotations)));  names(stableColorsL2) <- unique(md$L2_annotations)
+stableColors.sabrina <- readRDS(file = 'l2_v3_master_colors.rds')
+common_names <- intersect(names(stableColorsL2), names(stableColors.sabrina))
+stableColorsL2[common_names] <- stableColors.sabrina[common_names]
+stableColorsL2 <- c(stableColorsL2[!names(stableColorsL2) %in% names(stableColors.sabrina)], 
+                    stableColors.sabrina)
+rm(stableColors.sabrina, common_names)
 stage3.subgroup <- c("tumor.1","tumor.2","tumor.3","tumor.4","tumor.5","tumor.6","tumor.7", "tumor.8",
                                                  "tumor.9","tumor.10")
 stage1.subgroup <- c("ctrl.1","ctrl.2","ctrl.3","ctrl.4","ctrl.5")
