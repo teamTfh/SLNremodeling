@@ -20,7 +20,7 @@ library(Giotto)
 library(future); if(parallelly::availableCores() > 2 & .Platform$OS.type == "windows")  
   {plan('multisession', workers = parallelly::availableCores()-2)}
 options(future.globals.maxSize= 1e12)
-library(scran); library(MAST); library(leiden);    
+library(scran); library(MAST); # library(leiden);    
 library(data.table)
 library(gplots); library(ggplot2); library(viridis)
 library(dbscan)
@@ -32,7 +32,7 @@ sessionInfo()
 ```
 
 ```{r readRDS-sln-harmony}
-sln <- readRDS("sln.harmony.RDS")
+sln <- readRDS("objects/sln.harmony.20260624.021437.RDS")
 
 ```
 
@@ -45,7 +45,7 @@ sln <- readRDS("sln.harmony.RDS")
 # write.csv(df, "sln.metadata.csv")
 
 md <- pDataDT(sln)
-df <- fread("sln.metadata.csv", na.strings = "N/A")
+df <- fread("halo_export/sln.metadata.csv", na.strings = "N/A")
 df$list_ID <- c("ctrl.1","ctrl.2","ctrl.3","ctrl.4","ctrl.5","tumor.1", "tumor.2", "tumor.3","tumor.4", "tumor.5", 
                 "tumor.6", "tumor.7", "tumor.8", "tumor.9", "tumor.10")
 setcolorder(df, colnames(df)[c(27, 2:26) ]);  df$V1 <- NULL   # clean up column names & order of columns 
@@ -77,7 +77,7 @@ sln <- addCellMetadata(gobject = sln, new_metadata = newdf, by_column=T, column_
 
 
 ```{r save-sln-meta}
-filename <- paste0("sln.harmony.meta.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
+filename <- paste0("objects/sln.harmony.meta.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
 saveRDS(sln, filename)
 ```
 

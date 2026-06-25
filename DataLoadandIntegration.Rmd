@@ -21,7 +21,7 @@ library(Giotto)
 library(future); if(parallelly::availableCores() > 2 & .Platform$OS.type == "windows")  
   {plan('multisession', workers = parallelly::availableCores()-2)}
 options(future.globals.maxSize= 1e12)
-library(scran); library(MAST); library(leiden);     
+library(scran); library(MAST); # library(leiden);     
 library(data.table)
 library(gplots); library(ggplot2); library(viridis)
 library(harmony)
@@ -121,7 +121,6 @@ for(i in 1:length(files))
   rm(cols)
 }
 
-## visualize
 spatPlot(gobject = out[[3]], point_size = 0.05, point_shape = "no_border", save_param = list(save_name="1_exampleSLN5"))
 ```
 
@@ -139,7 +138,7 @@ rm(out)
 
 
 ```{r plot-ScreePlot}
-# using channels that Sabrina used for downstream clustering
+# channels for downstream clustering
 clusterChannels <- c("CD3E", "CD4", "CD8", "TCF1", "TOX", "CD45RO", "CD19", "CD20","HLA.DR", "CD38", "IGD", "CXCR5", 
                      "KI67", "CD45", "PAN.CYTO", "CD21", "MAC2/GAL3", "IFNG", "MART1", "GP100", "S100B")
 sln <- runPCA(gobject = sln, expression_values = "normalized", scale_unit = TRUE, 
@@ -160,12 +159,6 @@ sln.sm <- subsetGiotto(gobject = sln, cell_ids = sample(sln$cell_ID, 1e6, replac
 
 sln.sm <- createNearestNetwork(gobject = sln.sm, dimensions_to_use = 1:10, k = 15)
 sln.sm <- doLeidenClusterIgraph(gobject = sln.sm, resolution = 0.1, n_iterations = 100, name = 'trnsfr_leiden_harmony')
-
-# sln.sm <- createNearestNetwork(gobject = sln.sm, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
-#                             name = 'NN.harmony', dimensions_to_use = 1:10, k = 10)  # calculate nearest neighbors, focus on global differences 
-# sln.sm <- doLeidenClusterIgraph(gobject = sln.sm, resolution = 0.3, n_iterations = 100, 
-#                                 network_name = 'NN.harmony', name = 'leiden_harmony')  # make the clusters
-# sln <- labelTransfer(x = sln, y = sln.sm, labels = "leiden_harmony")  # assign cluster labels in the full dataset based on the reduced data
 ```
 
 UMAP projection
@@ -201,18 +194,10 @@ sln = runGiottoHarmony(sln, vars_use = 'list_ID')
 
 Calculate clusters by Leiden
 ```{r calculate-Clusters}
-# sln.sm <- subsetGiotto(gobject = sln, cell_ids = sample(sln$cell_ID, 1e5, replace=F)) # make a smaller dataset to work with 
-
 sln <- createNearestNetwork(gobject = sln, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony',
                             name = 'NN.harmony', dimensions_to_use = 1:10, k = 15)
 sln <- doLeidenClusterIgraph(gobject = sln, resolution = 0.1, n_iterations = 100, network_name = 'NN.harmony',
                              name = 'trnsfr_leiden_harmony')
-
-# sln.sm <- createNearestNetwork(gobject = sln.sm, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
-#                             name = 'NN.harmony', dimensions_to_use = 1:10, k = 10)  # calculate nearest neighbors, focus on global differences 
-# sln.sm <- doLeidenClusterIgraph(gobject = sln.sm, resolution = 0.3, n_iterations = 100, 
-#                                 network_name = 'NN.harmony', name = 'leiden_harmony')  # make the clusters
-# sln <- labelTransfer(x = sln, y = sln.sm, labels = "leiden_harmony")  # assign cluster labels in the full dataset based on the reduced data
 ```
 
 UMAP projection
@@ -237,25 +222,46 @@ plotUMAP(gobject = sln, dim_reduction_name = 'umap.projection', cell_color = 'tr
          point_alpha=0.5)
 ```
 
-Plot the umap with a contour overlay
-```{r plot-UMAP-customContour}
-# data <- as.data.frame( sln@dimension_reduction$cells$cell$rna$umap$umap.projection@coordinates)
-# data$cluster <- sln@cell_metadata$cell$rna$trnsfr_leiden_harmony
-# leiden_colors <- getDistinctColors(length(unique(data$cluster)))
-# names(leiden_colors) <- unique(data$cluster)
-# data <- data[sample(1:nrow(data),3e5), ]
-# ggplot(data) + geom_point(aes(x=Dim.1, y=Dim.2, color=cluster), show.legend = FALSE, alpha=0.2, size=0.2) + 
-#   geom_point(aes(x = Inf, y = Inf, color = cluster), size = 3, show.legend = TRUE) + 
-#   geom_density2d(aes(x=Dim.1, y=Dim.2), linewidth=0.25, color="black") + theme_classic()  + scale_color_manual(values = leiden_colors)   + 
-#   scale_x_continuous(limits=c(min(data$Dim.1) - .10*diff(range(data$Dim.1)),max(data$Dim.1) + .10* diff(range(data$Dim.1)))) +
-#   scale_y_continuous(limits=c(min(data$Dim.2) - .10*diff(range(data$Dim.2)),max(data$Dim.2) + .10* diff(range(data$Dim.2)))) + 
-#   ggtitle("All cells - downsampled") +  guides(color = guide_legend(override.aes = list(shape = 16)))
-# rm(data) 
+
+```{r save-harmony-RDS, eval=FALSE}
+# filename <- paste0("objects/sln.harmony.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
+# saveRDS(sln, filename)
 ```
 
 
-```{r save-harmony-RDS}
-filename <- paste0("sln.harmony.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
+```{r merge-metadata}
+# meta <- fread("../../../Downloads/sln.metadata.csv")                   # executed just one time 
+# df <- unique(meta, by = c("sample"))
+# df <- df[, list(orig.ident,SLN_Stage,`Path Accession Number`,SLN_Biopsy, SLN_Biopsy_Date, Sex,Age,SLN_Area, Tumor_Area, `Tumor_Greatest_Dimension(mm)`, Histology, `Primary_Breslow(mm)`, Tumor_Infiltrating_Lymphocytes, `Mitoses(mm^2)`, Ulceration, Recurrence, Recurrence_Date, Months_To_Recurrence, Raw_Recur_Group, Death, Chemotherapy_Treatment, Chemotherapy_Treatment_Type, Immunotherapy_Treatment, Immunotherapy_Treatment_Date,Immunotherapy_Treatment_Type)]
+# write.csv(df, "sln.metadata.csv")
+
+md <- pDataDT(sln)
+df <- fread("sln.metadata.csv", na.strings = "N/A")
+df$list_ID <- c("ctrl.1","ctrl.2","ctrl.3","ctrl.4","ctrl.5","tumor.1", "tumor.2", "tumor.3","tumor.4", "tumor.5", 
+                "tumor.6", "tumor.7", "tumor.8", "tumor.9", "tumor.10")
+setcolorder(df, colnames(df)[c(27, 2:26) ]);  df$V1 <- NULL   # clean up column names & order of columns 
+a <- as.data.frame(table(md$list_ID))        # how many rows are there per sample, but this orders the result before returning
+b <- unique(md$list_ID)                      # this will give the correct order of appearance in the table
+a <- a[match(b, a$Var1), ]                    # give the table in order
+toChange <- names(df)[c(9:11,14:15, 19, 21)]  # have to turn these from char to numeric or later plots will all break
+for (i in toChange) {  df[, (i) := as.numeric(get(i))]  }   # change columns to numeric
+df <- df[match(b, df$list_ID), ]              # reorder df to be in the right order 
+names(df)[11] <- 'Tum_Gr_Dim'                 # column 11 is a problem!!! only works if the name is way shorter
+new_metadata<- df[rep(1:nrow(df), times = a$Freq), ]  # repeat rows the right number of times
+md <- cbind(cell_ID=md$cell_ID, new_metadata )        # now this is ok  
+sln <- addCellMetadata(gobject = sln, new_metadata = md, by_column=T, column_cell_ID = 'cell_ID')
+
+rm(new_metadata); rm(a); rm(b)
+
+md <- pDataDT(sln)
+newdf <- data.frame(cell_ID=md$cell_ID, leiden_harmony = md$trnsfr_leiden_harmony)
+sln <- addCellMetadata(gobject = sln, new_metadata = newdf, by_column=T, column_cell_ID = 'cell_ID')
+
+```
+
+
+```{r save-sln-meta}
+filename <- paste0("objects/sln.harmony.meta.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
 saveRDS(sln, filename)
 ```
 

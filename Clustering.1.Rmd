@@ -24,7 +24,7 @@ library(Giotto)
 library(future); if(parallelly::availableCores() > 2 & .Platform$OS.type == "windows")  
   {plan('multisession', workers = parallelly::availableCores()-2)}
 options(future.globals.maxSize= 1e12)
-library(scran); library(MAST); library(leiden);    
+library(scran); library(MAST); # library(leiden);    
 library(data.table)
 library(gplots); library(ggplot2); library(viridis)
 library(dbscan)
@@ -36,7 +36,7 @@ sessionInfo()
 ```
 
 ```{r import-sln-meta}
-sln <- readRDS("sln.harmony.meta.RDS")
+sln <- readRDS("objects/sln.harmony.meta.RDS")
 print(paste("Primary object size: ", length(sln@cell_ID$cell), "cells"))
 md <- pDataDT(sln) 
 print("cluster membership")
@@ -189,7 +189,7 @@ table(md$list_ID, md$leiden_harmony)
 
 # final data save
 ```{r save-excl-1}
-filename <- paste0("sln.clustering1.dim12.k15.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
+filename <- paste0("objects/sln.clustering1.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
 saveRDS(sln, filename)
 
 ```

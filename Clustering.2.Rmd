@@ -24,7 +24,7 @@ library(Giotto)
 library(future); if(parallelly::availableCores() > 2 & .Platform$OS.type == "windows")  
   {plan('multisession', workers = parallelly::availableCores()-2)}
 options(future.globals.maxSize= 1e12)
-library(scran); library(MAST); library(leiden);    
+library(scran); library(MAST); # library(leiden);    
 library(data.table)
 library(gplots); library(ggplot2); library(viridis)
 library(dbscan)
@@ -41,8 +41,6 @@ sessionInfo()
 sln <- readRDS("sln.clustering1.dim12.k15.RDS")
 print(paste("Primary object size: ", length(sln@cell_ID$cell), "cells"))
 md <- pDataDT(sln) 
-# saveRDS(md, file="md.sln.clustering1.dim12.k15.RDS")
-# saveRDS(Giotto::getExpression(sln, values = "scaled", output = c("matrix"),  set_defaults = TRUE ), "exprs.sln.clustering1.dim12.k15.RDS")
 print("cluster membership")
 print(table(md$leiden_harmony))
 plots <- list()
@@ -64,7 +62,6 @@ data <- data[sample(1:nrow(data),3e4), ]
 ggplot(data) + geom_point(aes(x=Dim.1, y=Dim.2, color=cluster), show.legend = FALSE, alpha=0.2, size=0.2) + 
   geom_point(aes(x = Inf, y = Inf, color = cluster), size = 3, show.legend = TRUE) + 
   geom_density2d(aes(x=Dim.1, y=Dim.2), linewidth=0.25, color="black") + theme_classic()  + 
-  # scale_color_manual(values = leiden_colors)   + 
   scale_x_continuous(limits=c(min(data$Dim.1) - .10*diff(range(data$Dim.1)),max(data$Dim.1) + .10* diff(range(data$Dim.1)))) +
   scale_y_continuous(limits=c(min(data$Dim.2) - .10*diff(range(data$Dim.2)),max(data$Dim.2) + .10* diff(range(data$Dim.2)))) + 
   ggtitle("All cells - downsampled") +  guides(color = guide_legend(override.aes = list(shape = 16)))
@@ -160,13 +157,6 @@ signPCA(sln, scale_unit = TRUE, scree_ylim = c(0,40))
 # Calculate clusters by Leiden
 ```{r calculate-Clusters-excl2}
 
-# sln.sm <- subsetGiotto(gobject = sln, cell_ids = sample(sln$cell_ID, 1e5, replace=F)) # make a smaller dataset to work with 
-# sln.sm <- createNearestNetwork(gobject = sln.sm, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
-#                             name = 'NN.harmony', dimensions_to_use = 1:10, k = 10)  # calculate nearest neighbors, focus on global differences 
-# sln.sm <- doLeidenClusterIgraph(gobject = sln.sm, resolution = 0.3, n_iterations = 100, set_seed=T, seed_number = 43, 
-#                                 network_name = 'NN.harmony', name = 'leiden_harmony')  # make the clusters
-# sln <- labelTransfer(x = sln, y = sln.sm, labels = "leiden_harmony")  # assign cluster labels in the full dataset based on the reduced data
-
 sln <- createNearestNetwork(gobject = sln, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
                             name = 'NN.harmony', dimensions_to_use = 1:12, k = 15)  # calculate nearest neighbors 
 sln <- doLeidenClusterIgraph(gobject = sln, resolution = 0.5, n_iterations = 500, set_seed=T, seed_number = 43, 
@@ -182,14 +172,7 @@ sln <- runUMAPprojection(sln, random_subset = 1e5)  # project UMAP coordinates t
 
 # plot heatmap of features vs clusters
 ```{r cluster-feat-heatmap-excl2, fig.show="hold", fig.width=10, fig.height=5}
-# markers_scran <- findMarkers_one_vs_all(gobject = sln, method = "scran", expression_values = "normalized",
-#                                         cluster_column = "leiden_harmony", min_feats = 3)
-# 
-# topgenes_scran <- unique(markers_scran[, head(.SD, 5), by = "cluster"][["feats"]])
-# 
-# plotMetaDataHeatmap(sln, expression_values = "normalized",
-#                     metadata_cols = "leiden_harmony", selected_feats = topgenes_scran,
-#                     y_text_size = 8, show_values = "zscores_rescaled")
+
 clusterChannels <- c("CD3E", "CD4", "CD8", "TCF1", "TOX", "CD45RO", "CD19", "CD20","HLA.DR", "CD38", "IGD", "CXCR5", 
                      "KI67", "CD45", "PAN.CYTO", "CD21", "MAC2/GAL3", "IFNG", "MART1", "GP100", "S100B")
 plots[[2]] <- plotMetaDataHeatmap(sln, expression_values = "normalized",
@@ -217,7 +200,8 @@ table(md$list_ID, md$leiden_harmony)
 
 # final data save
 ```{r save-excl-1}
-saveRDS(sln, "sln.clustering2.RDS")
+filename <- paste0("objects/sln.clustering2.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
+saveRDS(sln, filename)
 ```
 
 

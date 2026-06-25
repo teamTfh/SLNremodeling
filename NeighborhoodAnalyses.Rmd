@@ -1258,8 +1258,11 @@ plot.enrichm.interaction(interaction.dt = interaction.byStage, probeSubset = "AC
 
 plot.enrichm.interaction(interaction.dt = interaction.byStage, probeSubset = "ACTIVATED_TREG--TCF1_HI_TOX_HI_CD8", 
                          colorList = a$colorScheme, title="ACTIVATED_TREG--\nTCF1_HI_TOX_HI_CD8")
+# ggsave(filename = 'output/ACTIVATED_TREG--TCF1_HI_TOX_HI_CD8.stage.boxplot.pdf', width=2.5,height=3)
+
 plot.enrichm.interaction(interaction.dt = interaction.byStage, probeSubset = "ACTIVATED_TREG--TCF1_LO_TOX_HI_CD8", 
                          colorList = a$colorScheme, title="ACTIVATED_TREG--\nTCF1_LO_TOX_HI_CD8")
+# ggsave(filename = 'output/ACTIVATED_TREG--TCF1_LO_TOX_HI_CD8.stage.boxplot.pdf', width=2.5,height=3)
 
 
 ```
@@ -2563,7 +2566,7 @@ cellTriplet.calcP <- function(table_results, number_of_simulations = 1000,
 
 }
 
-out <- triplet.Analysis(gobject = sln, nsims = 50, spatnet="spatialknn.k9.persample", clustCol="L2_annotations", threshold=0.5,
+out <- triplet.Analysis(gobject = sln, nsims = 50, spatnet="spatialknn.k9.persample", clustCol="L2_annotations", threshold=0,
                         spatialk=9, sample.names = list_ID)
   # > out$raw_sim_table
   # Index: <orig>
@@ -2595,6 +2598,7 @@ if(.Platform$OS.type != "windows")
 {
   res.interaction <- calc.Interactions(allInteractions = purrr::list_rbind( lapply(out, FUN = purrr::pluck, 'raw_sim_table' ), names_to = 'id'),
                                        sampleNames = list_ID) 
+  # saveRDS(res.interaction, file = 'revSubm/res.interaction.RDS')
 } else res.interaction <- readRDS(file = 'revSubm/res.interaction.RDS')
 gc()
 
@@ -2664,6 +2668,9 @@ plot.interaction.rankOrder <- function(imp.intxn.object, ef.threshold=2, leaveOu
 
 a <- findImportantInteractions( interaction.dt= interaction.byRecur.trip, condition.exp="recur", 
                                 condition.ctrl="no.recur", ef.threshold=0, leaveOutTumor = T)
+
+findImportantInteractions( interaction.dt= interaction.byRecur.trip, condition.exp="recur", 
+                           condition.ctrl="no.recur", ef.threshold=2.5, leaveOutTumor = T)$filteredggplot
 
 plot.interaction.rankOrder(a, ef.threshold=0, leaveOutClusters=c('Tumor','ARTIFACT'), labelSubset = c("TCF1_HI_TOX_HI_CD8")) + 
   xlab('Rank Order') + ylab('Effect size') + theme(axis.line.x = element_blank())
