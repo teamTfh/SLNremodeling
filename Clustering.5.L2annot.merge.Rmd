@@ -37,12 +37,12 @@ sessionInfo()
 
 # read in CD8.Toxhi and CD8.Toxlo
 ```{r readRDS}
-cd8.toxhi <- readRDS("sln.clustering4.cd8tcells.toxhi.dim5k15.20250507.104052.RDS")
-cd8.toxlo <- readRDS("sln.clustering4.cd8tcells.toxlo.dim5k15.20250507.104052.RDS")
-cd4.foxp3hi <- readRDS("sln.clustering4.cd4tcells.foxp3hi.dim5k15.20250507.104052.RDS")
-cd4.foxp3lo <- readRDS("sln.clustering4.cd4tcells.foxp3lo.dim5k15.20250507.104052.RDS")
-bcells <- readRDS("sln.clustering4.bcells.harm.dim5k15.20250502.112218.RDS")
-tbmixed <- readRDS("sln.clustering4.tbmixed.harm.20250503.150210.RDS")
+cd8.toxhi <- readRDS("objects/sln.clustering4.cd8tcells.toxhi.dim5k15.20250507.104052.RDS")
+cd8.toxlo <- readRDS("objects/sln.clustering4.cd8tcells.toxlo.dim5k15.20250507.104052.RDS")
+cd4.foxp3hi <- readRDS("objects/sln.clustering4.cd4tcells.foxp3hi.dim5k15.20250507.104052.RDS")
+cd4.foxp3lo <- readRDS("objects/sln.clustering4.cd4tcells.foxp3lo.dim5k15.20250507.104052.RDS")
+bcells <- readRDS("objects/sln.clustering4.bcells.harm.dim5k15.20250502.112218.RDS")
+tbmixed <- readRDS("objects/sln.clustering4.tbmixed.harm.20250503.150210.RDS")
 ```
 
 
@@ -205,7 +205,7 @@ L2.annot <- rbindlist(L2.annot)
 
 # read in SLN 
 ```{r readRDS-full-sln-from-clustering2}
-sln <- readRDS("sln.clustering2.res0.5.20250411.1611.RDS")
+sln <- readRDS("objects/sln.clustering2.res0.5.20250411.1611.RDS")
 md <- pDataDT(sln) 
 print(paste("Primary object size: ", nrow(md), "cells"))
 print("cluster membership")
@@ -214,72 +214,6 @@ print(table(md$leiden_harmony))
 
 
 ```{r assign-L1-labels}
-# df <- data.frame(leiden_harmony = md$leiden_harmony, L1_annotations = "Unknown")    
-# df$cell_ID <- md$cell_ID
-# df$L1_annotations <- paste0("Clust.", df$leiden_harmony)  # unknown clusters
-
-# df[which(df$leiden_harmony == "1" ), 'L1_annotations'] <-  "BCells.1"
-# df[which(df$leiden_harmony == "2" ), 'L1_annotations'] <-  "BCells.2"
-# df[which(df$leiden_harmony == "3" ), 'L1_annotations'] <-  "BCells.3"
-# df[which(df$leiden_harmony == "4" ), 'L1_annotations'] <-  "BCells.4"
-# df[which(df$leiden_harmony == "5" ), 'L1_annotations'] <-  "BCells.5"
-# df[which(df$leiden_harmony == "6" ), 'L1_annotations'] <-  "BCells.6"
-# df[which(df$leiden_harmony == "7" ), 'L1_annotations'] <-  "TBMixed.1"
-# df[which(df$leiden_harmony == "8" ), 'L1_annotations'] <-  "TBMixed.2"
-# df[which(df$leiden_harmony == "9" ), 'L1_annotations'] <-  "TBMixed.3"
-# df[which(df$leiden_harmony == "10" ), 'L1_annotations'] <-  "TBMixed.4"
-# df[which(df$leiden_harmony == "11" ), 'L1_annotations'] <-  "TBMixed.5"
-# df[which(df$leiden_harmony == "12" ), 'L1_annotations'] <-  "TBMixed.6"
-# df[which(df$leiden_harmony == "13" ), 'L1_annotations'] <-  "TBMixed.7"
-# df[which(df$leiden_harmony == "14" ), 'L1_annotations'] <-  "BCells.7"
-# df[which(df$leiden_harmony == "15" ), 'L1_annotations'] <-  "TBMixed.8"
-# df[which(df$leiden_harmony == "16" ), 'L1_annotations'] <-  "TBMixed.9"
-# df[which(df$leiden_harmony == "17" ), 'L1_annotations'] <-  "TBMixed.10"
-# df[which(df$leiden_harmony == "18" ), 'L1_annotations'] <-  "TBMixed.11"
-# df[which(df$leiden_harmony == "19" ), 'L1_annotations'] <-  "TBMixed.12"
-# df[which(df$leiden_harmony == "20" ), 'L1_annotations'] <-  "TBMixed.13"
-# df[which(df$leiden_harmony == "21" ), 'L1_annotations'] <-  "BCells.8"
-# df[which(df$leiden_harmony == "22" ), 'L1_annotations'] <-  "BCells.9"
-# df[which(df$leiden_harmony == "23" ), 'L1_annotations'] <-  "BCells.10"
-# df[which(df$leiden_harmony == "24" ), 'L1_annotations'] <-  "BCells.11"
-# df[which(df$leiden_harmony == "25" ), 'L1_annotations'] <-  "TBMixed.14"
-# df[which(df$leiden_harmony == "26" ), 'L1_annotations'] <-  "TBMixed.15"
-# df[which(df$leiden_harmony == "27" ), 'L1_annotations'] <-  "TBMixed.16"
-# df[which(df$leiden_harmony == "28" ), 'L1_annotations'] <-  "BCells.12"
-# df[which(df$leiden_harmony == "29" ), 'L1_annotations'] <-  "BCells.13"
-# df[which(df$leiden_harmony == "30" ), 'L1_annotations'] <-  "TBMixed.17"
-# df[which(df$leiden_harmony == "31" ), 'L1_annotations'] <-  "TBMixed.18"
-# df[which(df$leiden_harmony == "32" ), 'L1_annotations'] <-  "TBMixed.19"
-# df[which(df$leiden_harmony == "33" ), 'L1_annotations'] <-  "TBMixed.20"
-# df[which(df$leiden_harmony == "34" ), 'L1_annotations'] <-  "BCells.14"
-# df[which(df$leiden_harmony == "35" ), 'L1_annotations'] <-  "TBMixed.21"
-# df[which(df$leiden_harmony == "36" ), 'L1_annotations'] <-  "Tumor.1"
-# df[which(df$leiden_harmony == "37" ), 'L1_annotations'] <-  "Tumor.2"
-# df[which(df$leiden_harmony == "38" ), 'L1_annotations'] <-  "BCells.15"
-# df[which(df$leiden_harmony == "39" ), 'L1_annotations'] <-  "Tumor.3"
-# df[which(df$leiden_harmony == "40" ), 'L1_annotations'] <-  "Tumor.4"
-# df[which(df$leiden_harmony == "41" ), 'L1_annotations'] <-  "BCells.16"
-# df[which(df$leiden_harmony == "42" ), 'L1_annotations'] <-  "TBMixed.22"
-# df[which(df$leiden_harmony == "43" ), 'L1_annotations'] <-  "BCells.17"
-# df[which(df$leiden_harmony == "44" ), 'L1_annotations'] <-  "TBMixed.23"
-# df[which(df$leiden_harmony == "45" ), 'L1_annotations'] <-  "BCells.18"
-# df[which(df$leiden_harmony == "46" ), 'L1_annotations'] <-  "TBMixed.24"
-# df[which(df$leiden_harmony == "47" ), 'L1_annotations'] <-  "TBMixed.25"
-# df[which(df$leiden_harmony == "48" ), 'L1_annotations'] <-  "TBMixed.26"
-# df[which(df$leiden_harmony == "49" ), 'L1_annotations'] <-  "TCells.1"
-# df[which(df$leiden_harmony == "50" ), 'L1_annotations'] <-  "BCells.19"
-# df[which(df$leiden_harmony == "51" ), 'L1_annotations'] <-  "TBMixed.27"
-# df[which(df$leiden_harmony == "52" ), 'L1_annotations'] <-  "Artifact.1"
-# df[which(df$leiden_harmony == "53" ), 'L1_annotations'] <-  "TBMixed.28"
-# df[which(df$leiden_harmony == "54" ), 'L1_annotations'] <-  "Artifact.2"
-# df[which(df$leiden_harmony == "55" ), 'L1_annotations'] <-  "TCells.2"
-# df[which(df$leiden_harmony == "56" ), 'L1_annotations'] <-  "TBMixed.29"
-# df[which(df$leiden_harmony == "57" ), 'L1_annotations'] <-  "TBMixed.30"
-# df[which(df$leiden_harmony == "58" ), 'L1_annotations'] <-  "BCells.20"
-# df[which(df$leiden_harmony == "59" ), 'L1_annotations'] <-  "Tumor.5"
-# df[which(df$leiden_harmony == "60" ), 'L1_annotations'] <-  "BCells.21"
-# df[which(df$leiden_harmony == "61" ), 'L1_annotations'] <-  "Artifact.3"
-# df[which(df$leiden_harmony == "62" ), 'L1_annotations'] <-  "TBMixed.31"
 
 df <- data.table(leiden_harmony = md$leiden_harmony, L1_annotations = "Unknown")    
 df[, cell_ID := md$cell_ID]
@@ -476,11 +410,11 @@ spatPlot2D(sln.sm, cell_color = 'L1_annotations', cell_color_code = leiden_color
 
 # final save object 
 ```{r save-SLN-object}
-saveRDS(object = sln,  file = paste0("sln.clustering5.annot.spatnet.", timeStamp, ".RDS"))
+saveRDS(object = sln,  file = paste0("objects/sln.clustering5.annot.spatnet.", timeStamp, ".RDS"))
 md <- pDataDT(sln)
-saveRDS(object = md, file = paste0("md.sln.clustering5.annot.spatnet.", timeStamp, ".RDS"))
+saveRDS(object = md, file = paste0("objects/md.sln.clustering5.annot.spatnet.", timeStamp, ".RDS"))
 saveRDS(object = Giotto::getExpression(sln, values = "scaled", output = c("matrix"),  set_defaults = TRUE ),
-        file = paste0("exprs.sln.clustering5.annot.spatnet.", timeStamp, ".RDS"))
+        file = paste0("objects/exprs.sln.clustering5.annot.spatnet.", timeStamp, ".RDS"))
 ```
 
 

@@ -24,7 +24,7 @@ library(Giotto)
 library(future); if(parallelly::availableCores() > 2 & .Platform$OS.type == "windows")  
   {plan('multisession', workers = parallelly::availableCores()-2)}
 options(future.globals.maxSize= 1e12)
-library(scran); library(MAST); library(leiden);    
+library(scran); library(MAST); # library(leiden);    
 library(data.table)
 library(gplots); library(ggplot2); library(viridis)
 library(dbscan)
@@ -37,7 +37,7 @@ sessionInfo()
 
 
 ```{r readRDS-clust2res0.5}
-sln <- readRDS("sln.clustering2.res0.5.20250411.1611.RDS")
+sln <- readRDS("objects/sln.clustering2.20260625.131357.RDS")
 print(paste("Primary object size: ", length(sln@cell_ID$cell), "cells"))
 md <- pDataDT(sln) 
 print("cluster membership")
@@ -139,7 +139,6 @@ data <- data[sample(1:nrow(data),3e4), ]
 ggplot(data) + geom_point(aes(x=Dim.1, y=Dim.2, color=cluster), show.legend = FALSE, alpha=0.2, size=0.2) + 
   geom_point(aes(x = Inf, y = Inf, color = cluster), size = 3, show.legend = TRUE) + 
   geom_density2d(aes(x=Dim.1, y=Dim.2), linewidth=0.25, color="black") + theme_classic()  + 
-  # scale_color_manual(values = leiden_colors)   + 
   scale_x_continuous(limits=c(min(data$Dim.1) - .10*diff(range(data$Dim.1)),max(data$Dim.1) + .10* diff(range(data$Dim.1)))) +
   scale_y_continuous(limits=c(min(data$Dim.2) - .10*diff(range(data$Dim.2)),max(data$Dim.2) + .10* diff(range(data$Dim.2)))) + 
   ggtitle("All cells - downsampled") +  guides(color = guide_legend(override.aes = list(shape = 16)))
@@ -149,14 +148,7 @@ rm(data)
 
 # plot heatmap of features vs clusters
 ```{r cluster-feat-heatmap-excl2-Cells, fig.show="hold", fig.width=10, fig.height=5}
-# markers_scran <- findMarkers_one_vs_all(gobject = sln, method = "scran", expression_values = "normalized",
-#                                         cluster_column = "leiden_harmony", min_feats = 3)
-# 
-# topgenes_scran <- unique(markers_scran[, head(.SD, 5), by = "cluster"][["feats"]])
-# 
-# plotMetaDataHeatmap(sln, expression_values = "normalized",
-#                     metadata_cols = "leiden_harmony", selected_feats = topgenes_scran,
-#                     y_text_size = 8, show_values = "zscores_rescaled")
+
 clusterChannels <- c("CD3E", "CD4", "CD8", "TCF1", "TOX", "CD45RO", "CD19", "CD20","HLA.DR", "CD38", "IGD", "CXCR5", 
                      "KI67", "CD45", "PAN.CYTO", "CD21", "MAC2/GAL3", "IFNG", "MART1", "GP100", "S100B")
 plotMetaDataHeatmap(sln, expression_values = "normalized",
@@ -254,12 +246,12 @@ plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.clust3.d8', cell_color = '
 
 
 ```{r save-object-res0.7}
-filename <- paste0("sln.clustering3.dim5k15.res0.7.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
+filename <- paste0("objects/sln.clustering3.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
 saveRDS(sln.sub, filename)
-md <- pDataDT(sln.sub)
-saveRDS(md, paste0("md.",filename))
-saveRDS(Giotto::getExpression(sln.sub, values = "scaled", output = c("matrix"),  set_defaults = TRUE ),
-        paste0("exprs.",filename))
+# md <- pDataDT(sln.sub)
+# saveRDS(md, paste0("objects/md.",filename))
+# saveRDS(Giotto::getExpression(sln.sub, values = "scaled", output = c("matrix"),  set_defaults = TRUE ),
+#         paste0("objects/exprs.",filename))
 
 ```
 
@@ -269,64 +261,64 @@ saveRDS(Giotto::getExpression(sln.sub, values = "scaled", output = c("matrix"), 
 
 # Calculate clusters by Leiden
 ```{r calculate-Clusters-res1}
-md <- pDataDT(sln)
-print("Eliminating non-lymphocyte populations")
-# goal is to make a subsetGiotto object consisting of TCells.1-2, BCells.1-21, TBMixed.1-31
-toEliminate <- c("Artifact.1","Artifact.2", "Artifact.3","Tumor.1","Tumor.2","Tumor.3","Tumor.4","Tumor.5")
-keepCells <- subset(md, !(L1_annotations %in% c(toEliminate)))$cell_ID
-sln.sub <- subsetGiotto(gobject = sln, cell_ids = keepCells)
-print(paste("New object size: ", length(sln.sub@cell_ID$cell), "cells"))
-clusterChannels <- c("CD3E", "CD4", "CD8", "TCF1", "CD19", "CD20", "CD38", "CD45")
-
-sln.sub <- runPCA(gobject = sln.sub, expression_values = "normalized", scale_unit = TRUE, 
-              method = "factominer", feats_to_use = clusterChannels)
-signPCA(sln.sub, scale_unit = TRUE, scree_ylim = c(0,40))
-sln.sub <- createNearestNetwork(gobject = sln.sub, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
-                            name = 'NN.harmony.clust3', dimensions_to_use = 1:5, k = 15)  # calculate nearest neighbors 
-sln.sub <- doLeidenClusterIgraph(gobject = sln.sub, resolution = 1, n_iterations = 200, set_seed=T, seed_number = 43, 
-                                network_name = 'NN.harmony.clust3', name = 'leiden.clust3.r1')  # make the clusters
-md <- pDataDT(sln.sub)
-print(table(md$leiden.clust3.r1))
+# md <- pDataDT(sln)
+# print("Eliminating non-lymphocyte populations")
+# # goal is to make a subsetGiotto object consisting of TCells.1-2, BCells.1-21, TBMixed.1-31
+# toEliminate <- c("Artifact.1","Artifact.2", "Artifact.3","Tumor.1","Tumor.2","Tumor.3","Tumor.4","Tumor.5")
+# keepCells <- subset(md, !(L1_annotations %in% c(toEliminate)))$cell_ID
+# sln.sub <- subsetGiotto(gobject = sln, cell_ids = keepCells)
+# print(paste("New object size: ", length(sln.sub@cell_ID$cell), "cells"))
+# clusterChannels <- c("CD3E", "CD4", "CD8", "TCF1", "CD19", "CD20", "CD38", "CD45")
+# 
+# sln.sub <- runPCA(gobject = sln.sub, expression_values = "normalized", scale_unit = TRUE, 
+#               method = "factominer", feats_to_use = clusterChannels)
+# signPCA(sln.sub, scale_unit = TRUE, scree_ylim = c(0,40))
+# sln.sub <- createNearestNetwork(gobject = sln.sub, dim_reduction_to_use = 'harmony', dim_reduction_name = 'harmony', 
+#                             name = 'NN.harmony.clust3', dimensions_to_use = 1:5, k = 15)  # calculate nearest neighbors 
+# sln.sub <- doLeidenClusterIgraph(gobject = sln.sub, resolution = 1, n_iterations = 200, set_seed=T, seed_number = 43, 
+#                                 network_name = 'NN.harmony.clust3', name = 'leiden.clust3.r1')  # make the clusters
+# md <- pDataDT(sln.sub)
+# print(table(md$leiden.clust3.r1))
 
 ```
 
 # plot heatmap of features vs clusters
 ```{r cluster-feat-heatmap-res1, fig.show="hold", fig.width=10, fig.height=5}
-clusterChannels <- c("CD3E", "CD4", "CD8", "TCF1", "TOX", "CD45RO", "CD19", "CD20","HLA.DR", "CD38", "IGD", "CXCR5", 
-                     "KI67", "CD45", "PAN.CYTO", "CD21", "MAC2/GAL3", "IFNG", "MART1", "GP100", "S100B")
-plotMetaDataHeatmap(sln.sub, expression_values = "normalized",
-                    metadata_cols = "leiden.clust3.r1", selected_feats = clusterChannels,
-                    y_text_size = 8, show_values = "zscores_rescaled")
+# clusterChannels <- c("CD3E", "CD4", "CD8", "TCF1", "TOX", "CD45RO", "CD19", "CD20","HLA.DR", "CD38", "IGD", "CXCR5", 
+#                      "KI67", "CD45", "PAN.CYTO", "CD21", "MAC2/GAL3", "IFNG", "MART1", "GP100", "S100B")
+# plotMetaDataHeatmap(sln.sub, expression_values = "normalized",
+#                     metadata_cols = "leiden.clust3.r1", selected_feats = clusterChannels,
+#                     y_text_size = 8, show_values = "zscores_rescaled")
 ```
 
 
 
 # UMAP projection
 ```{r UMAP-projection-res1}
-sln.sub <- runUMAPprojection(sln.sub, random_subset = 1e5, dimensions_to_use=1:8, n_threads = 8, name="umap.clust3.d8")
+# sln.sub <- runUMAPprojection(sln.sub, random_subset = 1e5, dimensions_to_use=1:8, n_threads = 8, name="umap.clust3.d8")
 
 ```
 
 # plot downsampled umap
 ```{r plot-UMAP-Downsample-res1, fig.show="hold"}
-md <- pDataDT(sln.sub); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 3e5))$cell_ID
-sln.sm <- subsetGiotto(gobject = sln.sub, cell_ids = keepCells)
-leiden_colors <- getDistinctColors(length(unique(md$leiden_harmony)))
-names(leiden_colors) <- unique(md$leiden_harmony)
-plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.clust3.d8', cell_color = 'leiden.clust3.r1',
-         cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.75, point_shape="no_border",
-         point_alpha=0.5)
+# md <- pDataDT(sln.sub); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 3e5))$cell_ID
+# sln.sm <- subsetGiotto(gobject = sln.sub, cell_ids = keepCells)
+# leiden_colors <- getDistinctColors(length(unique(md$leiden_harmony)))
+# names(leiden_colors) <- unique(md$leiden_harmony)
+# plotUMAP(gobject = sln.sm, dim_reduction_name = 'umap.clust3.d8', cell_color = 'leiden.clust3.r1',
+#          cell_color_code = leiden_colors, show_NN_network = F, point_size = 0.75, point_shape="no_border",
+#          point_alpha=0.5)
 
 ```
 
 
 ```{r save-object-res1}
-filename <- paste0("sln.clustering3.dim5k15.res1.0.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
-saveRDS(sln.sub, filename)
-md <- pDataDT(sln.sub)
-saveRDS(md, paste0("md.",filename))
-saveRDS(Giotto::getExpression(sln.sub, values = "scaled", output = c("matrix"),  set_defaults = TRUE ),
-        paste0("exprs.",filename))
+# filename <- paste0("sln.clustering3.dim5k15.res1.0.",  strftime(Sys.time() , "%Y%m%d.%H%M%S"), ".RDS")
+# saveRDS(sln.sub, filename)
+# md <- pDataDT(sln.sub)
+# saveRDS(md, paste0("md.",filename))
+# saveRDS(Giotto::getExpression(sln.sub, values = "scaled", output = c("matrix"),  set_defaults = TRUE ),
+#         paste0("exprs.",filename)) 
 
 ```
 
