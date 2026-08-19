@@ -43,10 +43,13 @@ sessionInfo()
 
 ```{r scratchpad, eval=FALSE}
 
-# qs2::qs_save(object = readRDS("sln.clustering5.annot.spatnet.20260606.095149.RDS"), file = "sln.clustering5.annot.spatnet.20260606.095149.qs2", compress_level = 10, nthreads=10  )
+# qs2::qs_save(object = readRDS("/gpfs/scratch/heratr01/esimap/objects/sln.clustering5.annot.spatnet.20260818.111925.RDS"), file = "sln.clustering5.annot.spatnet.20260818.111925.qs2", compress_level = 10, nthreads=10  )
+# qs2::qs_save(object = readRDS("/gpfs/data/heratilab/SharedData/HBV/hepb_lymph_node/hbv_bcell_analysis_streamlined/data/20260414_bcell_reclus_organized_joinedLayers_updated_bcr_with_elisa.rds"), file = "20260414_bcell_reclus_organized_joinedLayers_updated_bcr_with_elisa.qs2", compress_level = 10, nthreads=10  )
 
 # qs2::qs_save(object = readRDS("neighborhood.annot.k9.sln.RDS"), file = "neighborhood.annot.k9.sln.qs2", compress_level = 10, nthreads=10  )
 
+waldo::compare(x = qs2::qs_read(file = "neighborhood.annot.k9.sln.qs2"), y = readRDS(file = "neighborhood.annot.k9.sln.RDS"))
+ 
 ```
 
 # read in data object 
@@ -57,8 +60,8 @@ sessionInfo()
 if(.Platform$OS.type == "windows")  
 {
   qs2::qopt("nthreads", 5)  # better this than to specify nThreads with every qs2_read call
-  sln <- qs2::qs_read(file = "sln.clustering5.annot.spatnet.20260606.095149.qs2")
-} else sln <- readRDS("sln.clustering5.annot.spatnet.20260606.095149.RDS")
+  sln <- qs2::qs_read(file = "sln.clustering5.annot.spatnet.20260627.193005.qs2")
+} else sln <- readRDS("objects/sln.clustering5.annot.spatnet.20260818.111925.RDS")
 gc()
 
 
@@ -82,6 +85,39 @@ stage1.subgroup <- c("ctrl.1","ctrl.2","ctrl.3","ctrl.4","ctrl.5")
 recur.subgroup <- c("tumor.3","tumor.4","tumor.5","tumor.7","tumor.8","tumor.10")
 norecur.subgroup <- c("tumor.1","tumor.2", "tumor.6", "tumor.9")
 gc()
+```
+
+```{r frequency-plots, eval=FALSE}
+
+features_to_plot <- c(  "CD3E", "CD4", "CD8", "TCF1", "CD45RO", "FOXP3", "TOX", "HLA.DR", 
+                        "CD21", "CD20", "IGD", "KI67", "CD38", "CD11C", "MART1", "S100B", "GP100", "PD1")
+
+expr_matrix <- GiottoClass::getExpression(gobject = sln, values = "scaled", output='matrix')
+expr_subset <- expr_matrix[features_to_plot, , drop = FALSE]
+expr_dt <- as.data.table(t(as.matrix(expr_subset)), keep.rownames = "cell_ID")
+expr_dt <- merge(expr_dt, md[, .(cell_ID, L2_annotations)], by = "cell_ID")
+mean_expr_dt <- expr_dt[, lapply(.SD, mean, na.rm = TRUE), by = L2_annotations, .SDcols = features_to_plot]
+mat <- mean_expr_dt[! L2_annotations %in% c('CD8.outlier', 'CD4.outlier') ]
+mat <- as.data.frame(mat)
+row.names(mat) <- mat$L2_annotations; mat$L2_annotations <- NULL
+saved.names <- row.names(mat)
+mat <- data.frame(sapply(mat, FUN = function(x) {scales::rescale(x, to=c(-1,1)) } ) );   row.names(mat) <- saved.names
+
+ComplexHeatmap::pheatmap(mat, color = colorRampPalette(rev(RColorBrewer::brewer.pal(n = 7, name = "RdBu")))(100) )
+
+
+sum.L2 <- md[, .N, by=L2_annotations]; 
+sum.L2 <- sum.L2[order(N, decreasing=T)]
+order <- sum.L2$L2_annotations
+sum.L2 <- sum.L2[! L2_annotations %in% c('CD8.outlier', 'CD4.outlier') ]
+sum.L2[, L2_annotations := factor(L2_annotations, levels = order)]
+ggplot(sum.L2, aes(x = L2_annotations, y = N, fill = L2_annotations)) + geom_bar(stat = 'identity') + 
+  scale_fill_manual(values = stableColorsL2) + theme_classic() + 
+  theme(axis.title.x = element_blank(), axis.text.x = element_text(angle=90, hjust=1, vjust=0.5, color='black'), 
+        axis.text.y = element_text(color='black'), legend.position = 'none') + 
+  ylab('Total Number of Cells')
+
+
 ```
 
 
@@ -387,12 +423,12 @@ Fails on k=10 on tumor.6  (2 million rows) with long vectors error
 Works for k=9 for all samples 
 
 ```{r read-in-annotk9, eval=FALSE}
+# 
+# dt <- purrr::list_rbind(qs2::qs_read(file = "neighborhood.annot.k9.sln.qs2")[['tableResults.k9']], names_to = "id")
+# annot.k9 <- qs2::qs_read(file = "neighborhood.annot.k9.sln.qs2")[['annot.k9']]  #  read in L2 annotations
 
-dt <- purrr::list_rbind(qs2::qs_read(file = "neighborhood.annot.k9.sln.qs2")[['tableResults.k9']], names_to = "id")
-annot.k9 <- qs2::qs_read(file = "neighborhood.annot.k9.sln.qs2")[['annot.k9']]  #  read in L2 annotations
-
-# dt <- purrr::list_rbind(readRDS(file="neighborhood.annot.k9.sln.RDS")[['tableResults.k9']], names_to = "id")
-# annot.k9 <- readRDS(file="neighborhood.annot.k9.sln.RDS")[['annot.k9']]  #  read in L2 annotations
+dt <- purrr::list_rbind(readRDS(file="neighborhood.annot.k9.sln.RDS")[['tableResults.k9']], names_to = "id")
+annot.k9 <- readRDS(file="neighborhood.annot.k9.sln.RDS")[['annot.k9']]  #  read in L2 annotations
 ```
 
 
@@ -819,7 +855,7 @@ exampleNeighborhoods.filter <- function(res.list, indexCluster, chooseNeighbor, 
   list_ID <- res.list[['list_ID']]
   res.list <- res.list[['prop.table']]
   for (i in list_ID)    { filterList[[i]] <- res.list[[i]][from_cell_type == indexCluster & get(chooseNeighbor) > threshold]    }
-  return( rbindlist(filterList)  )
+  return( rbindlist(filterList, fill = TRUE)  )
 }
 
 
@@ -1119,7 +1155,7 @@ b <- plot.Average.Niche.igraph(annot.table = annot.k9, indexCluster = 'TCF1_LO_T
 gridExtra::grid.arrange(a,b, nrow=1) 
 ```
 
-
+# FAILURE
 
 # locate cells that exist in a given neighborhood 
 ```{r finding-example-cells-for-neighborhood}
@@ -1127,7 +1163,6 @@ gridExtra::grid.arrange(a,b, nrow=1)
 
 neighborhoods <- defineNeighborhoods(annot.list = annot.k9)
 gc()
-
 
 
 a <- exampleNeighborhoods.filter(neighborhoods, indexCluster = "LZ_BCELL", chooseNeighbor = "LZ_BCELL", threshold=0.2)

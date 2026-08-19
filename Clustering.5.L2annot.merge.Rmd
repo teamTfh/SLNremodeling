@@ -37,12 +37,12 @@ sessionInfo()
 
 # read in CD8.Toxhi and CD8.Toxlo
 ```{r readRDS}
-cd8.toxhi <- readRDS("objects/sln.clustering4.cd8tcells.toxhi.dim5k15.20250507.104052.RDS")
-cd8.toxlo <- readRDS("objects/sln.clustering4.cd8tcells.toxlo.dim5k15.20250507.104052.RDS")
-cd4.foxp3hi <- readRDS("objects/sln.clustering4.cd4tcells.foxp3hi.dim5k15.20250507.104052.RDS")
-cd4.foxp3lo <- readRDS("objects/sln.clustering4.cd4tcells.foxp3lo.dim5k15.20250507.104052.RDS")
-bcells <- readRDS("objects/sln.clustering4.bcells.harm.dim5k15.20250502.112218.RDS")
-tbmixed <- readRDS("objects/sln.clustering4.tbmixed.harm.20250503.150210.RDS")
+cd8.toxhi <- readRDS("objects/sln.clustering4.cd8tcells.toxhi.dim5k15.20260626.162117.RDS")
+cd8.toxlo <- readRDS("objects/sln.clustering4.cd8tcells.toxlo.dim5k15.20260626.162117.RDS")
+cd4.foxp3hi <- readRDS("objects/sln.clustering4.cd4tcells.foxp3hi.dim5k15.20260626.162117.RDS")
+cd4.foxp3lo <- readRDS("objects/sln.clustering4.cd4tcells.foxp3lo.dim5k15.20260626.162117.RDS")
+bcells <- readRDS("objects/sln.clustering4.bcells.20260626.162117.RDS")
+tbmixed <- readRDS("objects/sln.clustering4.tbmixed.harm.20260626.162117.RDS")
 ```
 
 
@@ -73,11 +73,11 @@ L2.annot[["tbmixed"]] <- pDataDT(tbmixed)[, .(cell_ID, L2_annotations, leiden_TB
 names(L2.annot[["tbmixed"]]) <- c("cell_ID","L2_annotations", "L2.num")
 L2.annot[["tbmixed"]]$L2.char <- paste0("tbmixed_", L2.annot[["tbmixed"]]$L2.num)
 
-L2.annot[["cd4outlier"]] <- readRDS("finalAnnotation.cd4outlier.RDS")
+L2.annot[["cd4outlier"]] <- readRDS("objects/finalAnnotation.cd4outlier.RDS")
 names(L2.annot[["cd4outlier"]]) <- c("cell_ID","L2_annotations")
 L2.annot[["cd4outlier"]]$L2.num <- 42; L2.annot[["cd4outlier"]]$L2.char <- "CD4_OUTLIER_1"
 
-L2.annot[["cd8outlier"]] <- readRDS("finalAnnotation.cd8outlier.RDS") 
+L2.annot[["cd8outlier"]] <- readRDS("objects/finalAnnotation.cd8outlier.RDS") 
 names(L2.annot[["cd8outlier"]]) <- c("cell_ID","L2_annotations")
 L2.annot[["cd8outlier"]]$L2.num <- 42; L2.annot[["cd8outlier"]]$L2.char <- "CD8_OUTLIER_1"
 
@@ -205,7 +205,7 @@ L2.annot <- rbindlist(L2.annot)
 
 # read in SLN 
 ```{r readRDS-full-sln-from-clustering2}
-sln <- readRDS("objects/sln.clustering2.res0.5.20250411.1611.RDS")
+sln <- readRDS("objects/sln.clustering2.20260625.131357.RDS")
 md <- pDataDT(sln) 
 print(paste("Primary object size: ", nrow(md), "cells"))
 print("cluster membership")
@@ -339,11 +339,19 @@ print(md$L3_annotations %>% table %>% length)
 ```{r add-new-subsets}
 md <- pDataDT(sln)
 
+# md[L2_annotations == "TCELL_BCELL_MYELOID_MIXED" & CD11C.Positive.Classification == 1, 
+#    L2_annotations:= "DENDRITIC_CELL"]
+# md[L2_annotations == "MEMORY_CD4" & TCF1.Positive.Classification == 1 & TOX.Positive.Classification == 1, 
+#    L2_annotations:= "STEM_CD4"]
+# md[L2_annotations == "ACTIVATED_MEMORY_CD4" & TCF1.Positive.Classification == 1 & TOX.Positive.Classification == 1, 
+#    L2_annotations:= "ACTIVATED_STEM_CD4"]
+# sln <- addCellMetadata(gobject = sln, new_metadata = md, by_column=T, column_cell_ID = 'cell_ID')
+
 md[L2_annotations == "TCELL_BCELL_MYELOID_MIXED" & CD11C.Positive.Classification == 1, 
    L2_annotations:= "DENDRITIC_CELL"]
-md[L2_annotations == "MEMORY_CD4" & TCF1.Positive.Classification == 1 & TOX.Positive.Classification == 1, 
+md[L2_annotations == "MEMORY_CD4" & PD1.Positive.Classification == 1 & TCF1.Positive.Classification == 1, 
    L2_annotations:= "STEM_CD4"]
-md[L2_annotations == "ACTIVATED_MEMORY_CD4" & TCF1.Positive.Classification == 1 & TOX.Positive.Classification == 1, 
+md[L2_annotations == "ACTIVATED_MEMORY_CD4" & PD1.Positive.Classification == 1 & TCF1.Positive.Classification == 1, 
    L2_annotations:= "ACTIVATED_STEM_CD4"]
 sln <- addCellMetadata(gobject = sln, new_metadata = md, by_column=T, column_cell_ID = 'cell_ID')
 
