@@ -207,8 +207,7 @@ L2.annot <- rbindlist(L2.annot)
 
 # read in SLN 
 ```{r readRDS-full-sln-from-clustering2}
-# sln <- readRDS("objects/sln.clustering2.20260625.131357.RDS")
-sln <- readRDS("revSubm/sln.clustering2.20260625.131357.RDS")
+sln <- readRDS("objects/sln.clustering2.res0.5.20250411.1611.RDS")
 md <- pDataDT(sln) 
 print(paste("Primary object size: ", nrow(md), "cells"))
 print("cluster membership")
