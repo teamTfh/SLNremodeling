@@ -203,6 +203,8 @@ L2.annot[["tbmixed"]][L2.num  == 26, 'L2_annotations':= "ARTIFACT_2"]
 
 ```{r assign_newLabels2}
 L2.annot <- rbindlist(L2.annot)
+L2.annot[cell_ID %like% "tumor.5_100000"]
+
 ```
 
 # read in SLN 
@@ -218,7 +220,7 @@ md[cell_ID %like% "tumor.5_99999"]
 
 
 ```{r assign-L1-labels}
-
+gc()
 df <- data.table(leiden_harmony = md$leiden_harmony, L1_annotations = "Unknown")    
 df[, cell_ID := md$cell_ID]
 df[, L1_annotations := paste0("Clust.", df$leiden_harmony)]  # unknown clusters
@@ -300,6 +302,7 @@ print(table(md$L1_annotations))
 
 missing <- setdiff(md$cell_ID, L2.annot$cell_ID)  # what have we left out  
 md[cell_ID %in% missing, 'L1_annotations'] %>% table  # group them by prior annotation
+gc()
 
 ```
 
@@ -321,6 +324,8 @@ df.new[L2_annotations == 'CD8.outli', L2_annotations := 'CD8.outlier']
 df.new[L1_annotations == 'CD4', L1_annotations := 'cd4.foxp3lo']
 df.new[L1_annotations == 'CD8', L1_annotations := 'cd8.toxlo']
 df.new %>% head
+md[cell_ID %like% "tumor.5_100000"]
+
 ```
 
 # addCellMetadata and check output
@@ -340,45 +345,8 @@ print(md$L3_annotations %>% table %>% length)
 
 ```
 
-# add new subsets - Stem CD4 and DC
-```{r add-new-subsets}
-md <- pDataDT(sln)
-md[cell_ID %like% "tumor.5_100000"]
-md[cell_ID %like% "tumor.5_99999"]
-
-# md[L2_annotations == "TCELL_BCELL_MYELOID_MIXED" & CD11C.Positive.Classification == 1, 
-#    L2_annotations:= "DENDRITIC_CELL"]
-# md[L2_annotations == "MEMORY_CD4" & TCF1.Positive.Classification == 1 & TOX.Positive.Classification == 1, 
-#    L2_annotations:= "STEM_CD4"]
-# md[L2_annotations == "ACTIVATED_MEMORY_CD4" & TCF1.Positive.Classification == 1 & TOX.Positive.Classification == 1, 
-#    L2_annotations:= "ACTIVATED_STEM_CD4"]
-# sln <- addCellMetadata(gobject = sln, new_metadata = md, by_column=T, column_cell_ID = 'cell_ID')
-
-md[L2_annotations == "TCELL_BCELL_MYELOID_MIXED" & CD11C.Positive.Classification == 1, 
-   L2_annotations:= "DENDRITIC_CELL"]
-md[L2_annotations == "MEMORY_CD4" & PD1.Positive.Classification == 1 & TCF1.Positive.Classification == 1, 
-   L2_annotations:= "STEM_CD4"]
-md[L2_annotations == "ACTIVATED_MEMORY_CD4" & PD1.Positive.Classification == 1 & TCF1.Positive.Classification == 1, 
-   L2_annotations:= "ACTIVATED_STEM_CD4"]
-sln <- addCellMetadata(gobject = sln, new_metadata = md, by_column=T, column_cell_ID = 'cell_ID')
-
-
-md$L2_annotations %>% table
-print(md$L2_annotations %>% table %>% length)
-
-md <- pDataDT(sln)
-md[cell_ID %like% "tumor.5_100000"]
-md[cell_ID %like% "tumor.5_99999"]
-```
-
-
-# calculate spatialKNN for later InteractionChangedFeats
-```{r add-spatialKNN}
-sln <- createSpatialKNNnetwork(sln, k=5, method = "dbscan",  name = "spatialknn.k5", verbose = T) 
-```
-
 # UMAP visualizations
-```{r plotUMAP-by-annotations, fig.width=15}
+```{r plotUMAP-by-annotations, fig.width=15, eval=FALSE}
 md <- pDataDT(sln); keepCells <- subset(md, cell_ID %in% sample(md$cell_ID, 2e5))$cell_ID
 sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
 
@@ -431,11 +399,16 @@ spatPlot2D(sln.sm, cell_color = 'L1_annotations', cell_color_code = leiden_color
 
 # final save object 
 ```{r save-SLN-object}
+sln <- removeCellAnnotation(gobject = sln, columns = c("Path Accession Number", "SLN_Biopsy_Date",
+                                                       "Recurrence_Date",  "Immunotherapy_Treatment_Date"))
 saveRDS(object = sln,  file = paste0("objects/sln.clustering5.annot.spatnet.", timeStamp, ".RDS"))
+
 md <- pDataDT(sln)
 saveRDS(object = md, file = paste0("objects/md.sln.clustering5.annot.spatnet.", timeStamp, ".RDS"))
 saveRDS(object = Giotto::getExpression(sln, values = "scaled", output = c("matrix"),  set_defaults = TRUE ),
         file = paste0("objects/exprs.sln.clustering5.annot.spatnet.", timeStamp, ".RDS"))
+md[cell_ID %like% "tumor.5_100000"]
+
 ```
 
 
