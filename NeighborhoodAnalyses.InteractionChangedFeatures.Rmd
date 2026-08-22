@@ -20,7 +20,7 @@ img {
  
  
 ```{r call-libraries} 
-date()
+date();  timeStamp <- strftime(Sys.time() , "%Y%m%d.%H%M%S"); print(timeStamp)
 library(Giotto)
 library(future); if(parallelly::availableCores() > 2 )  # & .Platform$OS.type == "windows")  
   {plan('multisession', workers = parallelly::availableCores()-2)}
@@ -45,7 +45,7 @@ sessionInfo()
 # read in data object 
 ```{r read-annot-sln-spatnet}
 
-sln <- readRDS("sln.clustering5.annot.spatnet.20260606.095149.RDS")
+sln <- readRDS("objects/sln.clustering5.annot.spatnet.20260821.060219.RDS")
 gc()
 md <- pDataDT(sln)
 stableColorsL2 <- getDistinctColors(length(unique(md$L2_annotations)));  names(stableColorsL2) <- unique(md$L2_annotations)
@@ -60,7 +60,6 @@ stage3.subgroup <- c("tumor.1","tumor.2","tumor.3","tumor.4","tumor.5","tumor.6"
 stage1.subgroup <- c("ctrl.1","ctrl.2","ctrl.3","ctrl.4","ctrl.5")
 recur.subgroup <- c("tumor.3","tumor.4","tumor.5","tumor.7","tumor.8","tumor.10")
 norecur.subgroup <- c("tumor.1","tumor.2", "tumor.6", "tumor.9")
-saveRDS(md, file = "md.RDS")
 ```
 
 
@@ -95,14 +94,15 @@ for (i in list_ID)
   print(paste("Random downsample process for", i, "ends at", date()))
 }
 
-saveRDS(icf.persample, file = "neighborhood.ICFlist.perSample.sln.clustering5.spatnet.RDS")
+saveRDS(icf.persample, file = paste0("objects/neighborhood.ICFlist.perSample.sln.clustering5.", timeStamp, ".RDS"))
+
 icf.persample <- purrr::list_rbind(icf.persample, names_to = "list_ID")
 # Job Wall-clock time: 01:51:30              Memory Utilized: 72.67 GB
 ```
 
 # load ICF data 
 ```{r ICF-perSample-loadICF, eval=FALSE}
-icf.persample <- purrr::list_rbind(readRDS(file="neighborhood.ICFlist.perSample.sln.clustering5.spatnet.RDS"), 
+icf.persample <- purrr::list_rbind(readRDS(file="objects/neighborhood.ICFlist.perSample.sln.clustering5._____.RDS"), 
                                     names_to = "list_ID")
 
  #    list_ID  feats       sel     other     log2fc        diff p.value p.adj  perm_sel perm_other perm_log2fc   perm_diff
@@ -261,13 +261,13 @@ for (i in list_ID)
   print(paste("Random downsample process for", i, "ends at", date()))
 }
 
-saveRDS(icf.persample.regroup, file = "neighborhood.ICFlistmod.perSample.sln.clustering5.spatnet.RDS")
+saveRDS(icf.persample.regroup, file = paste0("objects/neighborhood.ICFlistmod.perSample.sln.clustering5.", timeStamp, ".RDS"))
 icf.persample.regroup <- purrr::list_rbind(icf.persample.regroup, names_to = "list_ID")
 ```
 
 ```{r load-ICF-groupedTreg, eval=FALSE}
 
-icf.persample.regroup <- purrr::list_rbind(readRDS(file="neighborhood.ICFlistmod.perSample.sln.clustering5.spatnet.RDS"), 
+icf.persample.regroup <- purrr::list_rbind(readRDS(file="neighborhood.ICFlistmod.perSample.sln.clustering5.____.RDS"), 
                                     names_to = "list_ID")
 
 ```
