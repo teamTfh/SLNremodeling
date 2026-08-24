@@ -19,8 +19,8 @@ img {
 ```
  
  
-```{r call-libraries} 
-date();  timeStamp <- strftime(Sys.time() , "%Y%m%d.%H%M%S")
+```{r call-libraries, message=FALSE} 
+date();  timeStamp <- strftime(Sys.time() , "%Y%m%d.%H%M%S"); print(timeStamp)
 library(Giotto)
 library(future); if(parallelly::availableCores() > 2 )  # & .Platform$OS.type == "windows")  
   {plan('multisession', workers = parallelly::availableCores()-2)}
@@ -43,37 +43,30 @@ sessionInfo()
 
 ```{r scratchpad, eval=FALSE}
 
-# qs2::qs_save(object = readRDS("/gpfs/scratch/heratr01/esimap/objects/sln.clustering5.annot.spatnet.20260818.111925.RDS"), file = "sln.clustering5.annot.spatnet.20260818.111925.qs2", compress_level = 10, nthreads=10  )
+# qs2::qs_save(object = readRDS("objects/sln.clustering5.annot.spatnet.20260821.060219.RDS"), file = "objects/sln.clustering5.annot.spatnet.20260821.060219.qs2", compress_level = 10, nthreads=10  )
 # qs2::qs_save(object = readRDS("/gpfs/data/heratilab/SharedData/HBV/hepb_lymph_node/hbv_bcell_analysis_streamlined/data/20260414_bcell_reclus_organized_joinedLayers_updated_bcr_with_elisa.rds"), file = "20260414_bcell_reclus_organized_joinedLayers_updated_bcr_with_elisa.qs2", compress_level = 10, nthreads=10  )
 
 # qs2::qs_save(object = readRDS("neighborhood.annot.k9.sln.RDS"), file = "neighborhood.annot.k9.sln.qs2", compress_level = 10, nthreads=10  )
 
-waldo::compare(x = qs2::qs_read(file = "neighborhood.annot.k9.sln.qs2"), y = readRDS(file = "neighborhood.annot.k9.sln.RDS"))
- 
+# x = qs2::qs_read(file = "neighborhood.annot.k9.sln.qs2"); y = readRDS(file = "neighborhood.annot.k9.sln.RDS")
 ```
 
-# read in data object 
+# read in data object, clean metadata
 ```{r read-annot-sln-spatnet}
-# sln <- readRDS("sln.clustering5.annot.spatnet.20250617.160512.RDS")
-# gc()
+gc()
 
 if(.Platform$OS.type == "windows")  
 {
   qs2::qopt("nthreads", 5)  # better this than to specify nThreads with every qs2_read call
-  sln <- qs2::qs_read(file = "sln.clustering5.annot.spatnet.20260627.193005.qs2")
-} else sln <- readRDS("objects/sln.clustering5.annot.spatnet.20260818.111925.RDS")
+  sln <- qs2::qs_read(file = "objects/sln.clustering5.annot.spatnet.20250617.160512.qs2")
+} else sln <- readRDS("objects/sln.clustering5.annot.spatnet.20250617.160512.RDS")
 gc()
 
-
+sln <- removeCellAnnotation(gobject = sln, columns = c("Path Accession Number", "SLN_Biopsy_Date",
+                                                       "Recurrence_Date",  "Immunotherapy_Treatment_Date"))  # scrub identifiers
 md <- pDataDT(sln)
 list_ID <- unique(md$list_ID)
-stableColorsL2 <- getDistinctColors(length(unique(md$L2_annotations)));  names(stableColorsL2) <- unique(md$L2_annotations)
-stableColors.sabrina <- readRDS(file = 'l2_v3_master_colors.rds')
-common_names <- intersect(names(stableColorsL2), names(stableColors.sabrina))
-stableColorsL2[common_names] <- stableColors.sabrina[common_names]
-stableColorsL2 <- c(stableColorsL2[!names(stableColorsL2) %in% names(stableColors.sabrina)], 
-                    stableColors.sabrina)
-rm(stableColors.sabrina, common_names)
+
 classifier_label_colors <- c('B Cell Follicle'='#107BDA','GC'='#EE6710', 'T/B Mixed'='yellow', 'T Cell Zone'='#FF0096',
                              'Tumor'='limegreen')
 name_mapping <- c('ctrl.1' = '101', 'ctrl.2' = '102', 'ctrl.3' = '103', 'ctrl.4' = '104', 'ctrl.5' = '105',
@@ -87,11 +80,66 @@ norecur.subgroup <- c("tumor.1","tumor.2", "tumor.6", "tumor.9")
 gc()
 ```
 
-```{r frequency-plots, eval=FALSE}
+# add new subsets - Stem CD4 and DC
+```{r add-new-subsets}
+md <- pDataDT(sln)
+md[cell_ID %like% "tumor.5_100000"]
+md[cell_ID %like% "tumor.5_99999"]
 
+md[L2_annotations == "TCELL_BCELL_MYELOID_MIXED" & CD11C.Positive.Classification == 1, 
+   L2_annotations:= "DENDRITIC_CELL"]
+md[L2_annotations == "MEMORY_CD4" & PD1.Positive.Classification == 1 & TCF1.Positive.Classification == 1, 
+   L2_annotations:= "STEM_CD4"]
+md[L2_annotations == "ACTIVATED_MEMORY_CD4" & PD1.Positive.Classification == 1 & TCF1.Positive.Classification == 1, 
+   L2_annotations:= "ACTIVATED_STEM_CD4"]
+sln <- addCellMetadata(gobject = sln, new_metadata = md, by_column=T, column_cell_ID = 'cell_ID')
+
+md$L2_annotations %>% table
+print(md$L2_annotations %>% table %>% length)
+
+md <- pDataDT(sln)
+md[cell_ID %like% "tumor.5_100000"]
+md[cell_ID %like% "tumor.5_99999"]
+```
+
+
+# calculate spatialKNN again
+```{r add-spatialKNN, eval=FALSE}
+sln <- createSpatialKNNnetwork(sln, k=5, method = "dbscan",  name = "spatialknn.k5", verbose = T) 
+saveRDS(object = sln,  file = paste0("objects/sln.clustering5.annot.spatnet.", timeStamp, ".RDS"))
+
+md <- pDataDT(sln)
+saveRDS(object = md, file = paste0("objects/md.sln.clustering5.annot.spatnet.", timeStamp, ".RDS"))
+saveRDS(object = Giotto::getExpression(sln, values = "scaled", output = c("matrix"),  set_defaults = TRUE ),
+        file = paste0("objects/exprs.sln.clustering5.annot.spatnet.", timeStamp, ".RDS"))
+
+md[cell_ID %like% "tumor.5_100000"]
+md[cell_ID %like% "tumor.5_99999"]
+```
+
+
+```{r set-up-colors}
+stableColorsL2 <- getDistinctColors(length(unique(md$L2_annotations)));  names(stableColorsL2) <- unique(md$L2_annotations)
+stableColors.sabrina <- readRDS(file = 'l2_v3_master_colors.rds')
+common_names <- intersect(names(stableColorsL2), names(stableColors.sabrina))
+stableColorsL2[common_names] <- stableColors.sabrina[common_names]
+stableColorsL2 <- c(stableColorsL2[!names(stableColorsL2) %in% names(stableColors.sabrina)], 
+                    stableColors.sabrina)
+rm(stableColors.sabrina, common_names)
+```
+
+
+```{r import-updated-sln-object-if-needed}
+if(.Platform$OS.type == "windows")  { sln <- qs2::qs_read(file = "objects/sln.clustering5.annot.spatnet.20260821.060219.qs2") }
+
+```
+
+
+
+```{r frequency-plots}
 features_to_plot <- c(  "CD3E", "CD4", "CD8", "TCF1", "CD45RO", "FOXP3", "TOX", "HLA.DR", 
                         "CD21", "CD20", "IGD", "KI67", "CD38", "CD11C", "MART1", "S100B", "GP100", "PD1")
-
+md <- pDataDT(sln)
 expr_matrix <- GiottoClass::getExpression(gobject = sln, values = "scaled", output='matrix')
 expr_subset <- expr_matrix[features_to_plot, , drop = FALSE]
 expr_dt <- as.data.table(t(as.matrix(expr_subset)), keep.rownames = "cell_ID")
@@ -105,6 +153,30 @@ mat <- data.frame(sapply(mat, FUN = function(x) {scales::rescale(x, to=c(-1,1)) 
 
 ComplexHeatmap::pheatmap(mat, color = colorRampPalette(rev(RColorBrewer::brewer.pal(n = 7, name = "RdBu")))(100) )
 
+hladr_expr <- Giotto::getExpression(gobject = sln, values = "normalized", output = "matrix")["HLA.DR", ]
+expr_dt <- data.table(cell_ID = names(hladr_expr), HLA_DR = as.numeric(hladr_expr) )
+expr_dt <- merge(expr_dt, md[, .(cell_ID, L2_annotations)], by = "cell_ID")
+expr_dt <- expr_dt[!L2_annotations %in% c("ARTIFACT", "CD4.outlier", "CD8.outlier")]
+median_order <- expr_dt[, .(med = median(HLA_DR)), by = L2_annotations][order(med), L2_annotations]
+expr_dt[, L2_annotations := factor(L2_annotations, levels = median_order)]
+expr_dt[, is_DC := (L2_annotations == "DENDRITIC_CELL")] 
+
+ggplot(expr_dt, aes(x = HLA_DR, y = L2_annotations, fill = is_DC)) +
+  ggridges::geom_density_ridges(scale = 2, rel_min_height = 0.01, alpha = 0.75, color = "grey20", linewidth = 0.3) +
+  scale_fill_manual( values = c("FALSE" = "grey75", "TRUE" = "#EE6710"), labels = c("Other Cell Types", "Dendritic Cells"),name = NULL) +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.05)), limits = c(0,50)) +
+  labs( title = "HLA-DR Expression", x = "HLA-DR Expression (z-score)", y = NULL) +
+  theme_classic() +
+  theme( axis.text.y = element_text(size = 8, color = "black"), axis.text.x = element_text(color = "black"),legend.position = "top")
+
+expr_dt[, Group := fifelse(L2_annotations == "DENDRITIC_CELL", "Dendritic Cells", "Other Cell Types")]
+ggplot(expr_dt, aes(x = HLA_DR, y = Group, fill = Group)) +
+  ggridges::geom_density_ridges(scale = 1.2,alpha = 0.7,quantile_lines = TRUE,quantiles = 2, color = "black", linewidth = 0.4) +
+  scale_fill_manual(values = c("Dendritic Cells" = "#EE6710", "Other Cell Types" = "grey60")) +
+  labs(title = "Dendritic Cells vs Other Subsets",x = "HLA-DR Expression (z-score)",y = NULL) +
+  theme_classic() +  scale_x_continuous(limits = c(0,50)) +
+  theme(legend.position = "none", axis.text = element_text(color = "black", size = 10))
+
 
 sum.L2 <- md[, .N, by=L2_annotations]; 
 sum.L2 <- sum.L2[order(N, decreasing=T)]
@@ -117,7 +189,12 @@ ggplot(sum.L2, aes(x = L2_annotations, y = N, fill = L2_annotations)) + geom_bar
         axis.text.y = element_text(color='black'), legend.position = 'none') + 
   ylab('Total Number of Cells')
 
-
+res <- dcast(md[, .N, by=c('L2_annotations', 'list_ID')], list_ID ~ L2_annotations, value.var = "N", fill = 0) 
+print(res)
+res <- res[ , sapply(.SD, function(x) mean(x>0) >= 0.9), .SDcols = setdiff(names(res), "list_ID")]
+keep.columns <- names(res)[res];  reject.columns <- names(res)[!res];  all.columns <- names(res)
+print(paste("These subsets have nonzero counts in at least 90% samples: ", paste(keep.columns, collapse = ", ")))
+print(paste("These subsets have zero counts in at least 10% of samples: ", paste(reject.columns, collapse = ",  ")))
 ```
 
 
@@ -356,28 +433,8 @@ cellProx.calcP <- function(table_results, number_of_simulations = 1000,
 gc()
 ```
 
-
-```{r cellproxEnrich-function-k5}
-if(.Platform$OS.type != "windows")  
-{
-  tableResults.k5 <- list()
-  annot.k5 <- list()
-  for (i in list_ID)
-  {
-    print(i)
-    keepCells <- subset(md, list_ID %in% i )$cell_ID
-    sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
-    sln.sm <- createSpatialKNNnetwork(sln.sm, k=5, verbose=T, name = "spatialknn.k5.persample")
-    annot.k5[[i]] <- annotateSpatialNetwork(sln.sm, cluster_column = "L2_annotations", spatial_network_name = 'spatialknn.k5.persample')
-    tableResults.k5[[i]] <- cellProx.sim(sln.sm, cluster_column = 'L2_annotations', adjust_method = "fdr",
-                                         number_of_simulations = 200, spatial_network_name = "spatialknn.k5.persample")
-  }
-  saveRDS(list(annot.k5=annot.k5, tableResults.k5 = tableResults.k5), file="neighborhood.annot.k5.sln.RDS") 
-}
-```
-
 # calculate proximity enrichment per sample for k=9
-```{r cellproxEnrich-function-k9}
+```{r cellproxEnrich-function-k9, eval=FALSE}
 # calculate proximity enrichment per sample for k=9
 
 if(.Platform$OS.type != "windows")  
@@ -396,8 +453,7 @@ if(.Platform$OS.type != "windows")
                                          number_of_simulations = 200, spatial_network_name = "spatialknn.k9.persample")
   }
   
-  saveRDS(list(annot.k9 = annot.k9, tableResults.k9 = tableResults.k9), file="neighborhood.annot.k9.sln.RDS") 
-  
+  saveRDS(list(annot.k9 = annot.k9, tableResults.k9 = tableResults.k9), file=paste0("objects/neighborhood.annot.k9.", timeStamp, ".RDS"))
   dt <- purrr::list_rbind(tableResults.k9, names_to = "id")
 }
 
@@ -422,13 +478,11 @@ if(.Platform$OS.type != "windows")
 Fails on k=10 on tumor.6  (2 million rows) with long vectors error 
 Works for k=9 for all samples 
 
-```{r read-in-annotk9, eval=FALSE}
-# 
-# dt <- purrr::list_rbind(qs2::qs_read(file = "neighborhood.annot.k9.sln.qs2")[['tableResults.k9']], names_to = "id")
-# annot.k9 <- qs2::qs_read(file = "neighborhood.annot.k9.sln.qs2")[['annot.k9']]  #  read in L2 annotations
+```{r read-in-annotk9, eval=TRUE}
 
-dt <- purrr::list_rbind(readRDS(file="neighborhood.annot.k9.sln.RDS")[['tableResults.k9']], names_to = "id")
-annot.k9 <- readRDS(file="neighborhood.annot.k9.sln.RDS")[['annot.k9']]  #  read in L2 annotations
+dt <- purrr::list_rbind(readRDS(file="objects/neighborhood.annot.k9.20260821.060219.RDS")[['tableResults.k9']], names_to = "id")
+annot.k9 <- readRDS(file="objects/neighborhood.annot.k9.20260821.060219.RDS")[['annot.k9']]  #  read in L2 annotations
+
 ```
 
 
@@ -508,13 +562,13 @@ interaction.byRecur <- rbind(addLabels.fxn(res.interaction[recur.subgroup], labe
 ```
 
 
-# find all neighborhoods within a fixed radius around the cell 
-```{r neighborhoods-by-fixed-radius}
+# find all neighborhoods within a fixed radius 
+```{r neighborhoods-by-fixed-radius, eval=FALSE}
 
 gc()
 
 tableResults.rad <- list()
-annot.rad <- list()  # annot.radius
+annot.rad <- list()  
 for (i in list_ID)
 {
   print(i)
@@ -527,17 +581,16 @@ for (i in list_ID)
 }
 if(.Platform$OS.type != "windows")  
 {   
-  saveRDS(list(annot.rad = annot.rad, tableResults.rad = tableResults.rad), file="neighborhood.annot.radius.sln.RDS")   
+  saveRDS(list(annot.rad = annot.rad, tableResults.rad = tableResults.rad), file=paste0("objects/neighborhood.annot.radius.", timeStamp, ".RDS"))
 }
 
-# annot.rad <- readRDS(file="neighborhood.annot.radius.sln.RDS")[['annot.rad']]  #  read in L2 annotations 
 dt <- purrr::list_rbind(tableResults.rad, names_to = "id")
-
 ```
 
 
-```{r interaction-by-sample-radius-loadData, eval=FALSE}
-dt <- purrr::list_rbind(readRDS(file="neighborhood.annot.radius.sln.RDS")[['tableResults.rad']], names_to = "id")
+```{r interaction-by-sample-radius-loadData, eval=TRUE}
+annot.rad <- readRDS(file="objects/neighborhood.annot.radius.20260821.060219.RDS")[['annot.rad']]  #  read in L2 annotations
+dt <- purrr::list_rbind(readRDS(file="objects/neighborhood.annot.radius.20260821.060219.RDS")[['tableResults.rad']], names_to = "id")
 ```
 
 
@@ -552,11 +605,35 @@ rm(dt)
 # gc()
 ```
 
+
+# find neighbors given k=5
+```{r cellproxEnrich-function-k5, eval=FALSE}
+if(.Platform$OS.type != "windows")  
+{
+  tableResults.k5 <- list()
+  annot.k5 <- list()
+  for (i in list_ID)
+  {
+    print(i)
+    keepCells <- subset(md, list_ID %in% i )$cell_ID
+    sln.sm <- subsetGiotto(gobject = sln, cell_ids = keepCells)
+    sln.sm <- createSpatialKNNnetwork(sln.sm, k=5, verbose=T, name = "spatialknn.k5.persample")
+    annot.k5[[i]] <- annotateSpatialNetwork(sln.sm, cluster_column = "L2_annotations", spatial_network_name = 'spatialknn.k5.persample')
+    tableResults.k5[[i]] <- cellProx.sim(sln.sm, cluster_column = 'L2_annotations', adjust_method = "fdr",
+                                         number_of_simulations = 200, spatial_network_name = "spatialknn.k5.persample")
+  }
+  saveRDS(list(annot.k5=annot.k5, tableResults.k5 = tableResults.k5), file=paste0("objects/neighborhood.annot.k5.", timeStamp, ".RDS"))
+}
+dt <- purrr::list_rbind(tableResults.k5, names_to = "id")
+```
+
+
 ```{r interaction-by-k5-loadData, eval=TRUE}
-dt <- purrr::list_rbind(readRDS(file="neighborhood.annot.k5.sln.RDS")[['tableResults.k5']], names_to = "id")
-annot.k5 <- readRDS(file="neighborhood.annot.k5.sln.RDS")[['annot.k5']]   
+dt <- purrr::list_rbind(readRDS(file="objects/neighborhood.annot.k5.20260821.060219.RDS")[['tableResults.k5']], names_to = "id")
+annot.k5 <- readRDS(file="objects/neighborhood.annot.k5.20260821.060219.RDS")[['annot.k5']]   
 
 ```
+
 
 ```{r interaction-by-k5-calculate}
 
@@ -583,7 +660,7 @@ removeArtifacts <- function(dt)
 
 
 
-showNiche.singleSample <- function(annot.table, indexCluster, title, plots=TRUE)
+showNiche.singleSample <- function(annot.table, indexCluster, title, colorSet = stableColorsL2, plots=TRUE)
 {
   # example annot.table[['tumor.5']]
   #                        from                     to sdimx_begin sdimy_begin sdimx_end sdimy_end distance     weight
@@ -604,13 +681,14 @@ showNiche.singleSample <- function(annot.table, indexCluster, title, plots=TRUE)
   # 
   
   res <- removeArtifacts(annot.table)
-  res <- rbind( res[from_cell_type == indexCluster, to_cell_type], 
-                res[to_cell_type == indexCluster, from_cell_type] )  
-  # because the from/to is not really directional, and we'd be missing some of the parings if we assume directionality
+  # res <- rbind( res[from_cell_type == indexCluster, to_cell_type], res[to_cell_type == indexCluster, from_cell_type] )
+  res <- rbind( res[from_cell_type == indexCluster, .(cell_type = to_cell_type)], 
+                res[to_cell_type == indexCluster, .(cell_type = from_cell_type)] )
+    # because the from/to is not really directional, and we'd be missing some of the parings if we assume directionality
   res <- res %>% table %>% prop.table  # calculate proportions 
   res <- as.data.table(res); colnames(res) <- c('subset','proportion')
   res <- res[order(res$proportion, decreasing=T)]
-  stableColorsL2.fxn <- stableColorsL2
+   
 
   res$subset <- factor(res$subset, levels = res$subset)   
   
@@ -622,8 +700,8 @@ showNiche.singleSample <- function(annot.table, indexCluster, title, plots=TRUE)
       geom_bar(stat='identity', width=0.01) + 
       geom_point(size=5) + 
       theme_classic() + ggtitle(title) + 
-        scale_fill_manual(values = stableColorsL2.fxn) +
-        scale_color_manual(values = stableColorsL2.fxn) +
+        scale_fill_manual(values = colorSet) +
+        scale_color_manual(values = colorSet) +
       theme(axis.text.y = element_text( size=6), axis.title.y = element_blank(), plot.title=element_text(size=8)) + 
         theme(legend.position = 'none')  
     )
@@ -642,7 +720,7 @@ showNiche.singleSample <- function(annot.table, indexCluster, title, plots=TRUE)
       # theme(legend.text = element_text(size=3), legend.title = element_text(size=3)) + 
       theme(legend.position = 'none') +
         # theme( plot.margin = margin(0,200,0,0,  unit="pt")) + 
-      scale_fill_manual(values = stableColorsL2.fxn) + scale_color_manual(values = stableColorsL2.fxn) 
+      scale_fill_manual(values = colorSet) + scale_color_manual(values = colorSet) 
     )
   }
   if(plots==T)   return(a)
@@ -740,12 +818,12 @@ plot.Average.Niche.squares <- function( annot.table, indexCluster, title )
     )
 }
 
-plot.Average.Niche.igraph <- function( annot.table, indexCluster, title )
+plot.Average.Niche.igraph <- function( annot.table, indexCluster, title, colorSet= stableColorsL2)
 {
   library(ggraph)
   # make the center the index cell 
   res <- showNiche.multiSample(annot.table = annot.table, indexCluster = indexCluster, title=indexCluster, plots = F)
-  stableColorsL2.fxn <- stableColorsL2
+  stableColorsL2.fxn <- colorSet
 
   ave <- res %>% group_by(subset) %>% summarise(mean_proportion = mean(proportion, na.rm = TRUE))
   ave$subset <- as.character(ave$subset)
@@ -871,7 +949,8 @@ lighten_hex <- function(hex, factor = 0.3) { # You can adjust the factor
   return(rgb_to_hex(new_rgb))
 }
 
-niche.contrast <- function( annot.table, indexCluster, common.title, grouping.exp, grouping.ctrl, condition.exp, condition.ctrl)
+niche.contrast <- function( annot.table, indexCluster, common.title, grouping.exp, grouping.ctrl, condition.exp, condition.ctrl,
+                            colorSet=stableColorsL2)
 {
   ctrl <- showNiche.multiSample(annot.table[grouping.ctrl], indexCluster, title = paste0(common.title,".",condition.ctrl),
                                       plots=F)
@@ -881,7 +960,7 @@ niche.contrast <- function( annot.table, indexCluster, common.title, grouping.ex
   res <- rbind(ctrl, expt)
   res$stage <- factor(res$stage, levels = c(condition.exp, condition.ctrl))
   res$subset <- factor(res$subset, levels = levels(expt$subset))
-  stableColorsL2.fxn <- stableColorsL2
+  stableColorsL2.fxn <- colorSet
 
   # Create a lighter version of the color palette
   lighter_stableColorsL2.fxn <- sapply(stableColorsL2.fxn, lighten_hex, factor = 0.6) # Adjust factor as needed
@@ -910,7 +989,8 @@ niche.contrast <- function( annot.table, indexCluster, common.title, grouping.ex
 }
 
 
-findImportantInteractions <- function( interaction.dt, condition.exp, condition.ctrl, ef.threshold, leaveOutTumor = T)
+findImportantInteractions <- function( interaction.dt, condition.exp, condition.ctrl, ef.threshold=1, leaveOutTumor = T, 
+                                       excl.subsets = reject.columns)
 {
   working.dt <- copy(interaction.dt)
 # example output
@@ -950,8 +1030,8 @@ findImportantInteractions <- function( interaction.dt, condition.exp, condition.
     summarise( mean.diff = mean[condition == condition.exp] - mean[condition == (condition.ctrl)], 
                effect.size = (mean[condition == (condition.exp)] - mean[condition == (condition.ctrl)]) / sqrt(0.5*(sd[condition==(condition.exp)]^2 + sd[condition==(condition.ctrl)]^2))) %>% 
     arrange(desc(effect.size))     
-  print("mean.diff.enrichm")
-  print(as_tibble(mean.diff.enrichm))
+  # print("mean.diff.enrichm")
+  # print(as_tibble(mean.diff.enrichm))
 # example output 
 # A tibble: 703 × 3
  #   unified_int                                                            mean.diff       effect.size
@@ -971,6 +1051,7 @@ findImportantInteractions <- function( interaction.dt, condition.exp, condition.
   df <- as.data.table(mean.diff.enrichm)[ abs(effect.size) > ef.threshold]
   df <- as.data.table(df)[ !unified_int %like% 'outlier' & !unified_int %like% 'ARTIFACT'] 
   if(leaveOutTumor == T) { df <- as.data.table(df)[!unified_int %like% 'Tumor'] }  # leave out tumor interactions 
+  df <- df[ !grepl( pattern = paste(excl.subsets, collapse = "|"), x = unified_int)]  # leave out reject.columns (zero counts in >10% of samples)
   df$unified_int <- factor(df$unified_int, levels = df$unified_int)
   print("effect size table, filtered for effect size threshold")
   print(as_tibble(df))
@@ -1028,7 +1109,7 @@ plot.findImportantInteractions.filtered <- function(df, condition.exp, condition
       geom_bar(stat='identity', width=0.05, color='grey70', fill='grey50') +  
       geom_point(size=4, pch=21, color='white', fill='grey50', stroke=0.2) + 
             theme_classic() + 
-      ggtitle( paste0("Effect size (filtered): ", condition.exp, " - ", condition.ctrl))  +       
+      ggtitle( paste0("Effect size (filtered): ", condition.exp, " vs ", condition.ctrl))  +       
       theme(axis.text.y = element_text( size=8, color='black'), axis.title.y = element_blank(), 
             plot.title=element_text(size=10), 
             axis.title.x = element_text(size=10, color='black'), axis.text.x = element_text(size=10, color='black')) + 
@@ -1041,12 +1122,12 @@ plot.findImportantInteractions.filtered <- function(df, condition.exp, condition
 
 
 
-plot.globalChanges.Effectsize <- function(importIntxn.obj, colNames = names(stableColorsL2), title = "Stage 3 vs Stage 1")
-{
+plot.globalChanges.Effectsize <- function(importIntxn.obj, colorSet = names(stableColorsL2), title, excl.subsets = reject.columns)
+{  
   importIntxn.obj <- as.data.table(importIntxn.obj$fullggplot$data)
-  res_list <- lapply(X = colNames, 
-                   FUN = function(x) { importIntxn.obj[unified_int %like% x, effect.size]} )
-  names(res_list) <- colNames
+  importIntxn.obj <- importIntxn.obj[ !grepl( pattern = paste(excl.subsets, collapse = "|"), x = unified_int)]  # leave out reject.columns  
+  res_list <- lapply(X = colorSet, FUN = function(x) { importIntxn.obj[unified_int %like% x, effect.size]} )
+  names(res_list) <- colorSet
   res_list <- lapply(res_list, as.data.table)
   b <- purrr::list_rbind(res_list, names_to = 'subset')
   names(b)[2] <- "Effect.size"
@@ -1058,11 +1139,11 @@ plot.globalChanges.Effectsize <- function(importIntxn.obj, colNames = names(stab
     geom_violin() +# geom_point(pch=21, color='grey50',fill='grey90', size=0.5) +  
     theme_bw() + theme(axis.title.y = element_blank()) + theme(axis.text = element_text(color='black')) + 
     ggtitle(title)
-  return(a)
+  return(list(plot=a, res_list = res_list, processed.df=b))
 }  
 
 
-plot.boxplot <- function(df, probeSubset, grouping.var, plot.var='proportion', nonparam = T, colorList, title)
+plot.boxplot <- function(df, probeSubset, grouping.var, plot.var='proportion', nonparam = T, colorList = stableColorsL2, title)
 {
   df <- df[subset == probeSubset]
   # pVal <- df %>% rstatix::welch_anova_test(formula = get(plot.var) ~ get(grouping.var)) 
@@ -1078,14 +1159,13 @@ plot.boxplot <- function(df, probeSubset, grouping.var, plot.var='proportion', n
 }
 
 
-plot.enrichm.interaction <- function(interaction.dt, probeSubset, nonparam=T, plot.var='enrichm', colorList, title)
+plot.enrichm.interaction <- function(interaction.dt, probeSubset, nonparam=T, plot.var='enrichm', colorList=c("grey80","grey10"), title)
 {
   interaction.dt <- interaction.dt[unified_int == probeSubset]
   formula.str <- as.formula(paste(plot.var, "~", 'condition'))
   if(nonparam==F)   { pVal <- interaction.dt %>% rstatix::welch_anova_test(formula = formula.str) }
   if(nonparam==T)   { pVal <- interaction.dt %>% rstatix::wilcox_test(formula = formula.str)   }
-  colorList <- colorList[names(colorList) %like% probeSubset]
-  ggplot(interaction.dt, aes(x = condition, y=get(plot.var))) + geom_boxplot(fill = 'grey80', alpha=0.5) + 
+  ggplot(interaction.dt, aes(x = condition, y=get(plot.var))) + geom_boxplot(aes(fill = condition), alpha=0.5) + 
     geom_point(size=4, pch=21, fill='white', color='grey30',) + theme_bw() + theme(axis.text = element_text(color='black')) + 
     scale_fill_manual(values = colorList)  + theme(legend.position = 'null', axis.title.x = element_blank()) + 
     annotate('text', x=1, y=1.2*max(interaction.dt[,.(get(plot.var))]), 
@@ -1154,8 +1234,6 @@ b <- plot.Average.Niche.igraph(annot.table = annot.k9, indexCluster = 'TCF1_LO_T
 
 gridExtra::grid.arrange(a,b, nrow=1) 
 ```
-
-# FAILURE
 
 # locate cells that exist in a given neighborhood 
 ```{r finding-example-cells-for-neighborhood}
@@ -1247,8 +1325,8 @@ a$filteredggplot.selective <- plot.findImportantInteractions.filtered(df = a$df[
 
 
 b <- plot.globalChanges.Effectsize(importIntxn.obj = a, title = "Stage 3 vs Stage 1")
-# ggsave(b, filename = 'output/EffectSize.allSubsets.byStage.violin.pdf', height=6,width=6)
-
+# ggsave(b$plot, filename = 'output/EffectSize.allSubsets.byStage.violin.pdf', height=6,width=6)
+b$plot
 
 
 a <- plot.Average.Niche.igraph(annot.table = annot.k9[stage1.subgroup], indexCluster = 'ACTIVATED_TREG',
@@ -1279,24 +1357,24 @@ plot.boxplot( df = a$res, probeSubset = 'MEMORY_CD8', grouping.var = 'stage', pl
 
 
 plot.enrichm.interaction(interaction.dt = interaction.byStage, probeSubset = "ACTIVATED_TREG--MIXED_TOX_LO_CD8", 
-                         colorList = a$colorScheme, title="ACTIVATED_TREG--\nMIXED_TOX_LO_CD8")
+                         title="ACTIVATED_TREG--\nMIXED_TOX_LO_CD8")
 # ggsave(filename = 'output/ACTIVATED_TREG--MIXED_TOX_LO_CD8.stage.boxplot.pdf', width=2.5,height=3)
 plot.enrichm.interaction(interaction.dt = interaction.byStage, probeSubset = "ACTIVATED_TREG--MEMORY_CD8", 
-                         colorList = a$colorScheme, title="ACTIVATED_TREG--\nMEMORY_CD8")
+                         title="ACTIVATED_TREG--\nMEMORY_CD8")
 # ggsave(filename = 'output/ACTIVATED_TREG--MEMORY_CD8.stage.boxplot.pdf', width=2.5,height=3)
 
 x <- interaction.byStage[condition=='stage1' & enrichm > 1] %>% group_by(unified_int) %>% select(enrichm) %>% rstatix::get_summary_stats(show=c("n", "mean", "sd", "median"))
 plot.enrichm.interaction(interaction.dt = interaction.byStage, probeSubset = "ACTIVATED_TREG--TCF1_HI_TOX_HI_CD8", 
-                         colorList = a$colorScheme, title="ACTIVATED_TREG--\nTCF1_HI_TOX_HI_CD8")
+                         title="ACTIVATED_TREG--\nTCF1_HI_TOX_HI_CD8")
 plot.enrichm.interaction(interaction.dt = interaction.byStage, probeSubset = "ACTIVATED_TREG--TCF1_LO_TOX_HI_CD8", 
-                         colorList = a$colorScheme, title="ACTIVATED_TREG--\nTCF1_LO_TOX_HI_CD8")
+                         title="ACTIVATED_TREG--\nTCF1_LO_TOX_HI_CD8")
 
 plot.enrichm.interaction(interaction.dt = interaction.byStage, probeSubset = "ACTIVATED_TREG--TCF1_HI_TOX_HI_CD8", 
-                         colorList = a$colorScheme, title="ACTIVATED_TREG--\nTCF1_HI_TOX_HI_CD8")
+                         title="ACTIVATED_TREG--\nTCF1_HI_TOX_HI_CD8")
 # ggsave(filename = 'output/ACTIVATED_TREG--TCF1_HI_TOX_HI_CD8.stage.boxplot.pdf', width=2.5,height=3)
 
 plot.enrichm.interaction(interaction.dt = interaction.byStage, probeSubset = "ACTIVATED_TREG--TCF1_LO_TOX_HI_CD8", 
-                         colorList = a$colorScheme, title="ACTIVATED_TREG--\nTCF1_LO_TOX_HI_CD8")
+                         title="ACTIVATED_TREG--\nTCF1_LO_TOX_HI_CD8")
 # ggsave(filename = 'output/ACTIVATED_TREG--TCF1_LO_TOX_HI_CD8.stage.boxplot.pdf', width=2.5,height=3)
 
 
@@ -1315,8 +1393,8 @@ a$filteredggplot.selective
 # ggsave(plot = a$filteredggplot.selective, file = "output/interaction.Recur.EffectSize.justTREG.pdf", height=2, width=4)
 
 b <- plot.globalChanges.Effectsize(importIntxn.obj = a, title = "Recur vs NoRecur")
-# ggsave(b, filename = 'output/EffectSize.allSubsets.byRecur.violin.pdf', height=6,width=6)
-b
+# ggsave(b$plot, filename = 'output/EffectSize.allSubsets.byRecur.violin.pdf', height=6,width=6)
+b$plot
 
 
 a <- plot.Average.Niche.igraph(annot.table = annot.k9[norecur.subgroup], indexCluster = 'ACTIVATED_TREG',
@@ -1338,7 +1416,7 @@ gridExtra::grid.arrange(a, b, nrow=1)
 
 a <- niche.contrast(annot.table = annot.k9, indexCluster = 'ACTIVATED_TREG', common.title='ACTIVATED_TREG', grouping.exp = recur.subgroup, 
                grouping.ctrl = norecur.subgroup, condition.exp = 'recur', condition.ctrl = 'no.recur')
-ggsave(a[['scatterplot']], file = "output/ACTIVATED_TREG.scatterplot.recur-v-norecur.pdf", height=6,width=6)
+# ggsave(a[['scatterplot']], file = "output/ACTIVATED_TREG.scatterplot.recur-v-norecur.pdf", height=6,width=6)
 
 b <- niche.contrast(annot.table = annot.k9, indexCluster = 'TCF1_HI_TOX_HI_CD8', common.title='TCF1_HI_TOX_HI_CD8', 
                     grouping.exp = recur.subgroup, grouping.ctrl = norecur.subgroup, condition.exp = 'recur', condition.ctrl = 'no.recur')
@@ -1349,25 +1427,29 @@ b[['res']][subset == 'ACTIVATED_TREG'] %>% group_by(stage) %>% rstatix::get_summ
 # b[['res']][subset == 'ACTIVATED_TREG'] %>% group_by(stage) %>% rstatix::shapiro_test(proportion)
 b[['res']][subset == 'ACTIVATED_TREG'] %>% rstatix::wilcox_test(formula = proportion ~ stage)
 
-plot.boxplot( df = a$res, probeSubset = 'TCF1_HI_TOX_HI_CD8', grouping.var = 'stage', plot.var='proportion', colorList = a$colorScheme,
+plot.boxplot( df = a$res, probeSubset = 'TCF1_HI_TOX_HI_CD8', grouping.var = 'stage', plot.var='proportion', 
               title = "ACTIVATED_TREG")
 # ggsave(filename = 'output/ACTIVATED_TREG-for-TCF1_HI_TOX_HI_CD8.recur.boxplot.pdf', width=3,height=3)
-plot.boxplot( df = b$res, probeSubset = 'ACTIVATED_TREG', grouping.var = 'stage', plot.var='proportion', colorList = a$colorScheme,
+plot.boxplot( df = b$res, probeSubset = 'ACTIVATED_TREG', grouping.var = 'stage', plot.var='proportion', 
               title = "TCF1_HI_TOX_HI_CD8")
 # ggsave(filename = 'output/TCF1_HI_TOX_HI_CD8-for-ACTIVATED_TREG.recur.boxplot.pdf', width=3,height=3)
 
-plot.enrichm.interaction(interaction.dt = interaction.byRecur, probeSubset = "ACTIVATED_TREG--TCF1_HI_TOX_HI_CD8", colorList = a$colorScheme, title="ACTIVATED_TREG--\nTCF1_HI_TOX_HI_CD8")
+plot.enrichm.interaction(interaction.dt = interaction.byRecur, probeSubset = "ACTIVATED_TREG--TCF1_HI_TOX_HI_CD8", 
+                         title="ACTIVATED_TREG--\nTCF1_HI_TOX_HI_CD8")
 # ggsave(filename = 'output/ACTIVATED_TREG--TCF1_HI_TOX_HI_CD8.recur.boxplot.pdf', width=2.5,height=3)
 
-plot.enrichm.interaction(interaction.dt = interaction.byRecur, probeSubset = "ACTIVATED_CD8--ACTIVATED_TREG", colorList = a$colorScheme, title="ACTIVATED_CD8--\nACTIVATED_TREG")
+plot.enrichm.interaction(interaction.dt = interaction.byRecur, probeSubset = "ACTIVATED_CD8--ACTIVATED_TREG", 
+                         title="ACTIVATED_CD8--\nACTIVATED_TREG")
 # ggsave(filename = 'output/ACTIVATED_CD8--ACTIVATED_TREG.recur.boxplot.pdf', width=2.5,height=3)
+
 ```
 
 
 ```{r determine-LOD, fig.width=8, fig.height=8}
 interaction.byRecur[,.(original)] %>% rstatix::get_summary_stats(type = 'common') 
 
-plot.enrichm.interaction(interaction.dt = interaction.byStage, probeSubset = "ACTIVATED_TREG--TCF1_HI_TOX_HI_CD8", colorList = a$colorScheme, title="ACTIVATED_TREG--\nTCF1_HI_TOX_HI_CD8")
+plot.enrichm.interaction(interaction.dt = interaction.byStage, probeSubset = "ACTIVATED_TREG--TCF1_HI_TOX_HI_CD8", 
+                         title="ACTIVATED_TREG--\nTCF1_HI_TOX_HI_CD8")
 
 # define limit of detection
 # what is background rate in stage 1 where no effect is present 
@@ -1379,7 +1461,7 @@ print(paste0('2*SD + mean = ', 2*stats$sd + stats$mean) )
 # need the negative results, first take all of the non-significant interactions 
 # need to find the null distribution for specific A-B interaction pair
 
-dt <- purrr::list_rbind(readRDS(file="neighborhood.annot.k9.sln.RDS")[['tableResults.k9']], names_to = "id")
+dt <- purrr::list_rbind(readRDS(file="objects/neighborhood.annot.k9.20260821.060219.RDS")[['tableResults.k9']], names_to = "id")
 dt.subs <- dt[unified_int == "ACTIVATED_TREG--TCF1_HI_TOX_HI_CD8"   & 
                 id %in% norecur.subgroup   & 
                 orig == 'simulations']
@@ -1400,8 +1482,8 @@ rm(dt.subs)
 ```
 
 
-# evaluate neighborhoods by radius and k=5 approaches
-```{r evaluate-neighborhoods-by-radius}
+# neighborhoods by radius and k=5 approaches
+```{r neighborhoods-by-radius}
 
 showNiche.singleSample(annot.table = annot.rad[['tumor.5']], indexCluster = 'LZ_BCELL', title='LZ_BCELL.rad',
                             plots=T)
@@ -1483,8 +1565,8 @@ ggplot(DT[variable == "ACTIVATED_TREG"], aes(x = Recurrence, y=Freq )) + # , fil
 ```
 
 
-```{r evaluate-using-k5-neighbors}
-5-5
+```{r using-k5-neighbors}
+
 showNiche.singleSample(annot.table = annot.k5[['tumor.5']], indexCluster = 'LZ_BCELL', title='LZ_BCELL.k5',
                             plots=T)
 showNiche.singleSample(annot.table = annot.k9[['tumor.5']], indexCluster = 'LZ_BCELL', title='LZ_BCELL.k9',
@@ -1628,6 +1710,7 @@ neighbors.histogram(target.cell = TCFhi.CD8, interacting.type = 'TREG', feature=
 # ggsave(filename = 'output/hist.IFNG.TCF1hiToxhiCD8.pdf', width=4,height=3)
 ```
 
+# Calculate Treg changes - progTex
 ```{r effects-of-progTex-adjacency-on-treg}
 neighborhoods.grouped.TREG <- neighborhoods.grouped[from_cell_type %like% "TREG"]
 a <- neighbors.histogram(target.cell = neighborhoods.grouped.TREG, interacting.type = 'TCF1_HI_TOX_HI_CD8', feature='FOXP3', 
@@ -1680,7 +1763,7 @@ a[[1]]
 # ggsave(a[[1]], filename = 'output/hist.TREG.PDL1.TCF1hiToxhiCD8.pdf', width=4,height=3)
 ```
 
-
+# Calculate Treg changes - termTex
 ```{r effects-of-termTex-adjacency-on-treg}
 a <- neighbors.histogram(target.cell = neighborhoods.grouped.TREG, interacting.type = 'TCF1_LO_TOX_HI_CD8', feature='FOXP3', 
                     title = 'FOXP3 in TREG due to TCF1_LO_TOX_HI_CD8', xlab='z score', binwidth=0.25, permutations=1000,
@@ -1734,7 +1817,7 @@ a[[1]]
 
 ```
 
-
+# How Treg change due to Tex
 ```{r plot-of-Treg-ICFtable-given-Tex}
 # make a barplot of the fold change in expression of each feature given Treg adjacency
 ICF.table.bk <- copy(ICF.table)
@@ -1788,7 +1871,7 @@ dt %>% rstatix::wilcox_test(formula = data ~ source)
 
 ```
 
-Not clear if there is a dose-response effect. I think it gets complicated when there are <1000 cells. Probably this cannot be analyzed unless there are more data points to evaluate 
+Not clear if there is a dose-response effect. I think it gets complicated when there are <1000 cells. Probably this cannot be analyzed unless there are more data points 
 
 # Find cells expressing GzmB and show in tissue 
 ```{r draw-cell-interactions-in-silico, plot.width=6}
@@ -1932,7 +2015,7 @@ gridExtra::grid.arrange(a,b, nrow=1)
 
 # identify the distance to the nearest Treg 
 
-```{r cellproxEnrich-function-k50}
+```{r cellproxEnrich-function-k50, eval=FALSE}
 tableResults.k50 <- list()
 annot.k50 <- list()
 for (i in list_ID)
@@ -1950,7 +2033,7 @@ for (i in list_ID)
 
 if(.Platform$OS.type != "windows")  
 {
-  saveRDS(list(annot.k50=annot.k50, tableResults.k50 = tableResults.k50), file="neighborhood.annot.k50.sln.RDS")
+  saveRDS(list(annot.k50=annot.k50, tableResults.k50 = tableResults.k50), file=paste0("objects/neighborhood.annot.k50.", timeStamp, ".RDS"))
 }
 
 
@@ -1968,8 +2051,8 @@ if(.Platform$OS.type != "windows")
 ```
 
 
-```{r identify-distance-to-Treg-loadData, eval=FALSE}
-annot.k50 <- readRDS(file="neighborhood.annot.k50.sln.RDS")[["annot.k50"]]  # all data merged
+```{r identify-distance-to-Treg-loadData, eval=TRUE}
+annot.k50 <- readRDS(file="objects/neighborhood.annot.k50.20260821.060219.RDS")[["annot.k50"]]  # all data merged
 ```
 
 
@@ -2633,8 +2716,8 @@ if(.Platform$OS.type != "windows")
 {
   res.interaction <- calc.Interactions(allInteractions = purrr::list_rbind( lapply(out, FUN = purrr::pluck, 'raw_sim_table' ), names_to = 'id'),
                                        sampleNames = list_ID) 
-  # saveRDS(res.interaction, file = 'revSubm/res.interaction.RDS')
-} else res.interaction <- readRDS(file = 'revSubm/res.interaction.RDS')
+  saveRDS(res.interaction, file = paste0("objects/res.interaction.", timeStamp, ".RDS"))
+} else res.interaction <- readRDS(file = 'objects/res.interaction.20260822.132217.RDS')
 gc()
 
 
@@ -2648,10 +2731,6 @@ interaction.byRecur.trip <- rbind(addLabels.fxn(res.interaction[recur.subgroup],
 
 
 ```{r analyze-triplet-results, fig.width=10, fig.height=10}
-
-
-findImportantInteractions( interaction.dt= interaction.byRecur.trip, condition.exp="recur", 
-                           condition.ctrl="no.recur", ef.threshold=2.5, leaveOutTumor = T)$filteredggplot
 
 
 plot.interaction.rankOrder <- function(imp.intxn.object, ef.threshold=2, leaveOutClusters, labelSubset=NULL)
@@ -2701,11 +2780,9 @@ plot.interaction.rankOrder <- function(imp.intxn.object, ef.threshold=2, leaveOu
   return(z)
 }
 
-a <- findImportantInteractions( interaction.dt= interaction.byRecur.trip, condition.exp="recur", 
-                                condition.ctrl="no.recur", ef.threshold=0, leaveOutTumor = T)
-
-findImportantInteractions( interaction.dt= interaction.byRecur.trip, condition.exp="recur", 
-                           condition.ctrl="no.recur", ef.threshold=2.5, leaveOutTumor = T)$filteredggplot
+a <- findImportantInteractions( interaction.dt= interaction.byRecur.trip, condition.exp="recur", condition.ctrl="no.recur", 
+                                ef.threshold = 2, leaveOutTumor = T)
+a$filteredggplot
 
 plot.interaction.rankOrder(a, ef.threshold=0, leaveOutClusters=c('Tumor','ARTIFACT'), labelSubset = c("TCF1_HI_TOX_HI_CD8")) + 
   xlab('Rank Order') + ylab('Effect size') + theme(axis.line.x = element_blank())
@@ -2714,22 +2791,40 @@ plot.interaction.rankOrder(a, ef.threshold=0, leaveOutClusters=c('Tumor','ARTIFA
 plot.interaction.rankOrder(a, ef.threshold=0, leaveOutClusters=c('Tumor','ARTIFACT'), labelSubset = c("DENDRITIC")) + 
   xlab('Rank Order') + ylab('Effect size') + theme(axis.line.x = element_blank())
 
+x <- plot.globalChanges.Effectsize(importIntxn.obj = a, title = "Recur vs NoRecur")
+x$plot
+
+plot.enrichm.interaction.trip <- function(interaction.dt, probeSubset, nonparam=T, plot.var='enrichm', colorList=c("grey80","grey10"), title)
+{
+  interaction.dt <- interaction.dt[unified_int == probeSubset]
+  formula.str <- as.formula(paste(plot.var, "~", 'condition'))
+  if(nonparam==F)   { pVal <- interaction.dt %>% rstatix::welch_anova_test(formula = formula.str) }
+  if(nonparam==T)   { pVal <- interaction.dt %>% rstatix::wilcox_test(formula = formula.str)   }
+  ggplot(interaction.dt, aes(x = condition, y=get(plot.var))) + geom_boxplot(aes(fill = condition), alpha=0.5) + 
+    geom_point(size=4, pch=21, fill='white', color='grey30',) + theme_bw() + theme(axis.text = element_text(color='black')) + 
+    scale_fill_manual(values = colorList)  + theme(legend.position = 'null', axis.title.x = element_blank()) + 
+    annotate('text', x=1, y=1.2*max(interaction.dt[,.(get(plot.var))]), 
+             label = paste("P=", round(pVal$p, digits=2)), color='black')+
+    ggtitle(title) + ylab("Log2FC enrichment relative to random") #+   scale_y_continuous(expand = expansion(mult = 0.1))
+}
+
+plot.enrichm.interaction.trip(interaction.dt = interaction.byRecur.trip, probeSubset = "ACTIVATED_CD4--ACTIVATED_TREG--TCF1_HI_TOX_HI_CD8", 
+                         title="ACTIVATED_CD4--\nACTIVATED_TREG--\nTCF1_LO_TOX_HI_CD8")
 
 
 ```
 
 
-Job ID: 24451186
+Job ID: 26706689
 Cluster: slurm_cluster
 User/Group: heratr01/heratr01
 State: COMPLETED (exit code 0)
 Nodes: 1
-Cores per node: 5
-CPU Utilized: 07:24:59
-CPU Efficiency: 24.92% of 1-05:45:50 core-walltime
-Job Wall-clock time: 05:57:10
-Memory Utilized: 311.15 GB
-Memory Efficiency: 77.79% of 400.00 GB (400.00 GB/node)
-
+Cores per node: 10
+CPU Utilized: 08:24:14
+CPU Efficiency: 13.55% of 2-14:02:10 core-walltime
+Job Wall-clock time: 06:12:13
+Memory Utilized: 329.69 GB
+Memory Efficiency: 82.42% of 400.00 GB (400.00 GB/node)
 
 
