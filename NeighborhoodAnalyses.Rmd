@@ -118,6 +118,26 @@ md[cell_ID %like% "tumor.5_99999"]
 ```
 
 
+```{r import-updated-sln-object-if-needed}
+if(.Platform$OS.type == "windows")  { 
+  sln <- qs2::qs_read(file = "objects/sln.clustering5.annot.spatnet.20260821.060219.qs2")
+  md <- pDataDT(sln)
+  list_ID <- unique(md$list_ID)
+  
+  classifier_label_colors <- c('B Cell Follicle'='#107BDA','GC'='#EE6710', 'T/B Mixed'='yellow', 'T Cell Zone'='#FF0096',
+                               'Tumor'='limegreen')
+  name_mapping <- c('ctrl.1' = '101', 'ctrl.2' = '102', 'ctrl.3' = '103', 'ctrl.4' = '104', 'ctrl.5' = '105',
+                    'tumor.1' = '301', 'tumor.2' = '302', 'tumor.3' = '303', 'tumor.4' = '304', 'tumor.5' = '305',
+                    'tumor.6' = '306', 'tumor.7' = '307','tumor.8' = '308','tumor.9' = '309', 'tumor.10' = '310' )
+  stage3.subgroup <- c("tumor.1","tumor.2","tumor.3","tumor.4","tumor.5","tumor.6","tumor.7", "tumor.8",
+                                                   "tumor.9","tumor.10")
+  stage1.subgroup <- c("ctrl.1","ctrl.2","ctrl.3","ctrl.4","ctrl.5")
+  recur.subgroup <- c("tumor.3","tumor.4","tumor.5","tumor.7","tumor.8","tumor.10")
+  norecur.subgroup <- c("tumor.1","tumor.2", "tumor.6", "tumor.9")
+  gc() 
+}
+```
+
 ```{r set-up-colors}
 stableColorsL2 <- getDistinctColors(length(unique(md$L2_annotations)));  names(stableColorsL2) <- unique(md$L2_annotations)
 stableColors.sabrina <- readRDS(file = 'l2_v3_master_colors.rds')
@@ -126,12 +146,6 @@ stableColorsL2[common_names] <- stableColors.sabrina[common_names]
 stableColorsL2 <- c(stableColorsL2[!names(stableColorsL2) %in% names(stableColors.sabrina)], 
                     stableColors.sabrina)
 rm(stableColors.sabrina, common_names)
-```
-
-
-```{r import-updated-sln-object-if-needed}
-if(.Platform$OS.type == "windows")  { sln <- qs2::qs_read(file = "objects/sln.clustering5.annot.spatnet.20260821.060219.qs2") }
-
 ```
 
 
@@ -543,9 +557,6 @@ calc.Interactions <- function(allInteractions, sampleNames)
   return(perSampleInteraction.enrichm_res)
 }
 
-res.interaction <- calc.Interactions(allInteractions = dt, sampleNames = list_ID)
-
-
 addLabels.fxn <- function(dt, label)
 {
   for (i in seq_along(dt))   {   dt[[i]][, list_ID := names(dt)[i]]   }  # attach the sample name to a new column
@@ -553,6 +564,14 @@ addLabels.fxn <- function(dt, label)
   dt$condition <- label  # add in a column for the stage 
   return(dt)
 }
+```
+
+
+```{r custom-cellproxEnrich-function-subgroup-runfunctions}
+res.interaction <- calc.Interactions(allInteractions = dt, sampleNames = list_ID)
+
+
+
 
 interaction.byStage <- rbind(addLabels.fxn(res.interaction[stage3.subgroup], label = "stage3"),
              addLabels.fxn(res.interaction[stage1.subgroup], label = "stage1") ) 
@@ -647,7 +666,7 @@ rm(dt)
 # gc()
 ```
 
-
+# define functions
 ```{r define-functions}
 
 removeArtifacts <- function(dt)
@@ -1325,7 +1344,7 @@ a$filteredggplot.selective <- plot.findImportantInteractions.filtered(df = a$df[
 
 
 b <- plot.globalChanges.Effectsize(importIntxn.obj = a, title = "Stage 3 vs Stage 1")
-# ggsave(b$plot, filename = 'output/EffectSize.allSubsets.byStage.violin.pdf', height=6,width=6)
+# ggsave(b$plot, filename = 'C
 b$plot
 
 
@@ -2151,15 +2170,15 @@ ypos = max(dt$data) * 0.85
 ggplot(dt, aes(x = source, y=data)) + 
   geom_violin(fill='grey80', draw_quantiles = c(0.5), color='black', linewidth = 0.5) + ggtitle(subset) + 
   xlab("Distance to nearest Treg") + ylab(spec.prot) + 
-  annotate('text', x=0.5, y=ypos, color='black', 
-           label= paste0("Mean ", lab.less, ": ", round(mean(dt[source == lab.less, data]), 1), 
-                       "\n",
-                       "Mean ", lab.more,": ", round(mean(dt[source == lab.more, data]), 1),
-                       "\nPermutation test: P=", ifelse(p.val==0, 1/num.perm, p.val)),
-           hjust = 0, size=3) +
+  # annotate('text', x=0.5, y=ypos, color='black', 
+  #          label= paste0("Mean ", lab.less, ": ", round(mean(dt[source == lab.less, data]), 1), 
+  #                      "\n",
+  #                      "Mean ", lab.more,": ", round(mean(dt[source == lab.more, data]), 1),
+  #                      "\nPermutation test: P=", ifelse(p.val==0, 1/num.perm, p.val)),
+  #          hjust = 0, size=3) +
   theme_classic() + theme(legend.position = 'none', axis.text = element_text(size=12, color='black'), 
                           axis.text.x = element_text(size=12, hjust=1, vjust=1, angle=45)) 
-# ggsave(filename = 'output/dist.to.Treg.GZMB.TCFloCD8.pdf', width=3, height=3)
+ggsave(filename = 'output/dist.to.Treg.GZMB.TCFloCD8.pdf', width=3, height=3)
 
 
 #  ***** TCF1_LO *****
@@ -2178,15 +2197,15 @@ ypos = max(dt$data) * 0.85
 ggplot(dt, aes(x = source, y=data)) + 
   geom_violin(fill='grey80', draw_quantiles = c(0.5), color='black', linewidth = 0.5) + ggtitle(subset) + 
   xlab("Distance to nearest Treg") + ylab(spec.prot) + 
-  annotate('text', x=0.5, y=ypos, color='black', 
-           label= paste0("Mean ", lab.less, ": ", round(mean(dt[source == lab.less, data]), 1), 
-                       "\n",
-                       "Mean ", lab.more,": ", round(mean(dt[source == lab.more, data]), 1),
-                       "\nPermutation test: P=", ifelse(p.val==0, 1/num.perm, p.val)),
-           hjust = 0, size=3) +
+  # annotate('text', x=0.5, y=ypos, color='black', 
+  #          label= paste0("Mean ", lab.less, ": ", round(mean(dt[source == lab.less, data]), 1), 
+  #                      "\n",
+  #                      "Mean ", lab.more,": ", round(mean(dt[source == lab.more, data]), 1),
+  #                      "\nPermutation test: P=", ifelse(p.val==0, 1/num.perm, p.val)),
+  #          hjust = 0, size=3) +
   theme_classic() + theme(legend.position = 'none', axis.text = element_text(size=12, color='black'), 
                           axis.text.x = element_text(size=12, hjust=1, vjust=1, angle=45)) 
-# ggsave(filename = 'output/dist.to.Treg.IFNG.TCFloCD8.pdf', width=3, height=3)
+ggsave(filename = 'output/dist.to.Treg.IFNG.TCFloCD8.pdf', width=3, height=3)
 
 
 #  ***** TCF1_HI *****
@@ -2205,15 +2224,15 @@ ypos = max(dt$data) * 0.85
 ggplot(dt, aes(x = source, y=data)) + 
   geom_violin(fill='grey80', draw_quantiles = c(0.5), color='black', linewidth = 0.5) + ggtitle(subset) + 
   xlab("Distance to nearest Treg") + ylab(spec.prot) + 
-  annotate('text', x=0.5, y=ypos, color='black', 
-           label= paste0("Mean ", lab.less, ": ", round(mean(dt[source == lab.less, data]), 1), 
-                       "\n",
-                       "Mean ", lab.more,": ", round(mean(dt[source == lab.more, data]), 1),
-                       "\nPermutation test: P=", ifelse(p.val==0, 1/num.perm, p.val)),
-           hjust = 0, size=3) +
+  # annotate('text', x=0.5, y=ypos, color='black', 
+  #          label= paste0("Mean ", lab.less, ": ", round(mean(dt[source == lab.less, data]), 1), 
+  #                      "\n",
+  #                      "Mean ", lab.more,": ", round(mean(dt[source == lab.more, data]), 1),
+  #                      "\nPermutation test: P=", ifelse(p.val==0, 1/num.perm, p.val)),
+  #          hjust = 0, size=3) +
   theme_classic() + theme(legend.position = 'none', axis.text = element_text(size=12, color='black'), 
                           axis.text.x = element_text(size=12, hjust=1, vjust=1, angle=45)) 
-# ggsave(filename = 'output/dist.to.Treg.GZMB.TCFhiCD8.pdf', width=3, height=3)
+ggsave(filename = 'output/dist.to.Treg.GZMB.TCFhiCD8.pdf', width=3, height=3)
 
  
 
@@ -2233,15 +2252,15 @@ ypos = max(dt$data) * 0.85
 ggplot(dt, aes(x = source, y=data)) + 
   geom_violin(fill='grey80', draw_quantiles = c(0.5), color='black', linewidth = 0.5) + ggtitle(subset) + 
   xlab("Distance to nearest Treg") + ylab(spec.prot) + 
-  annotate('text', x=0.5, y=ypos, color='black', 
-           label= paste0("Mean ", lab.less, ": ", round(mean(dt[source == lab.less, data]), 1), 
-                       "\n",
-                       "Mean ", lab.more,": ", round(mean(dt[source == lab.more, data]), 1),
-                       "\nPermutation test: P=", ifelse(p.val==0, 1/num.perm, p.val)),
-           hjust = 0, size=3) +
+  # annotate('text', x=0.5, y=ypos, color='black', 
+  #          label= paste0("Mean ", lab.less, ": ", round(mean(dt[source == lab.less, data]), 1), 
+  #                      "\n",
+  #                      "Mean ", lab.more,": ", round(mean(dt[source == lab.more, data]), 1),
+  #                      "\nPermutation test: P=", ifelse(p.val==0, 1/num.perm, p.val)),
+  #          hjust = 0, size=3) +
   theme_classic() + theme(legend.position = 'none', axis.text = element_text(size=12, color='black'), 
                           axis.text.x = element_text(size=12, hjust=1, vjust=1, angle=45)) 
-# ggsave(filename = 'output/dist.to.Treg.IFNG.TCFhiCD8.pdf', width=3, height=3)
+ggsave(filename = 'output/dist.to.Treg.IFNG.TCFhiCD8.pdf', width=3, height=3)
 
 
 #  ***** Tumor *****
@@ -2299,6 +2318,443 @@ ggplot(dt, aes(x = source, y=data)) +
 # ggsave(filename = 'output/dist.to.Tumor.IFNG.TCFloCD8.pdf', width=3, height=3)
 
 ```
+
+
+```{r threshold-for-zscores}
+md <- pDataDT(sln)
+
+# 2. Extract scaled (z-score) expression matrix
+expr_mat <- Giotto::getExpression(sln, values = "normalized", output = "matrix")
+
+# Match expression values to metadata cell IDs
+md[, IFNg_z := expr_mat['IFNG', md$cell_ID]]
+md[, GZMb_z := expr_mat['GZMB', md$cell_ID]]
+
+ggplot() + geom_histogram(data = md[GZMB.Positive.Classification==0], aes(x=GZMb_z), binwidth = 1, fill="grey") + 
+  # geom_histogram(data = md[GZMB.Positive.Classification==1], aes(x=IFNg_z), binwidth = 1, fill="darkred", alpha=0.8) + 
+  theme_classic() + scale_x_continuous(limits =c(0,70), breaks=seq(0,100,5)) + 
+  ggtitle("GZMb z scores in HALO Classifier")
+# ggsave("output/GZMB_classifierFALSE_hist.pdf", width = 3.5, height = 4)
+
+ggplot() + geom_histogram(data = md[IFNG.Positive.Classification==0], aes(x=IFNg_z), binwidth = 1, fill="grey") + 
+  # geom_histogram(data = md[IFNG.Positive.Classification==1], aes(x=IFNg_z), binwidth = 1, fill="darkred", alpha=0.8) + 
+  theme_classic() + scale_x_continuous(limits =c(0,70), breaks=seq(0,100,5)) + 
+  ggtitle("IFNg z scores in HALO Classifier")
+# ggsave("output/IFNG_classifierFALSE_hist.pdf", width = 3.5, height = 4)
+
+md[, Predicted_Pos := as.integer(IFNg_z >= 12)]
+# Cross-tabulation (rows: threshold prediction, cols: HALO truth)
+cm <- table(Predicted = factor(md$Predicted_Pos, levels = c(0, 1)),
+            HALO = factor(md$IFNG.Positive.Classification, levels = c(0, 1)))
+
+# Extract counts
+TN <- cm["0", "0"]
+FP <- cm["1", "0"]
+FN <- cm["0", "1"]
+TP <- cm["1", "1"]
+
+metrics <- data.frame(
+  Metric = c("True Positives (TP)", "False Positives (FP)", 
+             "True Negatives (TN)", "False Negatives (FN)",
+             "Sensitivity / Recall", "Specificity", 
+             "Precision / PPV", "Negative Predictive Value (NPV)", 
+             "Balanced Accuracy", "F1 Score"),
+  Value = c(
+    TP, FP, TN, FN,
+    TP / (TP + FN),
+    TN / (TN + FP),
+    TP / (TP + FP),
+    TN / (TN + FN),
+    0.5 * ((TP / (TP + FN)) + (TN / (TN + FP))),
+    2 * TP / (2 * TP + FP + FN)
+  )
+)
+
+print(cm)
+print(metrics)
+
+
+```
+
+
+```{r revised-proximity-to-treg}
+
+
+run_paired_proximity_pct <- function(
+    nearest_data,        # data.table (e.g., nearest.Treg or nearest.Tumor)
+    from_subset,         # string: target cell type (e.g., "TCF1_LO_TOX_HI_CD8")
+    target_prot,         # string: protein marker (e.g., "IFNG" or "GZMB")
+    pos_thresh,          # numeric: threshold defining positive cells
+    giotto_obj,          # Giotto object containing expression matrix
+    pixel_radius = 15.92,# numeric: 15.92 px * 0.377 um/px = 6.0 um
+    label_dist = "6 µm", # string: for plotting labels
+    target_name = "Treg" # string: "Treg" or "Tumor"
+) {
+  
+  # Filter to target subset and assign Euclidean distance bins
+  lab_less <- paste0("≤ ", label_dist)
+  lab_more <- paste0("> ", label_dist)
+  
+  dt_subset <- nearest_data[from_cell_type == from_subset]
+  dt_subset[, dist_bin := cut(
+    min.dist.Treg, 
+    breaks = c(0, pixel_radius, Inf), 
+    labels = c(lab_less, lab_more),
+    right = TRUE, 
+    include_lowest = TRUE
+  )]
+  
+  # Extract normalized protein expression
+  expr_vec <- Giotto::getExpression(
+    gobject = giotto_obj, 
+    values = "normalized"
+  )@exprMat[target_prot, dt_subset$from]
+  
+  dt_subset <- merge( dt_subset, 
+    data.table(from = names(expr_vec), expr = as.numeric(expr_vec)), 
+    by = "from"  )
+  
+  # Aggregate to patient-level percentages (Biological Replicates)
+  patient_summary <- dt_subset[, .(
+    total_cells = .N,
+    pos_cells   = sum(expr > pos_thresh, na.rm = TRUE),
+    pct_pos     = 100 * (sum(expr > pos_thresh, na.rm = TRUE) / .N)
+  ), by = .(list_ID, dist_bin)]
+  
+  # Ensure complete pairs across biological replicates
+  paired_wide <- dcast(patient_summary, list_ID ~ dist_bin, value.var = "pct_pos")
+  complete_samples <- paired_wide[complete.cases(paired_wide), list_ID]
+  
+  patient_summary <- patient_summary[list_ID %in% complete_samples]
+  paired_wide <- paired_wide[list_ID %in% complete_samples]
+  
+  n_replicates <- nrow(paired_wide)
+  
+  # Paired Wilcoxon Signed-Rank Test
+  w_test <- wilcox.test(
+    paired_wide[[lab_less]], 
+    paired_wide[[lab_more]], 
+    paired = TRUE, 
+    alternative = "two.sided", 
+    exact = FALSE
+  )
+  p_val <- w_test$p.value
+  
+  # Calculate summary stats for labeling
+  med_less <- median(paired_wide[[lab_less]])
+  med_more <- median(paired_wide[[lab_more]])
+  mean_less <- mean(paired_wide[[lab_less]])
+  mean_more <- mean(paired_wide[[lab_more]])
+  
+  # Generate Paired Slopegraph / Dot-and-Line Plot
+  y_max <- max(patient_summary$pct_pos, na.rm = TRUE)
+  
+  p <- ggplot(patient_summary, aes(x = dist_bin, y = pct_pos)) +
+    geom_line(aes(group = list_ID), color = "grey50", alpha = 0.7, linewidth = 0.5) +
+    geom_point(aes(color = dist_bin), size = 2.5, alpha = 0.85) +
+    stat_summary(fun = median, geom = "crossbar", width = 0.3, color = "black", linewidth = 0.6) +
+    scale_color_manual(values = c("firebrick3", "navyblue")) + theme_classic() +
+    theme(legend.position = "none", axis.text = element_text(size = 11, color = "black"),
+      axis.title = element_text(size = 14, color = "black"),
+      plot.title = element_text(size = 14, hjust = 0.5) ) +
+    labs( 
+      title = from_subset,
+      # title = paste0(from_subset, "\n(", target_prot, " Positive)"),
+      x = paste0("Distance to nearest ", target_name), y = paste0("% ", target_prot, "+ cells") ) +
+    annotate(
+      "text", x = 1, y = y_max * 1.1, 
+      label = paste0(
+        # "Median: ", round(med_less, 1), "% vs ", round(med_more, 1),
+        "P = ", format.pval(p_val, digits = 2), "\n"),
+      size = 4, hjust = 0.5)  +    scale_y_continuous(expand = expansion(mult = c(0.05, 0.15)))
+  
+  return(list(
+    plot = p, 
+    p_value = p_val, 
+    data_paired = paired_wide, 
+    data_summary = patient_summary  ))
+}
+
+# ------------------------------------------------------------------------------
+# 2. Executing Analyses for IFNG and GZMB Across Subsets
+# ------------------------------------------------------------------------------
+
+# Define positivity thresholds based on effector tail gating:
+thresh_IFNG <- 12    
+thresh_GZMB <- 12   
+
+# subs.sln <- Giotto::subsetGiotto(sln, list_ID %in% stage3.subgroup)
+
+# --- IFNG in TCF1_LO_TOX_HI_CD8 ---
+res_ifng_tcflo <- run_paired_proximity_pct(
+  nearest_data = nearest.Treg,
+  from_subset  = "TCF1_LO_TOX_HI_CD8",
+  target_prot  = "IFNG",
+  pos_thresh   = thresh_IFNG,
+  giotto_obj   = subs.sln,
+  pixel_radius = 15.92,
+  label_dist   = "6 µm",
+  target_name  = "Treg"
+)
+print(res_ifng_tcflo$plot)
+ggsave("output/paired_pct_IFNG_TCFloCD8.pdf", res_ifng_tcflo$plot, width = 3, height = 3)
+
+# --- IFNG in TCF1_HI_TOX_HI_CD8 ---
+res_ifng_tcfhi <- run_paired_proximity_pct(
+  nearest_data = nearest.Treg,
+  from_subset  = "TCF1_HI_TOX_HI_CD8",
+  target_prot  = "IFNG",
+  pos_thresh   = thresh_IFNG,
+  giotto_obj   = subs.sln,
+  pixel_radius = 15.92,
+  label_dist   = "6 µm",
+  target_name  = "Treg"
+)
+print(res_ifng_tcfhi$plot)
+ggsave("output/paired_pct_IFNG_TCFhiCD8.pdf", res_ifng_tcfhi$plot, width = 3, height = 3)
+
+# --- GZMB in TCF1_LO_TOX_HI_CD8 ---
+res_gzmb_tcflo <- run_paired_proximity_pct(
+  nearest_data = nearest.Treg,
+  from_subset  = "TCF1_LO_TOX_HI_CD8",
+  target_prot  = "GZMB",
+  pos_thresh   = thresh_GZMB,
+  giotto_obj   = subs.sln,
+  pixel_radius = 15.92,
+  label_dist   = "6 µm",
+  target_name  = "Treg"
+)
+print(res_gzmb_tcflo$plot)
+ggsave("output/paired_pct_GZMB_TCFloCD8.pdf", res_gzmb_tcflo$plot, width = 3, height = 3)
+
+# --- GZMB in TCF1_HI_TOX_HI_CD8 ---
+res_gzmb_tcfhi <- run_paired_proximity_pct(
+  nearest_data = nearest.Treg,
+  from_subset  = "TCF1_HI_TOX_HI_CD8",
+  target_prot  = "GZMB",
+  pos_thresh   = thresh_GZMB,
+  giotto_obj   = subs.sln,
+  pixel_radius = 15.92,
+  label_dist   = "6 µm",
+  target_name  = "Treg"
+)
+print(res_gzmb_tcfhi$plot)
+ggsave("output/paired_pct_GZMB_TCFhiCD8.pdf", res_gzmb_tcfhi$plot, width = 3, height = 3)
+
+# rm(subs.sln)
+
+```
+
+
+
+```{r stratify-nearestTreg-by-recurrence}
+
+run_stratified_proximity_pct <- function(
+    nearest_data,           # data.table: nearest.Treg or nearest.Tumor
+    from_subset,            # string: "TCF1_LO_TOX_HI_CD8" or "TCF1_HI_TOX_HI_CD8"
+    target_prot,            # string: "IFNG" or "GZMB"
+    pos_thresh,             # numeric: gating threshold defining positive cells
+    giotto_obj,             # Giotto object containing expression matrix
+    recur_ids,              # character vector: patient IDs with recurrence
+    norecur_ids,            # character vector: patient IDs without recurrence
+    pixel_radius = 15.92,   # numeric: 15.92 px * 0.377 um/px = 6.0 um
+    label_dist = "6 µm",    # string: distance label for plots
+    target_name = "Treg"    # string: "Treg" or "Tumor"
+) {
+  
+  lab_less <- paste0("≤ ", label_dist)
+  lab_more <- paste0("> ", label_dist)
+  
+  # Filter to target subset and establish distance bins
+  dt_subset <- nearest_data[from_cell_type == from_subset]
+  dt_subset[, dist_bin := cut(
+    min.dist.Treg, 
+    breaks = c(0, pixel_radius, Inf), 
+    labels = c(lab_less, lab_more),
+    right = TRUE, 
+    include_lowest = TRUE
+  )]
+  
+  # Assign recurrence metadata
+  dt_subset[, recurrence := fcase(
+    list_ID %in% recur_ids,   "Recurrence",
+    list_ID %in% norecur_ids, "No Recurrence",
+    default = NA_character_
+  )]
+  dt_subset <- dt_subset[!is.na(recurrence)]
+  
+  # Retrieve normalized protein expression
+  expr_vec <- Giotto::getExpression(
+    gobject = giotto_obj, 
+    values = "normalized"
+  )@exprMat[target_prot, dt_subset$from]
+  
+  dt_subset <- merge(
+    dt_subset, 
+    data.table(from = names(expr_vec), expr = as.numeric(expr_vec)), 
+    by = "from"
+  )
+  
+  # Aggregate to patient-level percentages (Biological Replicates)
+  patient_summary <- dt_subset[, .(
+    total_cells = .N,
+    pos_cells   = sum(expr > pos_thresh, na.rm = TRUE),
+    pct_pos     = 100 * (sum(expr > pos_thresh, na.rm = TRUE) / .N)
+  ), by = .(list_ID, recurrence, dist_bin)]
+  
+  # Reshape to wide format to enforce complete pairs
+  paired_wide <- dcast(patient_summary, list_ID + recurrence ~ dist_bin, value.var = "pct_pos")
+  paired_wide <- paired_wide[complete.cases(paired_wide)]
+  
+  # Calculate paired within-patient suppression delta (<= 6 um minus > 6 um)
+  paired_wide[, delta_pct := get(lab_less) - get(lab_more)]
+  
+  # Ensure patient_summary reflects complete pairs
+  patient_summary <- patient_summary[list_ID %in% paired_wide$list_ID]
+  
+  # Enforce factor levels for plotting order
+  patient_summary[, recurrence := factor(recurrence, levels = c("No Recurrence", "Recurrence"))]
+  paired_wide[, recurrence := factor(recurrence, levels = c("No Recurrence", "Recurrence"))]
+  
+  # --- Statistical Testing ---
+  
+  # 1. Within-cohort paired tests
+  wide_recur <- paired_wide[recurrence == "Recurrence"]
+  wide_norecur <- paired_wide[recurrence == "No Recurrence"]
+  
+  w_recur <- wilcox.test(
+    wide_recur[[lab_less]], wide_recur[[lab_more]], 
+    paired = TRUE, alternative = "two.sided", exact = FALSE
+  )
+  w_norecur <- wilcox.test(
+    wide_norecur[[lab_less]], wide_norecur[[lab_more]], 
+    paired = TRUE, alternative = "two.sided", exact = FALSE
+  )
+  
+  # 2. Between-cohort comparison of paired deltas (Interaction test)
+  w_delta <- wilcox.test(delta_pct ~ recurrence, data = paired_wide, exact = FALSE)
+  
+  # Median summaries
+  stats_table <- paired_wide[, .(
+    n = .N,
+    median_less = median(get(lab_less)),
+    median_more = median(get(lab_more)),
+    median_delta = median(delta_pct)
+  ), by = recurrence]
+  
+  # --- Faceted Slopegraph Visualization ---
+  y_max <- max(patient_summary$pct_pos, na.rm = TRUE)
+  
+  p_slope <- ggplot(patient_summary, aes(x = dist_bin, y = pct_pos)) +
+    geom_line(aes(group = list_ID, color = recurrence), alpha = 0.75, linewidth = 0.6) +
+    geom_point(aes(color = recurrence), size = 2.5, alpha = 0.9) +
+    stat_summary(fun = median, geom = "crossbar", width = 0.35, color = "black", linewidth = 0.7) +
+    facet_wrap(~ recurrence) +
+    scale_color_manual(values = c("No Recurrence" = "royalblue4", "Recurrence" = "firebrick3")) +
+    theme_classic() +
+    theme(
+      legend.position = "none",
+      strip.background = element_blank(),
+      strip.text = element_text(size = 12, face = "bold", color = "black"),
+      axis.text = element_text(size = 11, color = "black"),
+      axis.title = element_text(size = 12, face = "bold", color = "black"),
+      plot.title = element_text(size = 12, face = "bold", hjust = 0.5),
+      plot.subtitle = element_text(size = 10, hjust = 0.5, color = "grey30")
+    ) +
+    labs(
+      title = paste0(from_subset, " (% ", target_prot, "+)"),
+      subtitle = paste0("Interaction (Delta comparison) Mann-Whitney p = ", format.pval(w_delta$p.value, digits = 3)),
+      x = paste0("Distance to nearest ", target_name),
+      y = paste0("% ", target_prot, "+ cells")
+    ) +
+    scale_y_continuous(expand = expansion(mult = c(0.05, 0.15)))
+  
+  # Add individual within-group p-value annotations per facet
+  ann_text <- data.frame(
+    recurrence = factor(c("No Recurrence", "Recurrence"), levels = c("No Recurrence", "Recurrence")),
+    dist_bin = 1.5,
+    pct_pos = y_max * 1.08,
+    label = c(
+      paste0("Paired p = ", format.pval(w_norecur$p.value, digits = 3), "\n(n = ", nrow(wide_norecur), ")"),
+      paste0("Paired p = ", format.pval(w_recur$p.value, digits = 3), "\n(n = ", nrow(wide_recur), ")")
+    )
+  )
+  p_slope <- p_slope + geom_text(data = ann_text, aes(label = label), size = 3.2, hjust = 0.5)
+  
+  # --- Delta Comparison Plot ---
+  p_delta <- ggplot(paired_wide, aes(x = recurrence, y = delta_pct, fill = recurrence)) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
+    geom_boxplot(outlier.shape = NA, alpha = 0.5, width = 0.4) +
+    ggbeeswarm::geom_beeswarm(size = 2.5, shape = 21, color = "black") +
+    scale_fill_manual(values = c("No Recurrence" = "royalblue3", "Recurrence" = "firebrick2")) +
+    theme_classic() +
+    theme(
+      legend.position = "none",
+      axis.text = element_text(size = 11, color = "black"),
+      axis.title = element_text(size = 12, face = "bold", color = "black"),
+      plot.title = element_text(size = 11, face = "bold", hjust = 0.5)
+    ) +
+    labs(
+      title = paste0("Δ % ", target_prot, "+ (≤ 6 µm minus > 6 µm)"),
+      subtitle = paste0("Mann-Whitney p = ", format.pval(w_delta$p.value, digits = 3)),
+      x = "Clinical Outcome",
+      y = paste0("Δ % ", target_prot, "+")
+    )
+  
+  return(list(
+    slope_plot   = p_slope,
+    delta_plot   = p_delta,
+    p_recur      = w_recur$p.value,
+    p_norecur    = w_norecur$p.value,
+    p_delta      = w_delta$p.value,
+    paired_data  = paired_wide,
+    summary_data = patient_summary,
+    stats_table  = stats_table
+  ))
+}
+
+# ------------------------------------------------------------------------------
+# 2. Execution Across Subsets and Proteins
+# ------------------------------------------------------------------------------
+
+thresh_IFNG <- 15   # Adjust to your validated gating threshold
+thresh_GZMB <- 15  # Adjust to your validated gating threshold
+
+# --- IFNG in TCF1_LO_TOX_HI_CD8 ---
+res_ifng_tcflo <- run_stratified_proximity_pct(
+  nearest_data = nearest.Treg,
+  from_subset  = "TCF1_LO_TOX_HI_CD8",
+  target_prot  = "IFNG",
+  pos_thresh   = thresh_IFNG,
+  giotto_obj   = sln,
+  recur_ids    = recur.subgroup,
+  norecur_ids  = norecur.subgroup,
+  pixel_radius = 15.92,
+  label_dist   = "6 µm",
+  target_name  = "Treg"
+)
+print(res_ifng_tcflo$slope_plot)
+print(res_ifng_tcflo$delta_plot)
+
+# --- GZMB in TCF1_LO_TOX_HI_CD8 ---
+res_gzmb_tcflo <- run_stratified_proximity_pct(
+  nearest_data = nearest.Treg,
+  from_subset  = "TCF1_LO_TOX_HI_CD8",
+  target_prot  = "GZMB",
+  pos_thresh   = thresh_GZMB,
+  giotto_obj   = sln,
+  recur_ids    = recur.subgroup,
+  norecur_ids  = norecur.subgroup,
+  pixel_radius = 15.92,
+  label_dist   = "6 µm",
+  target_name  = "Treg"
+)
+print(res_gzmb_tcflo$slope_plot)
+print(res_gzmb_tcflo$delta_plot)
+
+
+```
+
 
 
 # study spatial triplets in the data 
@@ -2733,66 +3189,87 @@ interaction.byRecur.trip <- rbind(addLabels.fxn(res.interaction[recur.subgroup],
 ```{r analyze-triplet-results, fig.width=10, fig.height=10}
 
 
-plot.interaction.rankOrder <- function(imp.intxn.object, ef.threshold=2, leaveOutClusters, labelSubset=NULL)
+plot.interaction.rankOrder <- function(imp.intxn.object, ef.threshold = 0, leaveOutClusters = NULL, labelSubset = NULL, top_n_labels = 5)
 {
   df <- imp.intxn.object[[1]]
-  df <- df[! unified_int %in% leaveOutClusters]
-  df <- df[abs(effect.size) > ef.threshold]
-  df[, rankOrder := .I];   df[, labelSubset := ""]
-  max_rank <- max(df$rankOrder);  min_rank <- min(df$rankOrder);     rank_range <- max_rank - min_rank
-  annotateX.ctrl <- max_rank*0.95;  annotateX.exp <- min_rank+0.2*min_rank
-  annotateY <- min(df$effect.size)+0.2*min(df$effect.size)
-  if( !is.null(labelSubset))   
-  {   
-    indices.to.label <- df$unified_int %like% labelSubset
-    df[indices.to.label, labelSubset := unified_int]
-    df[, labelSubset := gsub("--", " • ", labelSubset)]
-    z <- ggplot(df, aes(x = rankOrder, y = effect.size, label = labelSubset)) 
-  }   
-  else {   z <- ggplot(df, aes(x = rankOrder, y = effect.size, label = unified_int))  }
-  df[, target_nudge_x := ifelse(effect.size >= 0, max_rank * 0.25, -max_rank * 0.25)]
-  df[, target_nudge_y := ifelse(effect.size >= 0, max(effect.size) * 0.15, min(effect.size) * 0.15)]
-  nudge_x_vector <- if(!is.null(labelSubset)) ifelse(!is.na(df$labelSubset), df$target_nudge_x, 0) else df$target_nudge_x
-  nudge_y_vector <- if(!is.null(labelSubset)) ifelse(!is.na(df$labelSubset), df$target_nudge_y, 0) else df$target_nudge_y
-  
-  z <- z + geom_point(pch=21, color='black',fill='gray50', alpha=0.3, size=5) +
+  if (!is.null(leaveOutClusters)) {
+    df <- df[! unified_int %in% leaveOutClusters]
+  }
+  df <- df[abs(effect.size) >= ef.threshold]
+  setorder(df, -effect.size)
+  df[, rankOrder := .I]
+  df[, highlight := FALSE]
+  df[, plot_label := ""]
+
+  max_rank <- max(df$rankOrder)
+  min_rank <- min(df$rankOrder)
+  annotateX.ctrl <- max_rank * 0.92
+  annotateX.exp  <- max_rank * 0.08
+  annotateY      <- min(df$effect.size) * 1.1
+
+  if (!is.null(labelSubset)) {
+    matched_pos <- which(df$unified_int %like% labelSubset & df$effect.size > 0)
+    matched_neg <- which(df$unified_int %like% labelSubset & df$effect.size < 0)
+
+    top_pos <- head(matched_pos, top_n_labels)
+    top_neg <- tail(matched_neg, top_n_labels)
+    selected_idx <- c(top_pos, top_neg)
+
+    df[selected_idx, highlight := TRUE]
+    df[selected_idx, plot_label := gsub("--", " • ", unified_int)]
+  }
+
+  pos_labels <- df[plot_label != "" & effect.size > 0]
+  neg_labels <- df[plot_label != "" & effect.size < 0]
+
+  z <- ggplot(df, aes(x = rankOrder, y = effect.size)) +
+    geom_point(color = "gray80", size = 2, alpha = 0.6) +
+    geom_point(data = df[highlight == TRUE], color = "#D55E00", size = 3.5) +
+    geom_hline(yintercept = 0, color = "gray40", linewidth = 0.4, linetype = "dashed") +
+    ggrepel::geom_text_repel(data = pos_labels,aes(label = plot_label),size = 2.8, nudge_x = max_rank * 0.15,
+      nudge_y = 1.0,direction = "both",segment.color = "gray40",segment.size = 0.3,box.padding = 0.4,
+      point.padding = 0.3,min.segment.length = 0) +
     ggrepel::geom_text_repel(
-      max.overlaps = 5, size=3,
-      nudge_x = nudge_x_vector, nudge_y = nudge_y_vector,
-      direction = "both",               # Allows alignment along x and y dimensions
-      segment.color = "grey30",         # Crisp line matching point borders
-      box.padding = 0.8,                # Spacing around label bounding box
-      point.padding = 0.4,              # Clear boundary zone right around the dot
-      force = 10,                       # Push hard out toward the nudged destinations
-      min.segment.length = 0            # Always draw lines, even for close labels
-    ) +
-    geom_hline(yintercept = 0, color='black') + 
-    ggtitle( paste0("Effect size: ", 
-                    imp.intxn.object$parameters$condition.exp, " vs ", imp.intxn.object$parameters$condition.ctrl))  +             
+      data = neg_labels,aes(label = plot_label),size = 2.8,nudge_x = -max_rank * 0.15, nudge_y = -1.0,
+      direction = "both",segment.color = "gray40", segment.size = 0.3, box.padding = 0.4, point.padding = 0.3,
+      min.segment.length = 0 ) +
+    ggtitle(paste0("Effect size: ", imp.intxn.object$parameters$condition.exp, " vs ",
+                   imp.intxn.object$parameters$condition.ctrl)) +
+    annotate("text", x = annotateX.exp, y = annotateY, size = 4, label = imp.intxn.object$parameters$condition.exp) +
+    annotate("text", x = annotateX.ctrl, y = annotateY, size = 4, label = imp.intxn.object$parameters$condition.ctrl) +
+    xlab("Rank Order") +  ylab("Effect size") +
     theme_classic() +
-    theme(axis.text.y = element_text( size=8, color='black'),  
-            plot.title=element_text(size=10), 
-            axis.title.x = element_text(size=10, color='black'), axis.text.x = element_text(size=10, color='black')) +
-    theme(legend.position = 'none') + 
-    annotate("text", x = annotateX.exp, y = annotateY, size = 5, label = imp.intxn.object$parameters$condition.exp) + 
-    annotate("text", x = annotateX.ctrl, y = annotateY, size = 3, label = imp.intxn.object$parameters$condition.ctrl) + 
-    ylab("Effect size")  +  coord_cartesian(clip = 'off') 
+    theme(axis.text = element_text(size = 9, color = "black"),axis.title = element_text(size = 10, color = "black"),
+      plot.title = element_text(size = 11, face = "bold"),legend.position = "none") +
+    coord_cartesian(clip = "off")
+
   return(z)
 }
 
 a <- findImportantInteractions( interaction.dt= interaction.byRecur.trip, condition.exp="recur", condition.ctrl="no.recur", 
-                                ef.threshold = 2, leaveOutTumor = T)
+                                ef.threshold = 3, leaveOutTumor = T)
 a$filteredggplot
+# ggsave(a$filteredggplot, filename = 'output/interactionTrip.Recur.EffectSize.pdf', width=7,height=7)
 
-plot.interaction.rankOrder(a, ef.threshold=0, leaveOutClusters=c('Tumor','ARTIFACT'), labelSubset = c("TCF1_HI_TOX_HI_CD8")) + 
+a <- findImportantInteractions( interaction.dt= interaction.byRecur.trip, condition.exp="recur", condition.ctrl="no.recur", 
+                                ef.threshold = 0, leaveOutTumor = T)
+plot.interaction.rankOrder(a, ef.threshold=1, leaveOutClusters=c('Tumor','ARTIFACT'), labelSubset = c("TCF1_HI_TOX_HI_CD8")) + 
   xlab('Rank Order') + ylab('Effect size') + theme(axis.line.x = element_blank())
-# ggsave(filename = 'output/interactionTrip.Recur.EffectSize.pdf', width=7,height=7)
+ggsave(filename = 'output/interactionTrip.Recur.EffectSize.v2.TCFhiTOXhi.pdf', width=7,height=8)
+
+a <- findImportantInteractions( interaction.dt= interaction.byRecur.trip, condition.exp="recur", condition.ctrl="no.recur", 
+                                ef.threshold = 0, leaveOutTumor = T)
+plot.interaction.rankOrder(a, ef.threshold=1, leaveOutClusters=c('Tumor','ARTIFACT'), labelSubset = c("ACTIVATED_TREG")) + 
+  xlab('Rank Order') + ylab('Effect size') + theme(axis.line.x = element_blank())
+ggsave(filename = 'output/interactionTrip.Recur.EffectSize.v2.Treg.pdf', width=7,height=8)
+
 
 plot.interaction.rankOrder(a, ef.threshold=0, leaveOutClusters=c('Tumor','ARTIFACT'), labelSubset = c("DENDRITIC")) + 
   xlab('Rank Order') + ylab('Effect size') + theme(axis.line.x = element_blank())
 
 x <- plot.globalChanges.Effectsize(importIntxn.obj = a, title = "Recur vs NoRecur")
 x$plot
+
 
 plot.enrichm.interaction.trip <- function(interaction.dt, probeSubset, nonparam=T, plot.var='enrichm', colorList=c("grey80","grey10"), title)
 {
@@ -2801,8 +3278,8 @@ plot.enrichm.interaction.trip <- function(interaction.dt, probeSubset, nonparam=
   if(nonparam==F)   { pVal <- interaction.dt %>% rstatix::welch_anova_test(formula = formula.str) }
   if(nonparam==T)   { pVal <- interaction.dt %>% rstatix::wilcox_test(formula = formula.str)   }
   ggplot(interaction.dt, aes(x = condition, y=get(plot.var))) + geom_boxplot(aes(fill = condition), alpha=0.5) + 
-    geom_point(size=4, pch=21, fill='white', color='grey30',) + theme_bw() + theme(axis.text = element_text(color='black')) + 
-    scale_fill_manual(values = colorList)  + theme(legend.position = 'null', axis.title.x = element_blank()) + 
+    geom_point(size=4, pch=21, fill='white', color='grey30') + theme_bw() + theme(axis.text = element_text(color='black')) + 
+    scale_fill_manual(values = colorList)  + theme(legend.position = 'none', axis.title.x = element_blank()) + 
     annotate('text', x=1, y=1.2*max(interaction.dt[,.(get(plot.var))]), 
              label = paste("P=", round(pVal$p, digits=2)), color='black')+
     ggtitle(title) + ylab("Log2FC enrichment relative to random") #+   scale_y_continuous(expand = expansion(mult = 0.1))
@@ -2810,6 +3287,11 @@ plot.enrichm.interaction.trip <- function(interaction.dt, probeSubset, nonparam=
 
 plot.enrichm.interaction.trip(interaction.dt = interaction.byRecur.trip, probeSubset = "ACTIVATED_CD4--ACTIVATED_TREG--TCF1_HI_TOX_HI_CD8", 
                          title="ACTIVATED_CD4--\nACTIVATED_TREG--\nTCF1_LO_TOX_HI_CD8")
+ggsave(filename = 'output/ACTIVATED_CD4--ACTIVATED_TREG--TCF1_HI_TOX_HI_CD8.recur.boxplot.pdf', width=2.5, height=3.5)
+
+plot.enrichm.interaction.trip(interaction.dt = interaction.byRecur.trip, probeSubset = "ACTIVATED_TREG--MIXED_TOX_LO_CD8--TCF1_HI_TOX_HI_CD8", 
+                         title="ACTIVATED_TREG--\nMIXED_TOX_LO_CD8--\nTCF1_HI_TOX_HI_CD8")
+ggsave(filename = 'output/ACTIVATED_TREG--MIXED_TOX_LO_CD8--TCF1_HI_TOX_HI_CD8.recur.boxplot.pdf', width=2.5, height=3.5)
 
 
 ```
